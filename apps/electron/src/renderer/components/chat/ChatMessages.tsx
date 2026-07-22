@@ -1,0 +1,451 @@
+/**
+ * ChatMessages - 消息区域
+ *
+ * 使用 Conversation / ConversationContent / ConversationScrollButton 原语
+ * 替代手动 scroll。支持上下文分隔线和并排模式切换。
+ *
+ * 功能：
+ * - StickToBottom 自动滚动容器
+ * - 遍历 messages → ChatMessageItem
+ * - 消息间渲染 ContextDivider（根据 contextDividersAtom）
+ * - streaming 时末尾显示临时 assistant 消息
+ * - 并排模式切换到 ParallelChatMessages
+ */
+
+import * as React from 'react'
+import { useAtomValue, useSetAtom } from 'jotai'
+import { Loader2 } from 'lucide-react'
+import { WelcomeEmptyState } from '@/components/welcome/WelcomeEmptyState'
+import { ChatMessageItem, formatMessageTime } from './ChatMessageItem'
+import type { InlineEditSubmitPayload } from './ChatMessageItem'
+import { ChatToolActivityIndicator } from './ChatToolActivityIndicator'
+import { ParallelChatMessages } from './ParallelChatMessages'
+import {
+  Message,
+  MessageHeader,
+  MessageContent,
+  MessageLoading,
+  MessageResponse,
+  StreamingIndicator,
+} from '@/components/ai-elements/message'
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation'
+import { ScrollMinimap } from '@/components/ai-elements/scroll-minimap'
+import type { MinimapItem } from '@/components/ai-elements/scroll-minimap'
+import { useStickToBottomContext } from 'use-stick-to-bottom'
+import { ContextDivider } from '@/components/ai-elements/context-divider'
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from '@/components/ai-elements/reasoning'
+import { useSmoothStream } from '@shadiao/ui'
+import { ScrollPositionManager } from '@/hooks/useScrollPositionMemory'
+import { useConversationParallelMode } from '@/hooks/useConversationSettings'
+import { getModelLogo, resolveModelProvider } from '@/lib/model-logo'
+import { userProfileAtom } from '@/atoms/user-profile'
+import { channelsAtom } from '@/atoms/chat-atoms'
+import { tabMinimapCacheAtom } from '@/atoms/tab-atoms'
+import type { ChatMessage, ChatToolActivity } from '@shadiao/shared'
+
+// ===== 滚动到顶部加载更多 =====
+
+interface ScrollTopLoaderProps {
+  /** 是否还有更多历史消息 */
+  hasMore: boolean
+  /** 是否正在加载 */
+  loading: boolean
+  /** 加载更多回调 */
+  onLoadMore: () => Promise<void>
+}
+
+/**
+ * 滚动到顶部自动加载更多历史消息
+ *
+ * 挂在 Conversation（StickToBottom）内部，通过 context 获取滚动容器 ref，
+ * 监听 scroll 事件，当滚动到顶部附近时触发加载。
+ * 加载后恢复滚动位置，保证用户视角不变。
+ */
+function ScrollTopLoader({ hasMore, loading, onLoadMore }: ScrollTopLoaderProps): React.ReactElement | null {
+  const { scrollRef } = useStickToBottomContext()
+  const triggeredRef = React.useRef(false)
+
+  // hasMore 变化时重置触发标记（例如切换对话）
+  React.useEffect(() => {
+    triggeredRef.current = false
+  }, [hasMore])
+
+  React.useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !hasMore || triggeredRef.current) return
+
+    const handleScroll = (): void => {
+      // 滚动到顶部 100px 以内时触发
+      if (el.scrollTop < 100 && !triggeredRef.current) {
+        triggeredRef.current = true
+        const prevHeight = el.scrollHeight
+
+        onLoadMore().then(() => {
+          // 加载完成后恢复滚动位置：新内容插入顶部，保持用户视角不变
+          requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight - prevHeight
+          })
+        })
+      }
+    }
+
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [scrollRef, hasMore, onLoadMore])
+
+  if (!hasMore) return null
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-3">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return null
+}
+
+// ===== 主组件 =====
+
+interface ChatMessagesProps {
+  /** 当前对话 ID */
+  conversationId: string
+  /** 消息列表 */
+  messages: ChatMessage[]
+  /** 消息是否已完成首次 IPC 加载 */
+  messagesLoaded: boolean
+  /** 是否正在流式生成 */
+  streaming: boolean
+  /** 流式累积内容 */
+  streamingContent: string
+  /** 流式推理内容 */
+  streamingReasoning: string
+  /** 流式消息绑定的模型 */
+  streamingModel: string | null
+  /** 流式开始时间戳 */
+  startedAt?: number
+  /** 工具活动列表 */
+  toolActivities: ChatToolActivity[]
+  /** 上下文分隔线 */
+  contextDividers: string[]
+  /** 是否还有更多历史消息 */
+  hasMore: boolean
+  /** 删除消息回调 */
+  onDeleteMessage?: (messageId: string) => Promise<void>
+  /** 重新发送消息回调 */
+  onResendMessage?: (message: ChatMessage) => Promise<void>
+  /** 开始原地编辑消息 */
+  onStartInlineEdit?: (message: ChatMessage) => void
+  /** 提交原地编辑 */
+  onSubmitInlineEdit?: (message: ChatMessage, payload: InlineEditSubmitPayload) => Promise<void>
+  /** 取消原地编辑 */
+  onCancelInlineEdit?: () => void
+  /** 当前正在编辑的消息 ID */
+  inlineEditingMessageId?: string | null
+  /** 删除分隔线回调 */
+  onDeleteDivider?: (messageId: string) => void
+  /** 加载更多历史消息回调 */
+  onLoadMore?: () => Promise<void>
+  /** 图片编辑完成回调 */
+  onImageEditComplete?: (editedDataUrl: string) => void
+}
+
+/** 空状态引导 — 使用 WelcomeEmptyState */
+function EmptyState(): React.ReactElement {
+  return <WelcomeEmptyState />
+}
+
+export function ChatMessages({
+  conversationId,
+  messages,
+  messagesLoaded,
+  streaming,
+  streamingContent,
+  streamingReasoning,
+  streamingModel,
+  startedAt,
+  toolActivities,
+  contextDividers,
+  hasMore,
+  onDeleteMessage,
+  onResendMessage,
+  onStartInlineEdit,
+  onSubmitInlineEdit,
+  onCancelInlineEdit,
+  inlineEditingMessageId,
+  onDeleteDivider,
+  onLoadMore,
+  onImageEditComplete,
+}: ChatMessagesProps): React.ReactElement {
+  const userProfile = useAtomValue(userProfileAtom)
+  const channels = useAtomValue(channelsAtom)
+  const setMinimapCache = useSetAtom(tabMinimapCacheAtom)
+
+  // 平滑流式输出：将高频更新转为逐字渲染
+  const { displayedContent: rawSmoothContent } = useSmoothStream({
+    content: streamingContent,
+    isStreaming: streaming,
+  })
+  const { displayedContent: rawSmoothReasoning } = useSmoothStream({
+    content: streamingReasoning,
+    isStreaming: streaming,
+  })
+
+  // 防闪屏守卫：useSmoothStream 的内部状态通过 useEffect 更新，比 props 晚一帧。
+  // 当流式状态被清除（streamingContent 变为 ''）但 smoothContent 仍持有旧值时，
+  // 会导致持久化消息和流式气泡同时渲染一帧（重复内容闪烁）。
+  // 这里用原始 streamingContent 作为守卫：如果原始内容已清空且不在流式中，立即归零。
+  const smoothContent = (streaming || streamingContent) ? rawSmoothContent : ''
+  const smoothReasoning = (streaming || streamingReasoning) ? rawSmoothReasoning : ''
+  const [parallelMode] = useConversationParallelMode()
+
+  /** 是否正在加载更多历史 */
+  const [loadingMore, setLoadingMore] = React.useState(false)
+
+  /**
+   * 流式完成过渡：streaming 结束到持久化消息加载完成之间，
+   * 强制 resize="instant" 避免中间高度变化触发平滑滚动动画。
+   *
+   * render-phase 计算保证第一帧就能切到 instant（不依赖 useEffect 延迟）。
+   */
+  const [transitioningCooldown, setTransitioningCooldown] = React.useState(false)
+  const wasStreamingRef = React.useRef(streaming)
+
+  const needsInstant = !streaming && (!!streamingContent || !!smoothContent)
+
+  React.useEffect(() => {
+    if (wasStreamingRef.current && !streaming) {
+      setTransitioningCooldown(true)
+    }
+    wasStreamingRef.current = streaming
+  }, [streaming])
+
+  React.useEffect(() => {
+    if (needsInstant) return
+    const timer = setTimeout(() => setTransitioningCooldown(false), 150)
+    return () => clearTimeout(timer)
+  }, [needsInstant])
+
+  const transitioning = needsInstant || transitioningCooldown
+
+  // 缓存 streaming MessageHeader 的 props，避免每帧 re-render 导致闪烁
+  const streamingTime = React.useMemo(
+    () => formatMessageTime(startedAt ?? Date.now()),
+    [startedAt]
+  )
+  const streamingLogo = React.useMemo(
+    () => (
+      <img
+        src={getModelLogo(streamingModel ?? '', resolveModelProvider(streamingModel ?? '', channels))}
+        alt="AI"
+        className="size-[35px] rounded-[25%] object-cover"
+      />
+    ),
+    [streamingModel, channels]
+  )
+
+  /**
+   * 淡入控制：切换对话时先隐藏，等 StickToBottom 定位完成后再显示。
+   * 避免 "先看到顶部消息再跳到底部" 的闪烁。
+   */
+  const [ready, setReady] = React.useState(false)
+  // 空对话无需淡入过渡（无消息则无滚动位置问题）
+  const [skipFadeIn, setSkipFadeIn] = React.useState(false)
+  const prevConversationIdRef = React.useRef<string | null>(null)
+
+  // 对话切换时立即隐藏
+  React.useEffect(() => {
+    if (conversationId !== prevConversationIdRef.current) {
+      prevConversationIdRef.current = conversationId
+      setReady(false)
+      setSkipFadeIn(false)
+    }
+  }, [conversationId])
+
+  // 消息渲染 + StickToBottom 定位完成后淡入
+  React.useEffect(() => {
+    if (ready) return
+
+    // 必须等消息 IPC 加载完成，否则 messages=[] 会被误判为空对话
+    if (!messagesLoaded) return
+
+    // 加载完后确实是空对话：直接显示（无需过渡动画）
+    if (messages.length === 0 && !streaming) {
+      setSkipFadeIn(true)
+      setReady(true)
+      return
+    }
+
+    // 双 rAF：确保 DOM 渲染和 StickToBottom 滚动都完成
+    let cancelled = false
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) setReady(true)
+      })
+    })
+    return () => { cancelled = true }
+  }, [messages, streaming, ready, messagesLoaded])
+
+  /** 加载更多历史消息 */
+  const handleLoadMore = React.useCallback(async () => {
+    if (!onLoadMore || loadingMore || !hasMore) return
+
+    setLoadingMore(true)
+    await onLoadMore()
+    setLoadingMore(false)
+  }, [onLoadMore, loadingMore, hasMore])
+
+  // 并排模式：自动加载全部历史消息（并排视图需要完整上下文）
+  React.useEffect(() => {
+    if (parallelMode && hasMore) {
+      handleLoadMore()
+    }
+  }, [parallelMode, hasMore, handleLoadMore])
+
+  // 迷你地图数据（必须在所有条件分支之前调用，遵守 hooks 规则）
+  const minimapItems: MinimapItem[] = React.useMemo(
+    () => messages.map((m) => ({
+      id: m.id,
+      role: m.role as MinimapItem['role'],
+      preview: m.content.slice(0, 200),
+      avatar: m.role === 'user' ? userProfile.avatar : undefined,
+      model: m.model,
+    })),
+    [messages, userProfile.avatar]
+  )
+
+  // 同步 minimap 缓存到 Tab 级别（供 Tab hover 预览使用）
+  React.useEffect(() => {
+    if (minimapItems.length > 0) {
+      setMinimapCache((prev) => {
+        const next = new Map(prev)
+        next.set(conversationId, minimapItems)
+        return next
+      })
+    }
+  }, [conversationId, minimapItems, setMinimapCache])
+
+  // 并排模式
+  if (parallelMode) {
+    return (
+      <ParallelChatMessages
+        messages={messages}
+        conversationId={conversationId}
+        streaming={streaming}
+        streamingContent={smoothContent}
+        streamingReasoning={smoothReasoning}
+        startedAt={startedAt}
+        contextDividers={contextDividers}
+        onDeleteDivider={onDeleteDivider}
+        onDeleteMessage={onDeleteMessage}
+        onResendMessage={onResendMessage}
+        onStartInlineEdit={onStartInlineEdit}
+        onSubmitInlineEdit={onSubmitInlineEdit}
+        onCancelInlineEdit={onCancelInlineEdit}
+        inlineEditingMessageId={inlineEditingMessageId}
+        loadingMore={loadingMore}
+      />
+    )
+  }
+
+  // 标准消息列表模式
+  const dividerSet = new Set(contextDividers)
+
+  return (
+    <Conversation resize={ready && !transitioning ? 'smooth' : 'instant'} className={ready ? (skipFadeIn ? 'opacity-100' : 'opacity-100 transition-opacity duration-200') : 'opacity-0'}>
+      <ScrollPositionManager id={conversationId} ready={ready} />
+      {/* 滚动到顶部时自动加载更多历史 */}
+      <ScrollTopLoader
+        hasMore={hasMore}
+        loading={loadingMore}
+        onLoadMore={handleLoadMore}
+      />
+      <ConversationContent>
+        {messages.length === 0 && !streaming ? (
+          <EmptyState />
+        ) : (
+          <>
+            {/* 已有消息 + 分隔线 */}
+            {messages.map((msg: ChatMessage) => (
+              <React.Fragment key={msg.id}>
+                <div data-message-id={msg.id}>
+                  <ChatMessageItem
+                    message={msg}
+                    conversationId={conversationId}
+                    isStreaming={false}
+                    isLastAssistant={false}
+                    allMessages={messages}
+                    onDeleteMessage={onDeleteMessage}
+                    onResendMessage={onResendMessage}
+                    onStartInlineEdit={onStartInlineEdit}
+                    onSubmitInlineEdit={onSubmitInlineEdit}
+                    onCancelInlineEdit={onCancelInlineEdit}
+                    isInlineEditing={msg.id === inlineEditingMessageId}
+                    onImageEditComplete={onImageEditComplete}
+                  />
+                </div>
+                {/* 分隔线 */}
+                {dividerSet.has(msg.id) && (
+                  <ContextDivider
+                    messageId={msg.id}
+                    onDelete={onDeleteDivider}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+
+            {/* 正在生成 / 停止后等待磁盘消息加载的临时 assistant 消息 */}
+            {(streaming || smoothContent || smoothReasoning) && (
+              <Message from="assistant">
+                <MessageHeader
+                  model={streamingModel ?? undefined}
+                  time={streamingTime}
+                  logo={streamingLogo}
+                />
+                <MessageContent>
+                  {/* 工具活动指示器 */}
+                  <ChatToolActivityIndicator activities={toolActivities} isStreaming={streaming} />
+
+                  {/* 推理内容（如果有） */}
+                  {smoothReasoning && (
+                    <Reasoning
+                      isStreaming={streaming && !smoothContent}
+                      defaultOpen={true}
+                    >
+                      <ReasoningTrigger />
+                      <ReasoningContent>{smoothReasoning}</ReasoningContent>
+                    </Reasoning>
+                  )}
+
+                  {/* 流式内容（经过平滑处理） */}
+                  {smoothContent ? (
+                    <>
+                      <MessageResponse>{smoothContent}</MessageResponse>
+                      {streaming && <StreamingIndicator />}
+                    </>
+                  ) : (
+                    /* 等待首个 chunk 时的加载动画（仅流式中且无推理时显示） */
+                    streaming && !smoothReasoning && <MessageLoading startedAt={startedAt} />
+                  )}
+                </MessageContent>
+                {/* 操作栏占位：预留与 MessageActions 相同高度，防止流式结束时布局跳动 */}
+                <div className="pl-[46px] mt-0.5 min-h-[28px]" />
+              </Message>
+            )}
+          </>
+        )}
+      </ConversationContent>
+      <ScrollMinimap items={minimapItems} />
+      <ConversationScrollButton />
+    </Conversation>
+  )
+}

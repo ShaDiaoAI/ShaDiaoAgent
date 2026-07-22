@@ -1,0 +1,110 @@
+# electron-builder 配置
+# 文档: https://www.electron.build/configuration/configuration
+
+appId: com.shadiao.agent
+productName: ShaDiaoAgent
+copyright: Copyright © 2026 ShaDiaoAgent
+
+# Electron 版本（CI 环境 bun workspace 下无法自动检测，需显式指定）
+electronVersion: 39.5.1
+
+# 目录配置
+directories:
+  output: out
+  buildResources: resources
+
+# 压缩配置
+compression: normal
+
+# ASAR 打包配置
+asar: true
+asarUnpack:
+  - "node_modules/@anthropic-ai/**"
+  - "node_modules/@silvia-odwyer/**"
+  - "node_modules/@mariozechner/**"
+  - "node_modules/@napi-rs/**"
+
+npmRebuild: false
+
+# 通用文件配置
+files:
+  - dist/**/*
+  - "!dist/resources/**"
+  - package.json
+  - node_modules/**/*
+  - "!node_modules/@shadiao/**"
+  - "!node_modules/electron/**"
+  - "!node_modules/electron-builder/**"
+  - "!node_modules/electronmon/**"
+  - "!node_modules/esbuild/**"
+  - "!node_modules/@electron/**"
+  - "!node_modules/@electron-builder/**"
+  - "!node_modules/@esbuild/**"
+
+# 通用额外资源
+extraResources:
+  # 默认 Skills 模板
+  - from: default-skills
+    to: default-skills
+    filter:
+      - "**/*"
+  # ShaDiaoAgent 品牌素材
+  - from: resources/shadiao-logos
+    to: shadiao-logos
+    filter:
+      - "**/*"
+  # 默认 Dock 图标
+  - from: resources/icon.png
+    to: icon.png
+
+# ============================================
+# macOS 配置
+# ============================================
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
+  target:
+    - dmg
+    - zip
+
+# DMG 配置
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+  window:
+    width: 540
+    height: 380
+
+# ============================================
+# Windows 配置
+# ============================================
+win:
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+# NSIS 安装程序配置
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+# ============================================
+# 发布配置
+# ============================================
+publish:
+  provider: github
+  owner: shadiao-agent
+  repo: shadiao-agent

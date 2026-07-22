@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    macOS Big Sur+ 图标规范:
+    - 画布: 1024x1024
+    - 圆角矩形: 824x824 居中 (边距 100px)
+    - 圆角: 185px (~22.5%)
+  -->
+
+  <!-- 变换：将原 800x800 内容缩放到 824x824 并居中 -->
+  <g transform="translate(100, 100) scale(1.03)">
+    <!-- macOS 风格圆角背景 -->
+    <rect width="800" height="800" rx="180" ry="180" fill="#000000"/>
+
+    <!-- 从近到远逐渐缩小、透明的条纹 - 营造纵深感 -->
+    <g>
+      <!-- 第一层 - 最近，最实 -->
+      <rect x="150" y="350" width="90" height="400" rx="15" fill="#FFFFFF" opacity="1"/>
+
+      <!-- 第二层 - 渐远 -->
+      <rect x="270" y="320" width="80" height="360" rx="13" fill="#F0F0F0" opacity="0.85"
+            transform="rotate(-3 310 500)"/>
+
+      <!-- 第三层 - 更远 -->
+      <rect x="380" y="290" width="70" height="320" rx="11" fill="#E0E0E0" opacity="0.7"
+            transform="rotate(-6 415 450)"/>
+
+      <!-- 第四层 - 渐隐 -->
+      <rect x="480" y="260" width="60" height="280" rx="9" fill="#D0D0D0" opacity="0.55"
+            transform="rotate(-9 510 400)"/>
+
+      <!-- 第五层 - 远端 -->
+      <rect x="570" y="230" width="50" height="240" rx="7" fill="#C0C0C0" opacity="0.4"
+            transform="rotate(-12 595 350)"/>
+
+      <!-- 第六层 - 几乎消失 -->
+      <rect x="650" y="200" width="40" height="200" rx="5" fill="#B0B0B0" opacity="0.25"
+            transform="rotate(-15 670 300)"/>
+    </g>
+  </g>
+</svg>

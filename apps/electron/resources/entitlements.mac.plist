@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 允许 JIT 编译（Electron 需要） -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- 允许加载未签名的可执行内存（Electron 需要） -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- 允许 dyld 环境变量（用于调试和某些功能） -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- 禁用库验证（允许加载第三方库） -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- 网络访问权限 - 客户端（用于 API 请求） -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- 网络访问权限 - 服务器（用于本地开发服务器） -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!-- 音频输入权限 - 麦克风访问 -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- 文件访问权限 - 用户选择的文件 -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- 文件访问权限 - 下载目录 -->
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+</dict>
+</plist>

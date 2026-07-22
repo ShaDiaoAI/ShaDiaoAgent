@@ -1,0 +1,317 @@
+# GitHub Actions: 自动打包分发
+#
+# 触发条件：推送 v* tag（如 v0.4.0）
+# 构建 macOS 和 Windows 产物并发布到 GitHub Releases
+#
+# 所需 GitHub Secrets（macOS 签名/公证，可选）:
+# - MAC_CERTS: Base64 编码的 macOS Developer ID Application 证书 (.p12)
+# - MAC_CERTS_PASSWORD: 证书密码
+# - APPLE_ID: Apple ID（公证用）
+# - APPLE_APP_SPECIFIC_PASSWORD: App-Specific 密码（公证用）
+# - APPLE_TEAM_ID: Apple Developer Team ID
+# GITHUB_TOKEN 由 GitHub Actions 自动提供，无需手动配置
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac-arm64:
+    name: build (macos-latest, mac, arm64, --arm64)
+    runs-on: macos-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      # macOS 代码签名准备
+      - name: 导入 macOS 签名证书
+        env:
+          MAC_CERTS: ${{ secrets.MAC_CERTS }}
+          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        run: |
+          # 创建临时 keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 导入证书
+          echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          rm $RUNNER_TEMP/cert.p12
+
+      # 构建应用
+      - name: 构建 Electron 应用
+        run: bun run electron:build
+        working-directory: .
+
+      # 打包并发布到 GitHub Releases
+      - name: 打包并发布 (macOS)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for i in 1 2 3; do
+            npx electron-builder --mac --arm64 --publish always && break
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+        working-directory: apps/electron
+
+  build-mac-x64:
+    name: build (macos-15-intel, mac, x64, --x64)
+    runs-on: macos-15-intel
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      # macOS 代码签名准备
+      - name: 导入 macOS 签名证书
+        env:
+          MAC_CERTS: ${{ secrets.MAC_CERTS }}
+          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        run: |
+          # 创建临时 keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 导入证书
+          echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          rm $RUNNER_TEMP/cert.p12
+
+      # 构建应用
+      - name: 构建 Electron 应用
+        run: bun run electron:build
+        working-directory: .
+
+      # 打包并发布到 GitHub Releases
+      - name: 打包并发布 (macOS x64)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for i in 1 2 3; do
+            npx electron-builder --mac --x64 --publish always && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+        working-directory: apps/electron
+
+  merge-mac-yml:
+    name: Merge latest-mac.yml (arm64 + x64)
+    runs-on: ubuntu-latest
+    needs: [build-mac-arm64, build-mac-x64]
+
+    steps:
+      - name: 合并两个架构的 latest-mac.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          REPO="${GITHUB_REPOSITORY}"
+          VERSION="${TAG#v}"
+
+          echo "=== Fetching release info for ${TAG} ==="
+
+          # 获取 release 信息（draft release 无法通过 /releases/tags/ 获取，需遍历列表）
+          RELEASE_JSON=$(curl -s -H "Authorization: token ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases" \
+            | python3 -c "
+          import json, sys
+          releases = json.load(sys.stdin)
+          for r in releases:
+              if r.get('tag_name') == '${TAG}' or r.get('name') == '${TAG}':
+                  print(json.dumps(r)); break
+          else:
+              sys.exit('ERROR: release not found for tag ${TAG}')
+          ")
+          RELEASE_ID=$(echo "$RELEASE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo "Release ID: ${RELEASE_ID}"
+
+          # 找到 arm64 和 x64 zip 文件名
+          ARM64_ZIP=$(echo "$RELEASE_JSON" | python3 -c "
+          import json, sys
+          for a in json.load(sys.stdin)['assets']:
+              if 'arm64-mac.zip' in a['name'] and not a['name'].endswith('.blockmap'):
+                  print(a['name']); break
+          ")
+          X64_ZIP=$(echo "$RELEASE_JSON" | python3 -c "
+          import json, sys
+          for a in json.load(sys.stdin)['assets']:
+              n = a['name']
+              if n.endswith('-mac.zip') and 'arm64' not in n and not n.endswith('.blockmap'):
+                  print(n); break
+          ")
+
+          echo "ARM64 ZIP: ${ARM64_ZIP}"
+          echo "X64 ZIP: ${X64_ZIP}"
+
+          if [ -z "$ARM64_ZIP" ] || [ -z "$X64_ZIP" ]; then
+            echo "ERROR: missing mac zip assets"
+            exit 1
+          fi
+
+          # 通过 API 获取下载 URL（支持 draft release）
+          ARM64_URL=$(echo "$RELEASE_JSON" | python3 -c "
+          import json, sys
+          for a in json.load(sys.stdin)['assets']:
+              if 'arm64-mac.zip' in a['name'] and not a['name'].endswith('.blockmap'):
+                  print(a['url']); break
+          ")
+          X64_URL=$(echo "$RELEASE_JSON" | python3 -c "
+          import json, sys
+          for a in json.load(sys.stdin)['assets']:
+              n = a['name']
+              if n.endswith('-mac.zip') and 'arm64' not in n and not n.endswith('.blockmap'):
+                  print(a['url']); break
+          ")
+
+          # 下载两个 zip（通过 API URL + Accept header，支持 draft release）
+          echo "Downloading arm64 zip..."
+          curl -sL -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/octet-stream" \
+            "${ARM64_URL}" -o arm64.zip
+          echo "Downloading x64 zip..."
+          curl -sL -H "Authorization: token ${GH_TOKEN}" -H "Accept: application/octet-stream" \
+            "${X64_URL}" -o x64.zip
+
+          ARM64_SHA=$(openssl dgst -sha512 -binary arm64.zip | base64 -w0)
+          ARM64_SIZE=$(stat --format=%s arm64.zip)
+          X64_SHA=$(openssl dgst -sha512 -binary x64.zip | base64 -w0)
+          X64_SIZE=$(stat --format=%s x64.zip)
+
+          echo "ARM64: size=${ARM64_SIZE}, sha512=${ARM64_SHA:0:20}..."
+          echo "X64: size=${X64_SIZE}, sha512=${X64_SHA:0:20}..."
+
+          rm -f arm64.zip x64.zip
+
+          RELEASE_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+          # 生成合并后的 latest-mac.yml（无缩进 heredoc）
+          cat > latest-mac.yml <<EOF
+          version: ${VERSION}
+          files:
+            - url: ${ARM64_ZIP}
+              sha512: ${ARM64_SHA}
+              size: ${ARM64_SIZE}
+            - url: ${X64_ZIP}
+              sha512: ${X64_SHA}
+              size: ${X64_SIZE}
+          path: ${ARM64_ZIP}
+          sha512: ${ARM64_SHA}
+          releaseDate: '${RELEASE_DATE}'
+          EOF
+          sed -i 's/^          //' latest-mac.yml
+
+          echo "=== Merged latest-mac.yml ==="
+          cat latest-mac.yml
+
+          # 删除旧的 latest-mac.yml asset
+          ASSET_ID=$(curl -s -H "Authorization: token ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases/${RELEASE_ID}/assets" \
+            | python3 -c "
+          import json, sys
+          for a in json.load(sys.stdin):
+              if a['name'] == 'latest-mac.yml':
+                  print(a['id']); break
+          " || true)
+
+          if [ -n "$ASSET_ID" ]; then
+            echo "Deleting old latest-mac.yml (asset ${ASSET_ID})..."
+            curl -s -X DELETE -H "Authorization: token ${GH_TOKEN}" \
+              "https://api.github.com/repos/${REPO}/releases/assets/${ASSET_ID}"
+          fi
+
+          # 上传合并后的 latest-mac.yml
+          echo "Uploading merged latest-mac.yml..."
+          UPLOAD_RESULT=$(curl -s -X POST \
+            -H "Authorization: token ${GH_TOKEN}" \
+            -H "Content-Type: text/yaml" \
+            --data-binary @latest-mac.yml \
+            "https://uploads.github.com/repos/${REPO}/releases/${RELEASE_ID}/assets?name=latest-mac.yml")
+
+          echo "$UPLOAD_RESULT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(f'Uploaded: {d.get(\"name\")} ({d.get(\"size\")} bytes)')"
+          echo "✅ latest-mac.yml merged and uploaded"
+
+  build-windows-x64:
+    name: build (windows-latest, win, x64, --x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装依赖
+        run: bun install --frozen-lockfile
+
+      # 构建应用
+      - name: 构建 Electron 应用
+        run: bun run electron:build
+        working-directory: .
+
+      - name: 打包并发布 (Windows)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --x64 --publish always
+        working-directory: apps/electron

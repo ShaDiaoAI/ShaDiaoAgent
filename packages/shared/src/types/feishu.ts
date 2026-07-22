@@ -1,0 +1,346 @@
+/**
+ * 飞书集成相关类型定义
+ *
+ * 包含飞书 Bot 配置、Bridge 连接状态、聊天绑定、
+ * 通知模式、IPC 通道常量。
+ */
+
+// ===== 飞书 Bot 配置 =====
+
+/** 飞书 Bot 应用配置（持久化到 ~/.proma/feishu.json）— 旧格式，向后兼容 */
+export interface FeishuConfig {
+  /** 是否启用飞书集成 */
+  enabled: boolean
+  /** 飞书应用 App ID */
+  appId: string
+  /** 飞书应用 App Secret（safeStorage 加密后的 base64 字符串） */
+  appSecret: string
+  /** 默认绑定的工作区 ID */
+  defaultWorkspaceId?: string
+}
+
+/** 飞书配置保存输入（App Secret 为明文，主进程负责加密）— 旧格式，向后兼容 */
+export interface FeishuConfigInput {
+  enabled: boolean
+  appId: string
+  /** 明文 App Secret */
+  appSecret: string
+  defaultWorkspaceId?: string
+}
+
+// ===== 多 Bot 配置（v2） =====
+
+/** 单个飞书 Bot 配置 */
+export interface FeishuBotConfig {
+  /** Bot 唯一标识（UUID） */
+  id: string
+  /** Bot 显示名称（如"研发助手"、"运维助手"） */
+  name: string
+  /** 是否启用 */
+  enabled: boolean
+  /** 飞书应用 App ID */
+  appId: string
+  /** 飞书应用 App Secret（safeStorage 加密后的 base64 字符串） */
+  appSecret: string
+  /** 该 Bot 的默认工作区 ID */
+  defaultWorkspaceId?: string
+  /** 该 Bot 的默认渠道 ID */
+  defaultChannelId?: string
+  /** 该 Bot 的默认模型 ID */
+  defaultModelId?: string
+}
+
+/** 多 Bot 配置文件（~/.proma/feishu.json 新格式） */
+export interface FeishuMultiBotConfig {
+  version: 2
+  bots: FeishuBotConfig[]
+}
+
+/** 单个 Bot 配置保存输入（明文 secret） */
+export interface FeishuBotConfigInput {
+  /** Bot ID（新建时不传，更新时必传） */
+  id?: string
+  /** Bot 显示名称 */
+  name: string
+  /** 是否启用 */
+  enabled: boolean
+  /** 飞书应用 App ID */
+  appId: string
+  /** 明文 App Secret（空字符串表示不修改） */
+  appSecret: string
+  /** 默认工作区 ID */
+  defaultWorkspaceId?: string
+  /** 默认渠道 ID */
+  defaultChannelId?: string
+  /** 默认模型 ID */
+  defaultModelId?: string
+}
+
+// ===== Session 镜像 =====
+
+/** 飞书 Session 同步模式 */
+export type FeishuSessionSyncMode = 'off' | 'stream'
+
+/** 飞书 Session 镜像设置：多个 Bot 中只能选择一个作为同步 Bot */
+export interface FeishuSessionMirrorSettings {
+  /** 同步模式：关闭 / 实时同步 */
+  mode: FeishuSessionSyncMode
+  /** 负责创建 Session 镜像群与更新卡片的 Bot ID */
+  botId?: string
+}
+
+// ===== Bridge 连接状态 =====
+
+/** 飞书 Bridge 连接状态 */
+export type FeishuBridgeStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+/** 飞书 Bridge 状态详情 */
+export interface FeishuBridgeState {
+  status: FeishuBridgeStatus
+  /** 上次连接成功时间 */
+  connectedAt?: number
+  /** 错误信息 */
+  errorMessage?: string
+  /** 当前活跃的聊天绑定数量 */
+  activeBindings: number
+}
+
+/** 单个 Bot 的 Bridge 状态（包含身份信息） */
+export interface FeishuBotBridgeState extends FeishuBridgeState {
+  /** Bot ID */
+  botId: string
+  /** Bot 显示名称 */
+  botName: string
+}
+
+/** 多 Bot Bridge 状态聚合 */
+export interface FeishuMultiBridgeState {
+  /** botId → 状态 */
+  bots: Record<string, FeishuBotBridgeState>
+}
+
+// ===== 聊天绑定 =====
+
+/** 更新绑定请求（渲染进程 → 主进程） */
+export interface FeishuUpdateBindingInput {
+  /** 目标 chat_id */
+  chatId: string
+  /** 新的工作区 ID（不传则不修改） */
+  workspaceId?: string
+  /** 新的会话 ID（不传则不修改） */
+  sessionId?: string
+  /** 是否归档该绑定（不传则不修改） */
+  archived?: boolean
+}
+
+/** 飞书聊天 → Proma 会话绑定（由各 Bot 绑定文件持久化） */
+export interface FeishuChatBinding {
+  /** 飞书 chat_id（单聊或群聊） */
+  chatId: string
+  /** 所属 Bot ID */
+  botId: string
+  /** 飞书用户 open_id */
+  userId: string
+  /** 绑定的 Proma 会话 ID */
+  sessionId: string
+  /** 绑定的工作区 ID */
+  workspaceId: string
+  /** 渠道 ID */
+  channelId: string
+  /** 模型 ID */
+  modelId?: string
+  /** 绑定来源：飞书主动绑定或 Proma 桌面 Session 镜像 */
+  source?: 'feishu' | 'session-mirror'
+  /** 是否已归档 */
+  archived?: boolean
+  /** 归档时间 */
+  archivedAt?: number
+  /** 最近一次收到该聊天消息的时间 */
+  lastUsedAt?: number
+  /** 聊天类型（单聊或群聊） */
+  chatType?: 'p2p' | 'group'
+  /** 群名称（群聊时） */
+  groupName?: string
+  /** 创建时间 */
+  createdAt: number
+}
+
+// ===== 连接测试 =====
+
+/** 飞书连接测试结果 */
+export interface FeishuTestResult {
+  success: boolean
+  message: string
+  /** Bot 名称（测试成功时返回） */
+  botName?: string
+}
+
+// ===== 在场状态上报 =====
+
+/** 渲染进程上报的用户在场状态 */
+export interface FeishuPresenceReport {
+  /** 当前正在查看的会话 ID */
+  activeSessionId: string | null
+  /** 最后交互时间戳 */
+  lastInteractionAt: number
+}
+
+// ===== 群聊相关类型 =====
+
+/** 飞书消息事件中的 @mention 条目 */
+export interface FeishuMention {
+  /** 消息体中的占位符 key（如 "@_user_1"） */
+  key: string
+  /** 被 @ 用户/机器人的 ID，可能是字符串或 { open_id, union_id, user_id } 对象 */
+  id: string | { open_id?: string; union_id?: string; user_id?: string }
+  /** 被 @ 用户的显示名称 */
+  name: string
+  /** ID 类型（飞书 API 返回） */
+  id_type?: string
+}
+
+/** 飞书群聊信息缓存 */
+export interface FeishuGroupInfo {
+  /** 群聊 chat_id */
+  chatId: string
+  /** 群名称 */
+  name: string
+  /** 群描述 */
+  description?: string
+  /** 群成员列表 */
+  members?: FeishuGroupMember[]
+  /** 群内真人数量（来自 chat.get 的 user_count，不含机器人）。免 @ 续聊判定的权威依据。 */
+  userCount?: number
+  /** 缓存时间戳 */
+  cachedAt: number
+}
+
+/** 飞书群成员信息 */
+export interface FeishuGroupMember {
+  /** 成员 open_id */
+  openId: string
+  /** 显示名称 */
+  name: string
+}
+
+/** 飞书消息上下文（贯穿消息处理链） */
+export interface FeishuMessageContext {
+  /** 飞书 chat_id */
+  chatId: string
+  /** 发送者 open_id */
+  senderOpenId: string
+  /** 发送者显示名称（群聊时获取） */
+  senderName?: string
+  /** 消息 ID（用于群聊 thread reply） */
+  messageId: string
+  /** 聊天类型 */
+  chatType: 'p2p' | 'group'
+  /** 群名称（group 时） */
+  groupName?: string
+}
+
+// ===== 群聊消息历史 =====
+
+/** 飞书聊天消息（群聊上下文读取） */
+export interface FeishuChatMessage {
+  /** 消息 ID */
+  messageId: string
+  /** 发送者 ID */
+  senderId: string
+  /** 发送者类型 */
+  senderType: 'user' | 'app' | 'anonymous' | 'unknown'
+  /** 发送者显示名称（异步解析） */
+  senderName?: string
+  /** 消息类型（text / post / image / interactive 等） */
+  msgType: string
+  /** 消息内容（已解析的文本，非 text 类型为描述） */
+  content: string
+  /** 创建时间（毫秒时间戳） */
+  createTime: number
+}
+
+// ===== IPC 通道常量 =====
+
+export const FEISHU_IPC_CHANNELS = {
+  /** 获取飞书配置（旧格式，向后兼容） */
+  GET_CONFIG: 'feishu:get-config',
+  /** 保存飞书配置（旧格式，向后兼容） */
+  SAVE_CONFIG: 'feishu:save-config',
+  /** 获取解密后的 App Secret（旧格式，向后兼容） */
+  GET_DECRYPTED_SECRET: 'feishu:get-decrypted-secret',
+  /** 测试飞书连接 */
+  TEST_CONNECTION: 'feishu:test-connection',
+  /** 启动 Bridge（旧格式，向后兼容） */
+  START_BRIDGE: 'feishu:start-bridge',
+  /** 停止 Bridge（旧格式，向后兼容） */
+  STOP_BRIDGE: 'feishu:stop-bridge',
+  /** 获取 Bridge 状态（旧格式，向后兼容） */
+  GET_STATUS: 'feishu:get-status',
+  /** Bridge 状态变化（主进程 → 渲染进程推送） */
+  STATUS_CHANGED: 'feishu:status-changed',
+  /** 获取活跃绑定列表 */
+  LIST_BINDINGS: 'feishu:list-bindings',
+  /** 更新绑定（修改工作区/会话） */
+  UPDATE_BINDING: 'feishu:update-binding',
+  /** 移除绑定 */
+  REMOVE_BINDING: 'feishu:remove-binding',
+  /** 渲染进程 → 主进程：上报用户在场状态 */
+  REPORT_PRESENCE: 'feishu:report-presence',
+
+  // ===== 多 Bot（v2）=====
+
+  /** 获取多 Bot 配置 */
+  GET_MULTI_CONFIG: 'feishu:get-multi-config',
+  /** 保存单个 Bot 配置（新建或更新） */
+  SAVE_BOT_CONFIG: 'feishu:save-bot-config',
+  /** 删除 Bot */
+  REMOVE_BOT: 'feishu:remove-bot',
+  /** 获取单个 Bot 的解密 App Secret */
+  GET_BOT_DECRYPTED_SECRET: 'feishu:get-bot-decrypted-secret',
+  /** 启动单个 Bot Bridge */
+  START_BOT: 'feishu:start-bot',
+  /** 停止单个 Bot Bridge */
+  STOP_BOT: 'feishu:stop-bot',
+  /** 获取多 Bot Bridge 状态 */
+  GET_MULTI_STATUS: 'feishu:get-multi-status',
+  /** 多 Bot 状态变化推送 */
+  MULTI_STATUS_CHANGED: 'feishu:multi-status-changed',
+
+  // ===== 扫码注册（v3）=====
+
+  /** 启动扫码注册流程，返回最终的 App ID/Secret */
+  REGISTER_APP_START: 'feishu:register-app-start',
+  /** 主进程 → 渲染进程：二维码 URL 已生成 */
+  REGISTER_APP_QRCODE: 'feishu:register-app-qrcode',
+  /** 主进程 → 渲染进程：注册流程状态变化（polling/slow_down/domain_switched） */
+  REGISTER_APP_STATUS: 'feishu:register-app-status',
+  /** 取消正在进行的扫码注册流程 */
+  REGISTER_APP_CANCEL: 'feishu:register-app-cancel',
+} as const
+
+// ===== 扫码注册类型 =====
+
+export interface FeishuRegisterAppQRCode {
+  /** 扫码 URL */
+  url: string
+  /** PNG dataURL（主进程预生成，渲染层直接用 <img src> 渲染） */
+  dataUrl: string
+  /** 有效期秒数 */
+  expireIn: number
+}
+
+export interface FeishuRegisterAppStatus {
+  status: 'polling' | 'slow_down' | 'domain_switched'
+  interval?: number
+}
+
+export interface FeishuRegisterAppResult {
+  /** 创建出的飞书应用 App ID */
+  appId: string
+  /** 应用 App Secret（明文，仅一次性返回）*/
+  appSecret: string
+  /** 租户品牌（feishu / lark）*/
+  tenantBrand?: 'feishu' | 'lark'
+  /** 扫码用户的 open_id */
+  operatorOpenId?: string
+}

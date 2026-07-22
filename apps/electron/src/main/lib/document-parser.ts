@@ -1,0 +1,1 @@
+export function extractTextFromAttachment() { return '' }
