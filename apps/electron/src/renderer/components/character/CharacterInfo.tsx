@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { User, Settings, Blocks, Plug, AlarmClock } from 'lucide-react'
+import { User, Blocks, Plug, AlarmClock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   charactersAtom, selectedCharacterAtom,
@@ -118,13 +118,13 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
 
   return (
     <div ref={switchRef} className="relative">
-      {/* 人物名称行 + 人物切换下拉触发（无头像，纯文字） */}
+      {/* 人物名称行 — 整行可点击打开人物管理面板 */}
       <div
         role="button"
         tabIndex={0}
         className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-sm hover:bg-muted/40 transition-colors cursor-pointer"
-        onClick={() => characters.length > 1 && setSwitchOpen(!switchOpen)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSwitchOpen(!switchOpen) }}
+        onClick={() => onOpenPanel?.()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenPanel?.() }}
       >
         <div className="flex-1 text-left min-w-0">
           <div className="font-semibold text-sm truncate">
@@ -136,14 +136,19 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
           </div>
         </div>
 
-        {/* 管理按钮 */}
-        <button
-          className="shrink-0 p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={(e) => { e.stopPropagation(); onOpenPanel?.() }}
-          title="管理人物"
-        >
-          <Settings className="size-3.5" />
-        </button>
+        {/* 人物图标 */}
+        <User className="size-3.5 shrink-0 text-muted-foreground" />
+
+        {/* 多人时显示切换箭头 */}
+        {characters.length > 1 && (
+          <button
+            className="shrink-0 p-0.5 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => { e.stopPropagation(); setSwitchOpen(!switchOpen) }}
+            title="切换人物"
+          >
+            <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+        )}
       </div>
 
       {/* 人物切换下拉 */}

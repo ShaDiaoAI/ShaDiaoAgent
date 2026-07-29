@@ -11,17 +11,16 @@
 import * as React from 'react'
 import { useAtom, useSetAtom, useAtomValue, useStore } from 'jotai'
 import { toast } from 'sonner'
-import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw } from 'lucide-react'
+import { Pin, PinOff, Settings, Plus, Trash2, Pencil, PanelLeftClose, PanelLeftOpen, ArrowRightLeft, Search, Archive, ArchiveRestore, ArrowLeft, Bot, MessageSquare, MoreHorizontal, FolderOpen, GripVertical, Clock, AlarmClock, ChevronRight, Blocks, GitBranch, Download, Loader2, RotateCw, Gift } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { CharacterInfo } from '@/components/character/CharacterInfo'
-import { CharacterPanel } from '@/components/character/CharacterPanel'
 import { CharacterCreate } from '@/components/character/CharacterCreate'
-import { type ShadiaoCharacter, selectedCharacterAtom } from '@/atoms/character-atoms'
-import { RiveCanvas } from '@/components/agent/RiveCanvas'
+import { type ShadiaoCharacter, selectedCharacterAtom, walletAtom } from '@/atoms/character-atoms'
+import { CharacterAnim } from '@/components/agent/CharacterAnim'
 import { SearchDialog } from './SearchDialog'
 import { UserAvatar } from '@/components/chat/UserAvatar'
-import { activeViewAtom, agentSkillsTabAtom } from '@/atoms/active-view'
+import { activeViewAtom, agentSkillsTabAtom, characterPanelTabAtom } from '@/atoms/active-view'
 import { automationFormAtom, automationsAtom } from '@/atoms/automation-atoms'
 import { appModeAtom, type AppMode } from '@/atoms/app-mode'
 import { settingsOpenAtom, settingsTabAtom } from '@/atoms/settings-tab'
@@ -733,10 +732,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [moveTargetId, setMoveTargetId] = React.useState<string | null>(null)
   /** 待迁移会话所属的工作区 ID（用于对话框排除当前分区） */
   const [moveSourceWorkspaceId, setMoveSourceWorkspaceId] = React.useState<string | undefined>()
-  /** 人物管理面板开关 */
-  const [characterPanelOpen, setCharacterPanelOpen] = React.useState(false)
+  /** 人物管理面板开关 — 使用 activeView 全屏方式 */
+  const setCharacterPanelTab = useSetAtom(characterPanelTabAtom)
   /** 人物编辑弹窗（null=创建, ShadiaoCharacter=编辑） */
   const [characterEditTarget, setCharacterEditTarget] = React.useState<ShadiaoCharacter | null | undefined>(undefined)
+  const wallet = useAtomValue(walletAtom)
   /** 每个项目额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
   const [expandedExtraCountMap, setExpandedExtraCountMap] = React.useState<Map<string, number>>(new Map())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
@@ -2605,7 +2605,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 	      <div className="flex items-start gap-1.5 px-3 pt-4">
 	        <div className="flex-1 min-w-0">
 	          <CharacterInfo
-	            onOpenPanel={() => setCharacterPanelOpen(true)}
+	            onOpenPanel={() => {
+              if (activeView === 'character-panel') {
+                setActiveView('conversations')
+              } else {
+                setCharacterPanelTab('info')
+                setActiveView('character-panel')
+              }
+            }}
 	            onOpenSkills={handleOpenSkills}
 	            onOpenAutomations={handleOpenAutomations}
 	          />
@@ -2614,14 +2621,28 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
 	      {/* Rive 人物动画画布（相框式，占左侧栏主要空间） */}
 	      <div className="px-3 pt-3" style={{ flex: '1 0 35%', minHeight: 0 }}>
-	        <RiveCanvas className="w-full h-full" />
+	        <CharacterAnim className="w-full h-full" coins={wallet?.coins} />
 	      </div>
 
-	      {/* 新会话按钮 + 搜索按钮（从上方移下来） */}
+	      {/* 皮肤盲盒 + 新会话按钮 + 搜索按钮 */}
 	      <div className="px-3 pt-2 flex items-center gap-1.5">
 	        <button
+	          onClick={() => {
+            if (activeView === 'character-panel') {
+              setActiveView('conversations')
+            } else {
+              setCharacterPanelTab('gacha')
+              setActiveView('character-panel')
+            }
+          }}
+	          className="flex-1 flex items-center justify-center gap-1.5 h-10 px-2 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+	        >
+	          <Gift size={14} />
+	          <span>皮肤盲盒</span>
+	        </button>
+	        <button
 	          onClick={handleNewAgentSession}
-	          className="flex-1 flex items-center gap-2 h-10 px-3 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
+	          className="flex-1 flex items-center justify-center gap-1.5 h-10 px-2 rounded-[10px] text-[13px] font-medium text-foreground/70 sidebar-control-surface hover:text-foreground transition-[background-color,color] duration-150 titlebar-no-drag"
 	        >
 	          <Plus size={14} />
 	          <span>新会话</span>
@@ -3017,11 +3038,6 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       {projectDeleteDialog}
       {moveDialog}
       <SearchDialog />
-      <CharacterPanel
-        open={characterPanelOpen}
-        onClose={() => setCharacterPanelOpen(false)}
-        onEdit={(char) => { setCharacterPanelOpen(false); setCharacterEditTarget(char) }}
-      />
       {characterEditTarget !== undefined && (
         <CharacterCreate
           editChar={characterEditTarget ?? undefined}

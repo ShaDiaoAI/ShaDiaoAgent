@@ -3,9 +3,10 @@ import {
   fetchSkinCatalog, fetchMySkins, equipSkin,
   fetchInventory, equipItem, unequipItem,
   fetchWallet, fetchRewards,
+  drawGacha, fetchGachaProgress,
   getCachedCharacters,
 } from './django-client.js'
-import type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog } from './django-client.js'
+import type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog, DrawOutput, GachaProgress } from './django-client.js'
 import { existsSync, mkdirSync, writeFileSync, readdirSync, cpSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -324,4 +325,14 @@ export async function getWallet(): Promise<WalletInfo> {
 
 export async function getRewards(): Promise<RewardLog[]> {
   return fetchRewards()
+}
+
+// ===== Gacha =====
+
+export async function doGachaDraw(count: number): Promise<DrawOutput> {
+  return drawGacha(count)
+}
+
+export async function getGachaProgress(): Promise<GachaProgress> {
+  return fetchGachaProgress()
 }

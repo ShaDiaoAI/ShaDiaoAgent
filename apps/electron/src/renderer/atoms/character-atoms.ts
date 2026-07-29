@@ -38,6 +38,34 @@ export interface WalletInfo {
   recent_transactions: Array<{ amount: number; reason: string; created_at: string }>
 }
 
+// ===== Gacha Types =====
+
+export interface DrawSkinOut {
+  id: number; name: string; description: string
+  rarity: string; rive_asset_id: string; preview_url: string
+}
+
+export interface DrawResult {
+  skin: DrawSkinOut
+  is_new: boolean
+  quantity: number
+}
+
+export interface DrawOutput {
+  results: DrawResult[]
+  coins_spent: number
+  coins_remaining: number
+}
+
+export interface GachaProgress {
+  coins: number
+  single_draw_cost: number
+  multi_draw_cost: number
+  progress_to_single: number
+  can_single_draw: boolean
+  can_multi_draw: boolean
+}
+
 // ===== Character Atoms =====
 
 export const charactersAtom = atom<ShadiaoCharacter[]>([])
@@ -73,3 +101,8 @@ export interface RewardNotification {
 
 export const rewardQueueAtom = atom<RewardNotification[]>([])
 export const rewardHistoryAtom = atom<Array<{ id: number; reward_type: string; reward_data: Record<string, unknown>; triggered_at: string }>>([])
+
+// ===== Gacha Atoms =====
+
+export const gachaProgressAtom = atom<GachaProgress | null>(null)
+export const gachaHistoryAtom = atom<DrawResult[]>([])

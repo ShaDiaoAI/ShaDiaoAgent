@@ -63,6 +63,32 @@ export interface RewardLog {
   triggered_at: string
 }
 
+export interface DrawSkinOut {
+  id: number; name: string; description: string
+  rarity: string; rive_asset_id: string; preview_url: string
+}
+
+export interface DrawResult {
+  skin: DrawSkinOut
+  is_new: boolean
+  quantity: number
+}
+
+export interface DrawOutput {
+  results: DrawResult[]
+  coins_spent: number
+  coins_remaining: number
+}
+
+export interface GachaProgress {
+  coins: number
+  single_draw_cost: number
+  multi_draw_cost: number
+  progress_to_single: number
+  can_single_draw: boolean
+  can_multi_draw: boolean
+}
+
 // ===== Auth =====
 
 export function getAuthState(): DjangoAuthState {
@@ -203,4 +229,17 @@ export async function fetchWallet(): Promise<WalletInfo> {
 
 export async function fetchRewards(): Promise<RewardLog[]> {
   return djangoApiRequest<RewardLog[]>('/api/rewards')
+}
+
+// ===== Gacha =====
+
+export async function drawGacha(count: number): Promise<DrawOutput> {
+  return djangoApiRequest<DrawOutput>('/api/gacha/draw', {
+    method: 'POST',
+    body: JSON.stringify({ count }),
+  })
+}
+
+export async function fetchGachaProgress(): Promise<GachaProgress> {
+  return djangoApiRequest<GachaProgress>('/api/gacha/progress')
 }

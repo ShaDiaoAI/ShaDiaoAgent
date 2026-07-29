@@ -4666,4 +4666,20 @@ export function registerIpcHandlers(): void {
       return { success: true, data: await getRewards() }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
+
+  // ===== ShaDiaoAgent: 盲盒 =====
+
+  ipcMain.handle('gacha:draw', async (_e, count: number) => {
+    try {
+      const { doGachaDraw } = await import('./lib/character-service.js')
+      return { success: true, data: await doGachaDraw(count) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('gacha:progress', async () => {
+    try {
+      const { getGachaProgress } = await import('./lib/character-service.js')
+      return { success: true, data: await getGachaProgress() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
 }

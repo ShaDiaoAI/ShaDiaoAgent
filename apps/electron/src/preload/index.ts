@@ -1083,6 +1083,10 @@ export interface ElectronAPI {
   // ===== ShaDiaoAgent: 钱包 =====
   getWallet: () => Promise<{ success: boolean; data?: any; error?: string }>
   getRewards: () => Promise<{ success: boolean; data?: any[]; error?: string }>
+
+  // ===== ShaDiaoAgent: 盲盒 =====
+  drawGacha: (count: number) => Promise<{ success: boolean; data?: any; error?: string }>
+  getGachaProgress: () => Promise<{ success: boolean; data?: any; error?: string }>
 }
 
 interface MigrationExportResult {
@@ -2469,6 +2473,10 @@ const electronAPI: ElectronAPI = {
   // ===== ShaDiaoAgent: 钱包 =====
   getWallet: () => ipcRenderer.invoke('reward:wallet'),
   getRewards: () => ipcRenderer.invoke('reward:history'),
+
+  // ===== ShaDiaoAgent: 盲盒 =====
+  drawGacha: (count: number) => ipcRenderer.invoke('gacha:draw', count),
+  getGachaProgress: () => ipcRenderer.invoke('gacha:progress'),
 }
 
 // 将 API 暴露到渲染进程的 window 对象上
