@@ -6,7 +6,7 @@
  */
 
 import * as React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import { FolderOpen, Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -23,13 +23,28 @@ import {
 import { projectListHeightAtom } from '@/atoms/sidebar-atoms'
 import { useProjectActions } from '@/hooks/useProjectActions'
 import { agentSessionsAtom, agentWorkspacesAtom } from '@/atoms/agent-atoms'
+import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import type { AgentWorkspace } from '@shadiao/shared'
 
 export function WorkspaceSelector(): React.ReactElement {
-  const { workspaces, currentWorkspaceId, selectProject, createProject } = useProjectActions()
+  const { workspaces: allWorkspaces, currentWorkspaceId, selectProject, createProject } = useProjectActions()
+  const selectedCharacter = useAtomValue(selectedCharacterAtom)
   const [, setWorkspaces] = useAtom(agentWorkspacesAtom)
   const [, setAgentSessions] = useAtom(agentSessionsAtom)
   const [listHeight, setListHeight] = useAtom(projectListHeightAtom)
+
+  // 🆕 按人物过滤 workspace
+  const workspaces = React.useMemo(
+    () => {
+      if (selectedCharacter == null) return allWorkspaces
+      return allWorkspaces.filter((ws) => {
+        const charMatch = ws.id.match(/^char-(\d+)$/)
+        if (charMatch) return parseInt(charMatch[1]!, 10) === selectedCharacter.id
+        return true
+      })
+    },
+    [allWorkspaces, selectedCharacter],
+  )
 
   // 高度拖拽调整
   const listRef = React.useRef<HTMLDivElement>(null)

@@ -6,6 +6,8 @@ import {
   charactersAtom, selectedCharacterAtom, charactersLoadingAtom,
   type ShadiaoCharacter,
 } from '@/atoms/character-atoms'
+import { currentAgentSessionIdAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
+import { tabsAtom, activeTabIdAtom, SCRATCH_PAD_ID } from '@/atoms/tab-atoms'
 
 interface CharacterSelectorProps {
   onOpenPanel?: () => void
@@ -16,6 +18,10 @@ export function CharacterSelector({ onOpenPanel }: CharacterSelectorProps): Reac
   const [selected, setSelected] = useAtom(selectedCharacterAtom)
   const loading = useAtomValue(charactersLoadingAtom)
   const setLoading = useSetAtom(charactersLoadingAtom)
+  const setCurrentSessionId = useSetAtom(currentAgentSessionIdAtom)
+  const setTabs = useSetAtom(tabsAtom)
+  const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom)
+  const agentSessions = useAtomValue(agentSessionsAtom)
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef<HTMLDivElement>(null)
 
@@ -44,8 +50,22 @@ export function CharacterSelector({ onOpenPanel }: CharacterSelectorProps): Reac
   }, [open])
 
   const handleSelect = async (char: ShadiaoCharacter) => {
+    const oldWsId = selected ? `char-${selected.id}` : null
     setSelected(char)
     setOpen(false)
+    // 关掉旧人物 workspace 的 Tab（保留 Scratch Pad 和其他无关 Tab）
+    setTabs(prev => {
+      const filtered = prev.filter(tab => {
+        if (tab.type === 'scratch' || tab.type === 'tutorial') return true
+        const session = agentSessions.find(s => s.id === tab.sessionId)
+        return session?.workspaceId !== oldWsId
+      })
+      if (!filtered.some(t => t.id === activeTabId)) {
+        setActiveTabId(SCRATCH_PAD_ID)
+      }
+      return filtered
+    })
+    setCurrentSessionId(null)
     try { await window.electronAPI.selectCharacter(char) } catch {}
   }
 

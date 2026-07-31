@@ -498,7 +498,7 @@ export interface ElectronAPI {
   listAgentWorkspaces: () => Promise<AgentWorkspace[]>
 
   /** 创建 Agent 工作区 */
-  createAgentWorkspace: (name: string) => Promise<AgentWorkspace>
+  createAgentWorkspace: (name: string, characterId?: number) => Promise<AgentWorkspace>
 
   /** 更新 Agent 工作区 */
   updateAgentWorkspace: (id: string, updates: { name: string }) => Promise<AgentWorkspace>
@@ -1068,7 +1068,7 @@ export interface ElectronAPI {
   createCharacter: (data: any) => Promise<{ success: boolean; data?: any; error?: string }>
   updateCharacter: (id: number, data: any) => Promise<{ success: boolean; data?: any; error?: string }>
   deleteCharacter: (id: number) => Promise<{ success: boolean; error?: string }>
-  selectCharacter: (char: any) => Promise<{ success: boolean }>
+  selectCharacter: (char: any, currentSessionId?: string) => Promise<{ success: boolean; lastSessionId?: string | null }>
 
   // ===== ShaDiaoAgent: 皮肤 =====
   skinCatalog: () => Promise<{ success: boolean; data?: any[]; error?: string }>
@@ -1087,6 +1087,7 @@ export interface ElectronAPI {
   // ===== ShaDiaoAgent: 盲盒 =====
   drawGacha: (count: number) => Promise<{ success: boolean; data?: any; error?: string }>
   getGachaProgress: () => Promise<{ success: boolean; data?: any; error?: string }>
+  getCreationLimit: () => Promise<{ success: boolean; data?: any; error?: string }>
 }
 
 interface MigrationExportResult {
@@ -1567,8 +1568,8 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(AGENT_IPC_CHANNELS.LIST_WORKSPACES)
   },
 
-  createAgentWorkspace: (name: string) => {
-    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.CREATE_WORKSPACE, name)
+  createAgentWorkspace: (name: string, characterId?: number) => {
+    return ipcRenderer.invoke(AGENT_IPC_CHANNELS.CREATE_WORKSPACE, name, characterId)
   },
 
   updateAgentWorkspace: (id: string, updates: { name: string }) => {
@@ -2458,7 +2459,7 @@ const electronAPI: ElectronAPI = {
   createCharacter: (data: unknown) => ipcRenderer.invoke('character:create', data),
   updateCharacter: (id: number, data: unknown) => ipcRenderer.invoke('character:update', id, data),
   deleteCharacter: (id: number) => ipcRenderer.invoke('character:delete', id),
-  selectCharacter: (char: unknown) => ipcRenderer.invoke('character:select', char),
+  selectCharacter: (char: unknown, currentSessionId?: string) => ipcRenderer.invoke('character:select', char, currentSessionId),
 
   // ===== ShaDiaoAgent: 皮肤 =====
   skinCatalog: () => ipcRenderer.invoke('character:skin-catalog'),
@@ -2477,6 +2478,7 @@ const electronAPI: ElectronAPI = {
   // ===== ShaDiaoAgent: 盲盒 =====
   drawGacha: (count: number) => ipcRenderer.invoke('gacha:draw', count),
   getGachaProgress: () => ipcRenderer.invoke('gacha:progress'),
+  getCreationLimit: () => ipcRenderer.invoke('character:creation-limit'),
 }
 
 // 将 API 暴露到渲染进程的 window 对象上

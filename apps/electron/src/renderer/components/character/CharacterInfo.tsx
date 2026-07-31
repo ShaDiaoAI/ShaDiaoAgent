@@ -14,7 +14,12 @@ import { ModelSelector } from '@/components/chat/ModelSelector'
 interface CharacterInfoProps {
   onOpenPanel?: () => void
   onOpenSkills?: () => void
+  onOpenMcp?: () => void
   onOpenAutomations?: () => void
+  /** Skills 数量（从工作区 capability 传入） */
+  skillsCount?: number
+  /** MCP 服务器数量（从工作区 capability 传入） */
+  mcpCount?: number
 }
 
 /**
@@ -23,10 +28,12 @@ interface CharacterInfoProps {
  * 替代原来的 CharacterSelector + ModeSwitcher。
  * 显示人物名称、等级、经验条、绑定的模型、Skills/MCP/自动化 数量徽章。
  */
-export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: CharacterInfoProps): React.ReactElement {
+export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenMcp, onOpenAutomations, skillsCount = 0, mcpCount = 0 }: CharacterInfoProps): React.ReactElement {
   const [characters, setCharacters] = useAtom(charactersAtom)
   const [selected, setSelected] = useAtom(selectedCharacterAtom)
   const automations = useAtomValue(automationsAtom)
+  const agentChannelId = useAtomValue(agentChannelIdAtom)
+  const agentModelId = useAtomValue(agentModelIdAtom)
   const setAgentChannelId = useSetAtom(agentChannelIdAtom)
   const setAgentModelId = useSetAtom(agentModelIdAtom)
 
@@ -51,30 +58,20 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
       .finally(() => setLoading(false))
   }, [])
 
-  // 人物开关切换
-  const [switchOpen, setSwitchOpen] = React.useState(false)
-  const switchRef = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (switchRef.current && !switchRef.current.contains(e.target as Node)) setSwitchOpen(false)
-    }
-    if (switchOpen) document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [switchOpen])
-
-  const handleSelect = async (char: ShadiaoCharacter) => {
-    setSelected(char)
-    setSwitchOpen(false)
-    try { await window.electronAPI.selectCharacter(char) } catch {}
-  }
-
   // ===== 所有 hooks 必须在早期 return 之前，保持调用顺序一致 =====
 
   const expPercent = selected ? Math.round((selected.experience / (selected.exp_to_next || 1)) * 100) : 0
-  const skillsCount = 0
-  const mcpCount = 0
   const autoCount = automations.length
+
+  // 构造 externalSelectedModel 给 ModelSelector，使其能正确展示当前选中模型
+  // （左侧栏不在 ConversationContext 内，useConversationModelOptional 返回 null）
+  const computedSelectedModel = React.useMemo(() => {
+    if (!agentChannelId || !agentModelId) return null
+    return { channelId: agentChannelId, modelId: agentModelId }
+  }, [agentChannelId, agentModelId])
+  const stableSelectedModelRef = React.useRef(computedSelectedModel)
+  if (computedSelectedModel) stableSelectedModelRef.current = computedSelectedModel
+  const externalSelectedModel = computedSelectedModel ?? stableSelectedModelRef.current
 
   const handleModelSelect = React.useCallback(async (option: ModelOption) => {
     if (!selected) return
@@ -117,16 +114,19 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
   }
 
   return (
-    <div ref={switchRef} className="relative">
+    <div className="relative">
       {/* 人物名称行 — 整行可点击打开人物管理面板 */}
       <div
         role="button"
         tabIndex={0}
-        className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-sm hover:bg-muted/40 transition-colors cursor-pointer"
+        className="flex w-full items-center justify-center gap-2 rounded-lg px-1 py-1.5 text-sm hover:bg-muted/40 transition-colors cursor-pointer"
         onClick={() => onOpenPanel?.()}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenPanel?.() }}
       >
-        <div className="flex-1 text-left min-w-0">
+        {/* 人物图标 */}
+        <User className="size-3.5 shrink-0 text-muted-foreground" />
+
+        <div className="min-w-0 truncate">
           <div className="font-semibold text-sm truncate">
             {selected.name}
             <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">Lv.{selected.level}</span>
@@ -135,75 +135,21 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
             )}
           </div>
         </div>
-
-        {/* 人物图标 */}
-        <User className="size-3.5 shrink-0 text-muted-foreground" />
-
-        {/* 多人时显示切换箭头 */}
-        {characters.length > 1 && (
-          <button
-            className="shrink-0 p-0.5 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={(e) => { e.stopPropagation(); setSwitchOpen(!switchOpen) }}
-            title="切换人物"
-          >
-            <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-        )}
       </div>
 
-      {/* 人物切换下拉 */}
-      {switchOpen && characters.length > 1 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-0.5 rounded-lg border bg-popover shadow-lg overflow-hidden">
-          {characters.map((c) => {
-            const charExp = Math.round((c.experience / (c.exp_to_next || 1)) * 100)
-            return (
-              <button
-                key={c.id}
-                className={cn(
-                  'flex w-full items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/50 transition-colors',
-                  c.id === selected.id && 'bg-muted/30',
-                )}
-                onClick={() => handleSelect(c)}
-              >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400/30 to-purple-400/30 ring-1 ring-border/50">
-                  {c.equipped_skin?.preview_url ? (
-                    <img src={c.equipped_skin.preview_url} alt="" className="size-7 rounded-full object-cover" />
-                  ) : (
-                    <User className="size-3.5 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <div className="font-medium">{c.name}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">
-                      Lv.{c.level}{c.character_class ? ` · ${c.character_class.name}` : ''}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 h-1 rounded-full bg-muted/50 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-400 to-purple-400"
-                      style={{ width: `${charExp}%` }}
-                    />
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-
       {/* 模型选择器（从聊天 toolbar 迁移过来） */}
-      <div className="mt-1.5 px-1">
+      <div className="mt-1.5 flex justify-center">
         <ModelSelector
+          externalSelectedModel={externalSelectedModel}
           onModelSelect={handleModelSelect}
         />
       </div>
 
-      {/* Skills / MCP / 自动化 数量徽章 */}
-      <div className="mt-1.5 px-1 flex items-center gap-1.5">
+      {/* Skills / MCP / 定时任务 数量徽章 */}
+      <div className="mt-1.5 px-1 flex items-center justify-center gap-1.5">
         <BadgeButton
           icon={Blocks}
-          label="技能"
+          label="skill(s)"
           count={skillsCount}
           active={false}
           onClick={() => onOpenSkills?.()}
@@ -213,11 +159,11 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenAutomations }: 
           label="MCP"
           count={mcpCount}
           active={false}
-          onClick={() => onOpenSkills?.()}
+          onClick={() => onOpenMcp?.()}
         />
         <BadgeButton
           icon={AlarmClock}
-          label="自动"
+          label="定时任务"
           count={autoCount}
           active={false}
           onClick={() => onOpenAutomations?.()}

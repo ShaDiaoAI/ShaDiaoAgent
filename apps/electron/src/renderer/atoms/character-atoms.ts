@@ -25,6 +25,7 @@ export interface ShadiaoCharacter {
 export interface Skin {
   id: number; name: string; description: string
   rarity: string; rive_asset_id: string; preview_url: string
+  quantity: number
 }
 
 export interface UserItem {
@@ -64,6 +65,24 @@ export interface GachaProgress {
   progress_to_single: number
   can_single_draw: boolean
   can_multi_draw: boolean
+}
+
+// ===== Creation Limit Types =====
+
+export interface SlotSource {
+  character_id: number
+  name: string
+  level: number
+  slots: number
+}
+
+export interface CreationLimit {
+  max_characters: number
+  current_count: number
+  can_create: boolean
+  base: number
+  from_characters: SlotSource[]
+  total_extra: number
 }
 
 // ===== Character Atoms =====
@@ -106,3 +125,7 @@ export const rewardHistoryAtom = atom<Array<{ id: number; reward_type: string; r
 
 export const gachaProgressAtom = atom<GachaProgress | null>(null)
 export const gachaHistoryAtom = atom<DrawResult[]>([])
+
+// ===== Creation Limit Atoms =====
+
+export const creationLimitAtom = atom<CreationLimit | null>(null)

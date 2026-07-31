@@ -16,6 +16,8 @@ export interface AgentWorkspace {
   name: string
   /** URL-safe 目录名（创建后不可变） */
   slug: string
+  /** 关联的沙雕人物 ID（可选，用于人物名称同步项目名称） */
+  characterId?: number
   /** 创建时间戳 */
   createdAt: number
   /** 更新时间戳 */

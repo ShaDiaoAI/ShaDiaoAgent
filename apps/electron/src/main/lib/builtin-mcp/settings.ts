@@ -1,5 +1,5 @@
 /**
- * Proma 内置 MCP 开关设置
+ * 沙雕智能体 内置 MCP 开关设置
  *
  * 大部分内置 MCP 默认开启，由 builtinMcpDisabledIds 黑名单管理关闭项；
  * 少数内置 MCP（DEFAULT_DISABLED_IDS）默认关闭，由 builtinMcpEnabledIds 白名单
@@ -13,7 +13,7 @@ import { getSettings, updateSettings } from '../settings-service'
  * 这些 MCP 需要用户额外配置（如 API Key）才有意义，默认不向 Agent 注入，
  * 需用户在能力列表中手动开启。
  */
-const DEFAULT_DISABLED_IDS = new Set<string>(['nano-banana'])
+const DEFAULT_DISABLED_IDS = new Set<string>([])
 
 /** 判断某个内置 MCP 是否默认关闭（需用户手动开启） */
 export function isBuiltinMcpDefaultDisabled(id: string): boolean {

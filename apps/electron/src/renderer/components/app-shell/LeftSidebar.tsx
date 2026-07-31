@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { CharacterInfo } from '@/components/character/CharacterInfo'
 import { CharacterCreate } from '@/components/character/CharacterCreate'
-import { type ShadiaoCharacter, selectedCharacterAtom, walletAtom } from '@/atoms/character-atoms'
+import { type ShadiaoCharacter, charactersAtom, selectedCharacterAtom, walletAtom } from '@/atoms/character-atoms'
 import { CharacterAnim } from '@/components/agent/CharacterAnim'
 import { SearchDialog } from './SearchDialog'
 import { UserAvatar } from '@/components/chat/UserAvatar'
@@ -710,6 +710,7 @@ function deleteSetEntry<T>(prev: Set<T>, value: T): Set<T> {
 export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.ReactElement {
   const [activeView, setActiveView] = useAtom(activeViewAtom)
   const setAgentSkillsTab = useSetAtom(agentSkillsTabAtom)
+  const agentSkillsTab = useAtomValue(agentSkillsTabAtom)
   const setAutomationForm = useSetAtom(automationFormAtom)
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
@@ -737,6 +738,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   /** 人物编辑弹窗（null=创建, ShadiaoCharacter=编辑） */
   const [characterEditTarget, setCharacterEditTarget] = React.useState<ShadiaoCharacter | null | undefined>(undefined)
   const wallet = useAtomValue(walletAtom)
+  const setWallet = useSetAtom(walletAtom)
   /** 每个项目额外展开显示的会话数量（每次点击"显示更多" +10），未点击则为 0 或无值 */
   const [expandedExtraCountMap, setExpandedExtraCountMap] = React.useState<Map<string, number>>(new Map())
   /** 记录被用户手动折叠的工作区 ID（点击当前工作区标题时折叠/展开）。刻意不持久化：折叠被视为临时查看行为，刷新/重启后恢复默认展开 */
@@ -762,7 +764,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const hasUpdate = useAtomValue(hasUpdateAtom)
   const updateStatus = useAtomValue(updateStatusAtom)
   const selectedCharacter = useAtomValue(selectedCharacterAtom)
+  const setSelectedCharacter = useSetAtom(selectedCharacterAtom)
+  const setCharacters = useSetAtom(charactersAtom)
   const hasEnvironmentIssues = useAtomValue(hasEnvironmentIssuesAtom)
+
+  /** 🆕 集中过滤：按人物过滤会话/workspace 的可见性 */
+  const isForSelectedCharacter = React.useCallback(
+    (item: { characterId?: number }) =>
+      selectedCharacter == null || item.characterId === selectedCharacter.id,
+    [selectedCharacter],
+  )
   const promptConfig = useAtomValue(promptConfigAtom)
   const setSelectedPromptId = useSetAtom(selectedPromptIdAtom)
   const interfaceVariant = useAtomValue(interfaceVariantAtom)
@@ -786,6 +797,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   // 当前项目能力（MCP + Skill 计数）
   const [capabilities, setCapabilities] = React.useState<WorkspaceCapabilities | null>(null)
   const capabilitiesVersion = useAtomValue(workspaceCapabilitiesVersionAtom)
+  const skillsCount = React.useMemo(
+    () => capabilities?.skills.length ?? 0,
+    [capabilities],
+  )
+  const mcpCount = React.useMemo(
+    () => (capabilities?.mcpServers.length ?? 0) + (capabilities?.builtinMcpServers.length ?? 0),
+    [capabilities],
+  )
 
   // Tab 状态
   const [tabs, setTabs] = useAtom(tabsAtom)
@@ -968,7 +987,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         s.pinned
         && !draftSessionIds.has(s.id)
         && !hasPinnedVisibleParent(s, agentSessions)
-        && (selectedCharacter == null || s.characterId === selectedCharacter.id)
+        && isForSelectedCharacter(s)
       )
       return sortAgentSessionsByUpdatedAtDesc(filtered)
     },
@@ -1006,11 +1025,15 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
   /** 已归档 Agent 会话数量（跨项目） */
   const archivedAgentSessionCount = React.useMemo(
-    () => agentSessions.filter((s) => s.archived && !draftSessionIds.has(s.id)).length,
-    [agentSessions, draftSessionIds]
+    () => agentSessions.filter((s) =>
+      s.archived
+      && !draftSessionIds.has(s.id)
+      && isForSelectedCharacter(s)
+    ).length,
+    [agentSessions, draftSessionIds, selectedCharacter]
   )
 
-  // 初始加载对话列表 + 用户档案 + Agent 会话
+  // 初始加载对话列表 + 用户档案 + Agent 会话 + 钱包
   React.useEffect(() => {
     window.electronAPI
       .listConversations()
@@ -1026,8 +1049,13 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       .listAgentSessions()
       .then(setAgentSessions)
       .catch(console.error)
+    // 🆕 沙雕人物：初始加载钱包
+    window.electronAPI
+      .getWallet?.()
+      .then((r: any) => { if (r?.success && r.data) setWallet(r.data) })
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setConversations, setUserProfile, setAgentSessions])
+  }, [setConversations, setUserProfile, setAgentSessions, setWallet])
 
   // 窗口聚焦时重新同步列表，修复长时间后前后端不一致
   React.useEffect(() => {
@@ -1054,20 +1082,25 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     setActiveView('automations')
   }, [activeView, setAutomationForm, setActiveView, store])
 
-  /** 打开/关闭 Agent 技能视图 */
+  /** 打开/关闭 Agent 技能视图（Skills tab） */
   const handleOpenSkills = React.useCallback((): void => {
-    if (activeView === 'agent-skills') {
+    if (activeView === 'agent-skills' && agentSkillsTab === 'skills') {
       setActiveView('conversations')
       return
     }
+    setAgentSkillsTab('skills')
     setActiveView('agent-skills')
-  }, [activeView, setActiveView])
+  }, [activeView, agentSkillsTab, setAgentSkillsTab, setActiveView])
 
-  /** 打开当前工作区的 MCP 管理页 */
+  /** 打开/关闭 Agent 技能视图（MCP tab） */
   const handleOpenMcpManagement = React.useCallback((): void => {
+    if (activeView === 'agent-skills' && agentSkillsTab === 'mcp') {
+      setActiveView('conversations')
+      return
+    }
     setAgentSkillsTab('mcp')
     setActiveView('agent-skills')
-  }, [setAgentSkillsTab, setActiveView])
+  }, [activeView, agentSkillsTab, setAgentSkillsTab, setActiveView])
 
   // 切换模式时重置归档视图
   React.useEffect(() => {
@@ -1559,6 +1592,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           && !session.pinned
           && !draftSessionIds.has(session.id)
           && !!session.sourceAutomationId
+          // 🆕 按人物过滤
+          && isForSelectedCharacter(session)
         )
       )
       if (sessions.length === 0) return null
@@ -1567,7 +1602,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         sessions,
       }
     },
-    [agentSessions, draftSessionIds],
+    [agentSessions, draftSessionIds, selectedCharacter],
   )
 
   /** 完成项目排序并持久化（合成「自动任务」组与真实项目一起排序，二者分别持久化） */
@@ -1659,7 +1694,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     }
 
     try {
-      const workspace = await window.electronAPI.createAgentWorkspace(trimmed)
+      const workspace = await window.electronAPI.createAgentWorkspace(trimmed, selectedCharacter?.id)
       setWorkspaces((prev) => [workspace, ...prev])
       setCurrentWorkspaceId(workspace.id)
       window.electronAPI.updateSettings({ agentWorkspaceId: workspace.id }).catch(console.error)
@@ -1669,7 +1704,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const msg = error instanceof Error ? error.message : '创建项目失败'
       toast.error(msg)
     }
-  }, [newProjectName, setCurrentWorkspaceId, setWorkspaces])
+  }, [newProjectName, selectedCharacter, setCurrentWorkspaceId, setWorkspaces])
 
   const handleCreateProjectKeyDown = React.useCallback((e: React.KeyboardEvent): void => {
     if (e.key === 'Enter') {
@@ -1881,12 +1916,28 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     try {
       const updated = await window.electronAPI.updateAgentWorkspace(workspaceId, { name: newName })
       setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
+      // 🆕 如果 workspace 对应人物（ID 格式为 char-{数字}），同步更新人物名称
+      const charMatch = workspaceId.match(/^char-(\d+)$/)
+      if (charMatch) {
+        const characterId = parseInt(charMatch[1]!, 10)
+        try {
+          const r = await window.electronAPI.updateCharacter(characterId, { name: newName })
+          if (r?.success && r.data) {
+            setCharacters((prev) => prev.map((c) => (c.id === r.data.id ? r.data : c)))
+            if (selectedCharacter?.id === r.data.id) {
+              setSelectedCharacter(r.data)
+            }
+          }
+        } catch (e) {
+          console.warn('[侧边栏] 同步人物名称失败:', e)
+        }
+      }
     } catch (error) {
       console.error('[侧边栏] 重命名工作区失败:', error)
       const msg = error instanceof Error ? error.message : '重命名失败'
       toast.error(msg)
     }
-  }, [setWorkspaces])
+  }, [setWorkspaces, setCharacters, setSelectedCharacter, selectedCharacter])
 
   /** 重命名 Agent 会话标题 */
   const handleAgentRename = React.useCallback(async (id: string, newTitle: string): Promise<void> => {
@@ -2102,7 +2153,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           // 已被置顶母会话收纳的子会话留在置顶区的母会话下面，避免重复显示为项目根会话
           && !hasPinnedVisibleParent(session, agentSessions)
           // 🆕 按人物过滤
-          && (selectedCharacter == null || session.characterId === selectedCharacter.id)
+          && isForSelectedCharacter(session)
         )
       )
 
@@ -2117,6 +2168,16 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
       return workspaces
         .filter((workspace) => workspace.slug !== 'default')
+        // 🆕 按人物过滤 workspace：选中人物时只显示该人物的 char-{id} 项目
+        .filter((workspace) => {
+          if (selectedCharacter == null) return true
+          const charMatch = workspace.id.match(/^char-(\d+)$/)
+          if (charMatch) {
+            return parseInt(charMatch[1]!, 10) === selectedCharacter.id
+          }
+          // 非人物 workspace（如用户手动创建）始终显示
+          return true
+        })
         .map((workspace) => ({
         workspace,
         sessions: sessionsByWorkspaceId.get(workspace.id) ?? [],
@@ -2146,7 +2207,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       agentSessions.filter((s) =>
         s.archived
         && !draftSessionIds.has(s.id)
-        && (selectedCharacter == null || s.characterId === selectedCharacter.id)
+        && isForSelectedCharacter(s)
       )
     )
     const trees = buildAgentSessionTrees(archived)
@@ -2230,6 +2291,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         && (!currentWorkspaceId || session.workspaceId === currentWorkspaceId)
         // 自动任务会话不出现在收起态 Rail，与展开态列表保持一致
         && !isHiddenAutomationSession(session)
+        // 🆕 按人物过滤
+        && isForSelectedCharacter(session)
       )
       .sort((a, b) => {
         const statusA = agentIndicatorMap.get(a.id) ?? (unviewedCompletedSessionIds.has(a.id) ? 'completed' : 'idle')
@@ -2270,9 +2333,8 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
     agentIndicatorMap,
     unviewedCompletedSessionIds,
     workspaceNameMap,
+    selectedCharacter,
   ])
-
-  // 删除确认弹窗（collapsed/expanded 共享）
   const deleteDialog = (
     <AlertDialog
       open={pendingDeleteId !== null}
@@ -2605,6 +2667,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 	      <div className="flex items-start gap-1.5 px-3 pt-4">
 	        <div className="flex-1 min-w-0">
 	          <CharacterInfo
+            skillsCount={skillsCount}
+            mcpCount={mcpCount}
+            onOpenMcp={handleOpenMcpManagement}
 	            onOpenPanel={() => {
               if (activeView === 'character-panel') {
                 setActiveView('conversations')
@@ -2831,13 +2896,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
                     onDragLeave={handleProjectDragLeave}
                     onDrop={handleProjectDrop}
                     onDragEnd={handleProjectDragEnd}
-                    onConfigureProject={isAuto ? noopVoid : (workspaceId) => {
-                      handleSelectProject(workspaceId)
-                      handleOpenMcpManagement()
-                    }}
                     onRenameWorkspace={isAuto ? noopAsync : handleWorkspaceRename}
-                    onRequestDeleteWorkspace={isAuto ? noopVoid : handleRequestDeleteWorkspace}
-                    canDeleteWorkspace={isAuto ? false : canDeleteWorkspace(group.workspace)}
                     onSelectSession={handleSelectAgentSession}
                     onRequestDelete={handleRequestDelete}
                     onRequestMove={handleRequestMove}
@@ -3869,10 +3928,7 @@ interface AgentProjectGroupItemProps {
   onDragLeave: (e: React.DragEvent) => void
   onDrop: (e: React.DragEvent, workspaceId: string) => void
   onDragEnd: () => void
-  onConfigureProject: (workspaceId: string) => void
   onRenameWorkspace: (workspaceId: string, newName: string) => Promise<void>
-  onRequestDeleteWorkspace: (workspaceId: string) => void
-  canDeleteWorkspace: boolean
   onSelectSession: (id: string, title: string) => void
   onRequestDelete: (id: string) => void
   onRequestMove: (id: string) => void
@@ -3906,10 +3962,7 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
   onDragLeave,
   onDrop,
   onDragEnd,
-  onConfigureProject,
   onRenameWorkspace,
-  onRequestDeleteWorkspace,
-  canDeleteWorkspace,
   onSelectSession,
   onRequestDelete,
   onRequestMove,
@@ -4124,36 +4177,10 @@ const AgentProjectGroupItem = React.memo(function AgentProjectGroupItem({
           <DropdownMenuContent align="start" className="w-44 z-[9999] min-w-0 p-0.5">
             <DropdownMenuItem
               className="text-xs py-1 [&>svg]:size-3.5"
-              onSelect={() => onSelectProject(group.workspace.id)}
-            >
-              <FolderOpen size={14} />
-              设为当前项目
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-xs py-1 [&>svg]:size-3.5"
               onSelect={handleStartWorkspaceRename}
             >
               <Pencil size={14} />
               重命名
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-xs py-1 [&>svg]:size-3.5"
-              onSelect={() => onConfigureProject(group.workspace.id)}
-            >
-              <Settings size={14} />
-              配置 MCP 与 Skills
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-0.5" />
-            <DropdownMenuItem
-              disabled={!canDeleteWorkspace}
-              className={cn(
-                'text-xs py-1 [&>svg]:size-3.5',
-                canDeleteWorkspace && 'text-destructive focus:text-destructive',
-              )}
-              onSelect={() => onRequestDeleteWorkspace(group.workspace.id)}
-            >
-              <Trash2 size={14} />
-              删除项目
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

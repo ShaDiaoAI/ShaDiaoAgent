@@ -212,7 +212,7 @@ function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: bool
   }
 }
 
-export function createAgentWorkspace(name: string): AgentWorkspace {
+export function createAgentWorkspace(name: string, characterId?: number): AgentWorkspace {
   const index = readIndex()
 
   const duplicate = index.workspaces.find((w) => w.name === name)
@@ -228,6 +228,7 @@ export function createAgentWorkspace(name: string): AgentWorkspace {
     id: randomUUID(),
     name,
     slug,
+    characterId,
     createdAt: now,
     updatedAt: now,
   }

@@ -1,21 +1,33 @@
 /**
  * CharacterPanelView — 「人物管理」全屏视图
  *
- * 由侧边栏人物齿轮图标或皮肤盲盒按钮触发，全屏占据中间内容区。
- * 布局与 AgentSkillsView 一致：大标题 + pill tab 切换 + 内容区。
+ * 由侧边栏人物姓名行触发，全屏占据中间内容区。
+ * 布局与 AgentSkillsView 一致：返回按钮 + 大标题 + pill tab 切换 + 内容区。
+ *
+ * 人物信息 tab 重构（2026-07-30）：
+ * - 内联人物列表切换 + 展开选中人物详情
+ * - type-to-confirm 删除对话框
+ * - 槽位统计 + 创建入口
  */
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { User, Zap, Shield, Star, Edit3, Trash2, Gift, Check } from 'lucide-react'
+import { User, Shield, Edit3, Trash2, Gift, Check, ArrowLeft, Plus, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
+import { useCharacterSwitch } from '@/hooks/useCharacterSwitch'
 import { cn } from '@/lib/utils'
 import {
   charactersAtom, selectedCharacterAtom, mySkinsAtom,
-  walletAtom, gachaProgressAtom, gachaHistoryAtom,
+  walletAtom, gachaProgressAtom, gachaHistoryAtom, creationLimitAtom,
   type ShadiaoCharacter, type Skin,
 } from '@/atoms/character-atoms'
-import { characterPanelTabAtom, type CharacterPanelTab } from '@/atoms/active-view'
+import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
+import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@/atoms/active-view'
+
+/** 计算人物槽位贡献：floor(level / 5) */
+function calcSlotContribution(level: number): number {
+  return Math.floor(level / 5)
+}
 
 export function CharacterPanelView(): React.ReactElement {
   const [characters, setCharacters] = useAtom(charactersAtom)
@@ -27,12 +39,23 @@ export function CharacterPanelView(): React.ReactElement {
   const [gachaHistory, setGachaHistory] = useAtom(gachaHistoryAtom)
   const setWallet = useSetAtom(walletAtom)
   const setGachaProgress = useSetAtom(gachaProgressAtom)
+  const [creationLimit, setCreationLimit] = useAtom(creationLimitAtom)
+  const setWorkspaces = useSetAtom(agentWorkspacesAtom)
+  const setCurrentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
+  const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
+  const activeView = useAtomValue(activeViewAtom)
+  const switchCharacter = useCharacterSwitch()
   const [tab, setTab] = useAtom(characterPanelTabAtom)
   const [drawing, setDrawing] = React.useState(false)
   const [drawError, setDrawError] = React.useState<string | null>(null)
-  const [editOpen, setEditOpen] = React.useState(false)
+
+  // 人物 tab 内状态
+  const [deleteTarget, setDeleteTarget] = React.useState<ShadiaoCharacter | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = React.useState('')
 
   const char = selected
+  const isLastCharacter = characters.length <= 1
 
   // 打开时拉取数据
   React.useEffect(() => {
@@ -45,22 +68,91 @@ export function CharacterPanelView(): React.ReactElement {
     window.electronAPI.mySkins?.().then((r: any) => {
       if (r?.success && r.data) setMySkins(r.data)
     }).catch(() => {})
-  }, [setGachaProgress, setWallet, setMySkins])
+    window.electronAPI.getCreationLimit?.().then((r: any) => {
+      if (r?.success && r.data) setCreationLimit(r.data)
+    }).catch(() => {})
+    setDeleteTarget(null)
+    setDeleteConfirmName('')
+  }, [setGachaProgress, setWallet, setMySkins, setCreationLimit])
 
-  const handleDelete = async (c: ShadiaoCharacter) => {
-    if (!confirm(`确定要删除「${c.name}」吗？此操作不可撤销。`)) return
+  // 切换到 info tab 时刷新 creation-limit
+  React.useEffect(() => {
+    if (tab !== 'info') return
+    window.electronAPI.getCreationLimit?.().then((r: any) => {
+      if (r?.success && r.data) setCreationLimit(r.data)
+    }).catch(() => {})
+  }, [tab, setCreationLimit])
+
+  // ===== 人物切换 =====
+  const handleSelectChar = async (c: ShadiaoCharacter) => {
+    if (c.id === selected?.id) return
+    // 1. 从后端刷新最新人物数据
     try {
-      await window.electronAPI.deleteCharacter?.(c.id)
-      const updated = characters.filter(ch => ch.id !== c.id)
-      setCharacters(updated)
-      if (selected?.id === c.id) setSelected(updated[0] || null)
-    } catch (e) { console.error('删除失败:', e) }
+      const r = await window.electronAPI.getCharacter?.(c.id)
+      if (r?.success && r.data) {
+        setSelected(r.data)
+        setCharacters(prev => prev.map(ch => ch.id === r.data.id ? r.data : ch))
+      } else {
+        setSelected(c)
+      }
+    } catch {
+      setSelected(c)
+    }
+    // 2. 同步主进程 selectedCharacterId + 会话管理
+    // 保存当前视图——switchCharacter 可能触发 openSession 将 activeView 改为 'conversations'
+    const prevView = activeView
+    console.log('[handleSelectChar] 切换前 activeView:', prevView, '目标人物:', c.name)
+    try { await switchCharacter(c) } catch {}
+    console.log('[handleSelectChar] switchCharacter 返回, activeView 现在是:', activeView)
+    if (prevView === 'character-panel') {
+      setActiveView('character-panel')
+    }
+    // 3. 自动切换到新人物的 workspace
+    const newWsId = `char-${c.id}`
+    setCurrentWorkspaceId(newWsId)
+    window.electronAPI.updateSettings({ agentWorkspaceId: newWsId }).catch(() => {})
+    // 4. 刷新会话列表触发过滤
+    window.electronAPI.listAgentSessions().then(setAgentSessions).catch(() => {})
   }
 
+  // ===== 删除 =====
+  const confirmDeleteChar = async () => {
+    if (!deleteTarget) return
+    const charToDelete = deleteTarget
+    setDeleteTarget(null)
+    setDeleteConfirmName('')
+    try {
+      await window.electronAPI.deleteCharacter?.(charToDelete.id)
+      const updated = characters.filter(c => c.id !== charToDelete.id)
+      setCharacters(updated)
+      if (selected?.id === charToDelete.id) {
+        const fallback = updated[0]!
+        setSelected(fallback) // 即时 UI 反馈
+        // 走统一切换路径（关闭旧标签页、切换 workspace、恢复会话）
+        handleSelectChar(fallback)
+      }
+      toast.success(`已删除「${charToDelete.name}」`)
+      // 刷新创建上限——删除后可能从满额恢复到可创建
+      window.electronAPI.getCreationLimit?.().then((cr: any) => {
+        if (cr?.success && cr.data) setCreationLimit(cr.data)
+      }).catch(() => {})
+    } catch (e) {
+      console.error('删除失败:', e)
+      toast.error('删除失败')
+    }
+  }
+  const deleteInputMatch = deleteTarget ? deleteConfirmName === deleteTarget.name : false
+
+  // ===== 皮肤装备 =====
   const handleEquipSkin = async (skin: Skin) => {
     if (!selected) return
     try {
-      await window.electronAPI.equipSkin?.(selected.id, skin.id)
+      const skinResult = await window.electronAPI.equipSkin?.(selected.id, skin.id)
+      if (!skinResult?.success) {
+        console.error('[handleEquipSkin] equipSkin failed:', skinResult?.error)
+        toast.error(`装备皮肤失败${skinResult?.error ? '：' + skinResult.error : ''}`)
+        return
+      }
       const r = await window.electronAPI.getCharacter?.(selected.id)
       if (r?.success && r.data) {
         setSelected(r.data)
@@ -70,6 +162,7 @@ export function CharacterPanelView(): React.ReactElement {
     } catch (e) { toast.error('装备皮肤失败') }
   }
 
+  // ===== 盲盒抽奖 =====
   const handleDraw = async (count: number) => {
     setDrawing(true)
     setDrawError(null)
@@ -96,37 +189,52 @@ export function CharacterPanelView(): React.ReactElement {
     }
   }
 
-  // WoW 风格稀有度：白/蓝/紫/橙
+  // 稀有度
   const rarityStyles: Record<string, string> = {
-    'common': 'border-slate-300 text-slate-500 bg-white/50',
-    'rare': 'border-blue-400 text-blue-600 bg-blue-50/50',
-    'epic': 'border-purple-400 text-purple-600 bg-purple-50/50',
+    'default':   'border-slate-300 text-slate-500 bg-white/50',
+    'common':    'border-emerald-400 text-emerald-600 bg-emerald-50/50',
+    'rare':      'border-blue-400 text-blue-600 bg-blue-50/50',
+    'epic':      'border-purple-400 text-purple-600 bg-purple-50/50',
     'legendary': 'border-amber-400 text-amber-600 bg-amber-50/50',
   }
   const rarityLabels: Record<string, string> = {
-    'common': '普通',
-    'rare': '稀有',
-    'epic': '史诗',
+    'default':   '默认',
+    'common':    '普通',
+    'rare':      '稀有',
+    'epic':      '史诗',
     'legendary': '传说',
   }
 
   const tabs: { value: CharacterPanelTab; label: string; count?: number }[] = [
-    { value: 'info', label: '人物信息' },
+    { value: 'info', label: '人物' },
     { value: 'skins', label: '皮肤', count: mySkins.length },
-    { value: 'gacha', label: '盲盒' },
+    { value: 'gacha', label: '开盲盒' },
   ]
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* 标题栏 — 与 AgentSkillsView 一致 */}
-      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-8 pt-14 pb-4">
+      {/* 返回栏 */}
+      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center px-8 pt-14 pb-5">
+        <button
+          type="button"
+          onClick={() => setActiveView('conversations')}
+          className="titlebar-no-drag -ml-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          aria-label="返回会话"
+        >
+          <ArrowLeft className="size-3.5" />
+          <span>返回</span>
+        </button>
+      </div>
+
+      {/* 标题栏 */}
+      <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between px-8 pb-4">
         <div className="flex items-center gap-2.5">
           <User className="size-6 text-foreground/70" />
           <h1 className="text-2xl font-semibold text-foreground">人物管理</h1>
         </div>
       </div>
 
-      {/* Pill tab 切换 — 与 AgentSkillsView 工具条一致 */}
+      {/* Pill tab 切换 */}
       <div className="titlebar-no-drag mx-auto flex w-full max-w-6xl shrink-0 items-center px-8 pb-6">
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
@@ -165,140 +273,176 @@ export function CharacterPanelView(): React.ReactElement {
               </div>
               <div className="text-[15px] font-medium text-foreground/80">暂无人物</div>
               <div className="max-w-sm text-[13px] text-foreground/50">
-                请先在左侧栏创建一个人物
+                请先创建一个人物
               </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const r = await window.electronAPI.createCharacter?.({ name: '乞丐虾仁' })
+                    if (r?.success && r.data) {
+                      setSelected(r.data)
+                      window.electronAPI.selectCharacter(r.data).catch(() => {})
+                      window.electronAPI.listCharacters().then((lr: any) => {
+                        if (lr?.success && lr.data) setCharacters(lr.data)
+                      }).catch(() => {})
+                    }
+                  } catch (e) { console.error('创建人物失败:', e) }
+                }}
+                className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="size-4" />
+                创建新人物
+              </button>
             </div>
           )}
 
           {char && (
             <>
-              {/* 人物信息 Tab */}
+              {/* ===== 人物 Tab（卡片网格） ===== */}
               {tab === 'info' && (
-                <div className="max-w-md space-y-4">
-                  {/* 人物概要 — 紧凑排版，名称+等级+经验条一条线 */}
-                  <div className="rounded-xl border px-4 py-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <h3 className="font-semibold">{char.name}</h3>
-                      <span className="text-[11px] text-muted-foreground">Lv.{char.level}</span>
-                      {char.character_class && (
-                        <span className="text-[11px] text-muted-foreground/70">· {char.character_class.name}</span>
-                      )}
-                      <button onClick={() => setEditOpen(true)} className="p-0.5 rounded hover:bg-muted transition-colors ml-auto">
-                        <Edit3 className="size-3 text-muted-foreground" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-700"
-                          style={{ width: `${Math.round((char.experience / (char.exp_to_next || 1)) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
-                        {char.experience}/{char.exp_to_next}
-                      </span>
-                    </div>
+                <div className="space-y-4">
+                  {/* 人物槽位说明 */}
+                  <div className="text-left text-[11px] text-muted-foreground/60">
+                    {creationLimit ? (
+                      creationLimit.can_create
+                        ? `${creationLimit.current_count}/${creationLimit.max_characters} 人物槽位 · 还可创建 ${creationLimit.max_characters - creationLimit.current_count} 个`
+                        : `${creationLimit.current_count}/${creationLimit.max_characters} 人物槽位已满 · 人物每升 5 级，增加 1 个人物槽位`
+                    ) : (
+                      `${characters.length}/${3 + characters.reduce((sum, c) => sum + calcSlotContribution(c.level), 0)} 人物槽位`
+                    )}
                   </div>
 
-                  {/* 属性信息 */}
-                  <div className="rounded-xl border divide-y">
-                    <InfoRow icon={Zap} label="系统提示词" value={char.system_prompt || '（未设置）'} />
-                    <InfoRow icon={Shield} label="当前使用模型" value={char.bound_model || '（默认）'} />
-                    <InfoRow icon={Star} label="职业" value={char.character_class?.name || '（无）'} />
-                  </div>
-                  {char.equipped_items.length > 0 && (
-                    <div className="rounded-xl border p-4">
-                      <div className="text-xs text-muted-foreground mb-2">已装备道具</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {char.equipped_items.map(item => (
-                          <span key={item.id} className="px-2 py-0.5 rounded text-[11px] bg-muted text-muted-foreground">
-                            {item.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* 删除 */}
-                  <div className="pt-2">
+                  {/* 人物卡片网格 */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {characters.map((c) => {
+                      const isSelected = c.id === selected?.id
+                      const assetId = c.equipped_skin?.rive_asset_id ?? '乞丐虾仁'
+                      const localPreviewPath = `./characters/${assetId}/preview.png`
+
+                      return (
+                        <CharacterCard
+                          key={c.id}
+                          char={c}
+                          isSelected={isSelected}
+                          showDelete={!isLastCharacter}
+                          localPreviewPath={localPreviewPath}
+                          onSelect={() => handleSelectChar(c)}
+                          onRename={async (newName) => {
+                            try {
+                              const r = await window.electronAPI.updateCharacter(c.id, { name: newName })
+                              if (r?.success && r.data) {
+                                setCharacters(prev => prev.map(ch => ch.id === r.data.id ? r.data : ch))
+                                setSelected(r.data)
+                                setWorkspaces(prev => prev.map(w =>
+                                  w.id === `char-${r.data.id}` ? { ...w, name: r.data.name, updatedAt: Date.now() } : w
+                                ))
+                              }
+                            } catch (e) { console.error('重命名失败:', e) }
+                          }}
+                          onDelete={() => { setDeleteTarget(c); setDeleteConfirmName('') }}
+                        />
+                      )
+                    })}
+
+                    {/* 创建新人物卡片 */}
                     <button
-                      className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 transition-colors"
-                      onClick={() => handleDelete(char)}
+                      className={cn(
+                        'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/50',
+                        'min-h-[180px] transition-all duration-200',
+                        'hover:border-primary/40 hover:bg-muted/30 hover:shadow-md hover:-translate-y-0.5',
+                        creationLimit?.can_create === false && 'opacity-30 cursor-not-allowed',
+                      )}
+                      onClick={async () => {
+                        if (creationLimit?.can_create === false) return
+                        try {
+                          const r = await window.electronAPI.createCharacter?.({ name: '乞丐虾仁' })
+                          if (r?.success && r.data) {
+                            setSelected(r.data)
+                            setCharacters(prev => [...prev, r.data])
+                            // 确保主进程 selectedCharacterId 已同步，再做后续操作
+                            await window.electronAPI.selectCharacter(r.data).catch(() => {})
+                            // 切换到新人物的 workspace
+                            const newWsId = `char-${r.data.id}`
+                            setCurrentWorkspaceId(newWsId)
+                            window.electronAPI.updateSettings({ agentWorkspaceId: newWsId }).catch(() => {})
+                            // 刷新 workspace 列表和会话列表
+                            window.electronAPI.listAgentWorkspaces().then(setWorkspaces).catch(() => {})
+                            window.electronAPI.listAgentSessions().then(setAgentSessions).catch(() => {})
+                            window.electronAPI.getCreationLimit?.().then((cr: any) => {
+                              if (cr?.success && cr.data) setCreationLimit(cr.data)
+                            }).catch(() => {})
+                          }
+                        } catch (e) { console.error('创建人物失败:', e) }
+                      }}
+                      disabled={creationLimit?.can_create === false}
                     >
-                      <Trash2 className="size-3" />
-                      删除此人物
+                      <Plus className="size-8 text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors" />
+                      <span className="mt-1.5 text-xs text-muted-foreground/50">创建新人物</span>
                     </button>
                   </div>
                 </div>
               )}
 
               {/* 皮肤 Tab */}
-              {tab === 'skins' && (
-                <div>
-                  {mySkins.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-                      <div className="flex size-16 items-center justify-center rounded-2xl bg-foreground/[0.04]">
-                        <Shield className="size-8 text-foreground/30" />
-                      </div>
-                      <div className="text-[15px] font-medium text-foreground/80">暂无皮肤</div>
-                      <div className="max-w-sm text-[13px] text-foreground/50">
-                        使用 Agent 消耗 token 有机会获得皮肤，或前往盲盒抽取
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">
-                        点击皮肤即可为当前人物「<span className="font-medium text-foreground/80">{char.name}</span>」装备
-                      </p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                        {mySkins.map(skin => {
-                          const isEquipped = char.equipped_skin?.id === skin.id
-                          return (
-                            <button
-                              key={skin.id}
-                              className={cn(
-                                'relative flex flex-col items-center gap-2 p-3 rounded-xl border transition-colors hover:bg-muted/50',
-                                isEquipped ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border',
-                              )}
-                              onClick={() => handleEquipSkin(skin)}
-                            >
-                              {isEquipped && (
-                                <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary text-[9px] font-medium text-primary-foreground shadow-sm z-10">
-                                  <Check className="size-2.5" />
-                                  使用中
-                                </div>
-                              )}
-                              <div className="flex size-16 items-center justify-center rounded-full bg-muted/50">
-                                {skin.preview_url ? (
-                                  <img src={skin.preview_url} alt={skin.name} className="size-16 rounded-full object-cover" />
-                                ) : (
-                                  <Shield className="size-6 text-muted-foreground" />
-                                )}
-                              </div>
-                              <span className="text-[11px] font-medium truncate w-full text-center">{skin.name}</span>
-                              <span className={cn('text-[9px] px-1.5 py-px rounded-full border', rarityStyles[skin.rarity] || 'border-slate-300 text-slate-600')}>
-                                {rarityLabels[skin.rarity] || skin.rarity}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {tab === 'skins' && (() => {
+                // 检查皮肤是否可装备给当前人物
+                const canEquipSkin = (skin: Skin, char: ShadiaoCharacter) => {
+                  // 已装备
+                  if (char.equipped_skin?.id === skin.id) {
+                    return { canEquip: false, reason: '使用中' }
+                  }
+                  const qty = skin.quantity ?? 1
+                  // 统计其他人物装备此皮肤的数量
+                  const usedByOthers = characters.filter(
+                    c => c.id !== char.id && c.equipped_skin?.id === skin.id
+                  ).length
+                  if (usedByOthers < qty) {
+                    return { canEquip: true }
+                  }
+                  // 被其他人物占用
+                  const occupiedBy = characters.find(
+                    c => c.id !== char.id && c.equipped_skin?.id === skin.id
+                  )
+                  return { canEquip: false, reason: `已装备（${occupiedBy?.name ?? '?'}）` }
+                }
 
-              {/* 盲盒 Tab */}
+                return (
+                <div>
+                  <p className="text-xs text-muted-foreground pb-3">
+                    点击皮肤即可为当前人物「<span className="font-medium text-foreground/80">{char.name}</span>」装备
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {mySkins.map(skin => {
+                      const isEquipped = char.equipped_skin?.id === skin.id
+                      const localPreviewPath = `./characters/${skin.rive_asset_id}/preview.png`
+                      const equipCheck = canEquipSkin(skin, char)
+                      return (
+                        <SkinCard
+                          key={skin.id}
+                          skin={skin}
+                          isEquipped={isEquipped}
+                          disabled={!equipCheck.canEquip && !isEquipped}
+                          statusText={equipCheck.canEquip ? undefined : equipCheck.reason}
+                          localPreviewPath={localPreviewPath}
+                          onEquip={() => handleEquipSkin(skin)}
+                          rarityLabels={rarityLabels}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+                )
+              })()}
+
+              {/* 盲盒 Tab — 保持不变 */}
               {tab === 'gacha' && (
                 <div className="max-w-md space-y-5">
-                  {/* 沙雕币余额 */}
                   <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
                     <span className="text-sm text-muted-foreground">沙雕币</span>
                     <span className="text-lg font-semibold tabular-nums text-amber-500">
                       💰 {wallet?.coins?.toLocaleString() ?? gachaProgress?.coins?.toLocaleString() ?? '—'}
                     </span>
                   </div>
-
-                  {/* 抽奖按钮 */}
                   <div className="flex gap-3">
                     <button
                       disabled={drawing || !gachaProgress?.can_single_draw}
@@ -310,8 +454,7 @@ export function CharacterPanelView(): React.ReactElement {
                           : 'bg-muted text-muted-foreground cursor-not-allowed',
                       )}
                     >
-                      <Gift size={16} />
-                      <span>单抽</span>
+                      <Gift size={16} /><span>单抽</span>
                       <span className="text-xs opacity-70">{gachaProgress?.single_draw_cost ?? '—'} 币</span>
                     </button>
                     <button
@@ -324,13 +467,10 @@ export function CharacterPanelView(): React.ReactElement {
                           : 'bg-muted text-muted-foreground cursor-not-allowed',
                       )}
                     >
-                      <Gift size={16} />
-                      <span>5 连抽</span>
+                      <Gift size={16} /><span>5 连抽</span>
                       <span className="text-xs opacity-70">{gachaProgress?.multi_draw_cost ?? '—'} 币</span>
                     </button>
                   </div>
-
-                  {/* 进度条 */}
                   {gachaProgress && (
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -345,13 +485,7 @@ export function CharacterPanelView(): React.ReactElement {
                       </div>
                     </div>
                   )}
-
-                  {/* 错误提示 */}
-                  {drawError && (
-                    <div className="text-xs text-red-500 text-center">{drawError}</div>
-                  )}
-
-                  {/* 获得记录 */}
+                  {drawError && <div className="text-xs text-red-500 text-center">{drawError}</div>}
                   {gachaHistory.length > 0 && (
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-2">获得记录</div>
@@ -383,21 +517,236 @@ export function CharacterPanelView(): React.ReactElement {
               )}
             </>
           )}
+
+          {/* 删除确认对话框 */}
+          {deleteTarget && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40">
+              <div className="w-[320px] p-5 rounded-xl border bg-card shadow-2xl space-y-4">
+                <div className="text-center">
+                  <AlertTriangle className="size-8 text-red-500 mx-auto mb-2" />
+                  <h3 className="font-semibold text-sm">删除「{deleteTarget.name}」</h3>
+                  <p className="text-xs text-muted-foreground mt-1">此操作不可撤销。</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1.5">
+                    请输入 <span className="font-medium text-foreground/80">{deleteTarget.name}</span> 以确认：
+                  </p>
+                  <input
+                    autoFocus
+                    className="w-full px-2.5 py-1.5 rounded-md border bg-background text-sm outline-none focus:border-primary transition-colors"
+                    value={deleteConfirmName}
+                    onChange={e => setDeleteConfirmName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && deleteInputMatch) { e.preventDefault(); confirmDeleteChar() }
+                      if (e.key === 'Escape') { e.preventDefault(); setDeleteTarget(null); setDeleteConfirmName('') }
+                    }}
+                    placeholder={deleteTarget.name}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    onClick={() => { setDeleteTarget(null); setDeleteConfirmName('') }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className={cn(
+                      'flex-1 py-1.5 rounded-md text-xs font-medium transition-colors',
+                      deleteInputMatch
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-muted text-muted-foreground cursor-not-allowed',
+                    )}
+                    disabled={!deleteInputMatch}
+                    onClick={confirmDeleteChar}
+                  >
+                    确认删除
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* 编辑弹窗占位 — 保持 CharacterCreate 的调用方式 */}
-      {editOpen && char && (
-        <CharacterEditWrapper
-          char={char}
-          onClose={() => setEditOpen(false)}
-          onSaved={(updated) => {
-            setSelected(updated)
-            setCharacters(prev => prev.map(c => c.id === updated.id ? updated : c))
-            setEditOpen(false)
-          }}
-        />
+/**
+ * 人物卡片 — 参考皮肤卡片设计，用于人物 tab 的网格布局
+ *
+ * 每个卡片包含：角色预览图、名称、等级、职业、槽位贡献、经验条。
+ * 选中卡片带 ring + "使用中" 徽章，hover 浮起效果。
+ * 重命名内联在选中卡片上，删除按钮仅选中时显示。
+ */
+function CharacterCard({
+  char,
+  isSelected,
+  showDelete,
+  localPreviewPath,
+  onSelect,
+  onRename,
+  onDelete,
+}: {
+  char: ShadiaoCharacter
+  isSelected: boolean
+  showDelete: boolean
+  localPreviewPath: string
+  onSelect: () => void
+  onRename: (newName: string) => Promise<void>
+  onDelete: () => void
+}): React.ReactElement {
+  const [imgSrc, setImgSrc] = React.useState<string | null>(localPreviewPath)
+  const [imgFallback, setImgFallback] = React.useState(0) // 0=local, 1=django, 2=icon
+  const [isRenaming, setIsRenaming] = React.useState(false)
+  const [renameValue, setRenameValue] = React.useState(char.name)
+  const renameInputRef = React.useRef<HTMLInputElement>(null)
+  const [renaming, setRenaming] = React.useState(false)
+
+  // 同步外部 name 变更
+  React.useEffect(() => {
+    if (!isRenaming) setRenameValue(char.name)
+  }, [char.name, isRenaming])
+
+  const charExp = Math.round((char.experience / (char.exp_to_next || 1)) * 100)
+  const slots = calcSlotContribution(char.level)
+
+  const handleImgError = () => {
+    if (imgFallback === 0 && char.equipped_skin?.preview_url) {
+      setImgSrc(char.equipped_skin.preview_url)
+      setImgFallback(1)
+    } else {
+      setImgSrc(null)
+      setImgFallback(2)
+    }
+  }
+
+  const startRename = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsRenaming(true)
+    setRenameValue(char.name)
+    requestAnimationFrame(() => {
+      renameInputRef.current?.focus()
+      renameInputRef.current?.select()
+    })
+  }
+
+  const commitRename = async () => {
+    const trimmed = renameValue.trim()
+    setIsRenaming(false)
+    if (!trimmed || trimmed === char.name || trimmed.length > 30) return
+    setRenaming(true)
+    try {
+      await onRename(trimmed)
+    } finally {
+      setRenaming(false)
+    }
+  }
+
+  const handleRenameKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+    if (e.key === 'Escape') { e.preventDefault(); setIsRenaming(false); setRenameValue(char.name) }
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={cn(
+        'group relative flex flex-col rounded-xl border bg-card overflow-hidden transition-all duration-200 text-left',
+        'hover:-translate-y-0.5 hover:shadow-md',
+        isSelected
+          ? 'border-primary/60 ring-2 ring-primary/30 shadow-sm'
+          : 'border-border shadow-sm',
       )}
+      onClick={() => { if (!isSelected) onSelect() }}
+      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isSelected) { e.preventDefault(); onSelect() } }}
+    >
+      {/* 预览图区 */}
+      <div className="relative aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
+        {isSelected && (
+          <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary text-[9px] font-medium text-primary-foreground shadow-sm z-10">
+            <Check className="size-2.5" />
+            使用中
+          </div>
+        )}
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={char.name}
+            className="w-full h-full object-cover object-top"
+            onError={handleImgError}
+          />
+        ) : (
+          <User className="size-10 text-muted-foreground/40" />
+        )}
+      </div>
+
+      {/* 信息栏 */}
+      <div className="flex flex-col gap-0.5 px-2.5 py-2 border-t border-border/60">
+        {/* 名称行 */}
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            className="w-full bg-transparent border-b border-primary text-[12px] font-medium outline-none"
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={handleRenameKey}
+            maxLength={30}
+            onClick={e => e.stopPropagation()}
+            disabled={renaming}
+          />
+        ) : (
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-[12px] font-medium truncate">{char.name}</span>
+            {isSelected && (
+              <button
+                className="shrink-0 p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
+                onClick={startRename}
+                title="重命名"
+              >
+                <Edit3 className="size-2.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 等级 + 职业 */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-muted-foreground">Lv.{char.level}</span>
+          {char.character_class && (
+            <span className="text-[10px] text-muted-foreground/70 truncate">· {char.character_class.name}</span>
+          )}
+          {slots > 0 && (
+            <span className="text-[8px] px-1 py-px rounded-full bg-emerald-500/10 text-emerald-600 font-medium ml-auto">
+              +{slots} 槽
+            </span>
+          )}
+        </div>
+
+        {/* 经验条 */}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-400 to-purple-400 transition-all duration-500"
+              style={{ width: `${charExp}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-muted-foreground/60 tabular-nums">{charExp}%</span>
+        </div>
+
+        {/* 操作按钮 */}
+        {isSelected && showDelete && (
+          <button
+            className="mt-1 flex items-center justify-center gap-1 w-full py-1 rounded text-[10px] text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+            onClick={e => { e.stopPropagation(); onDelete() }}
+          >
+            <Trash2 className="size-2.5" />
+            删除
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -415,74 +764,97 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 /**
- * 轻量编辑包装 — 调用 CharacterCreate 编辑模式
+ * 皮肤卡片组件
  */
-function CharacterEditWrapper({ char, onClose, onSaved }: {
-  char: ShadiaoCharacter
-  onClose: () => void
-  onSaved: (char: ShadiaoCharacter) => void
+function SkinCard({
+  skin,
+  isEquipped,
+  disabled,
+  statusText,
+  localPreviewPath,
+  onEquip,
+  rarityLabels,
+}: {
+  skin: { id: number; name: string; rarity: string; preview_url?: string; rive_asset_id: string; quantity?: number }
+  isEquipped: boolean
+  disabled?: boolean
+  statusText?: string
+  localPreviewPath: string
+  onEquip: () => void
+  rarityLabels: Record<string, string>
 }): React.ReactElement {
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-start justify-center pt-[10vh] bg-black/30" onClick={onClose}>
-      <div
-        className="relative w-full max-w-md rounded-xl border bg-card shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-sm">编辑人物</h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <EditForm char={char} onSaved={onSaved} onCancel={onClose} />
-        </div>
-      </div>
-    </div>
-  )
-}
+  const [imgSrc, setImgSrc] = React.useState<string | null>(localPreviewPath)
+  const [fallbackStage, setFallbackStage] = React.useState(0)
 
-function EditForm({ char, onSaved, onCancel }: {
-  char: ShadiaoCharacter
-  onSaved: (char: ShadiaoCharacter) => void
-  onCancel: () => void
-}): React.ReactElement {
-  const [name, setName] = React.useState(char.name)
-  const [saving, setSaving] = React.useState(false)
-
-  const handleSave = async () => {
-    if (!name.trim()) return
-    setSaving(true)
-    try {
-      const r = await window.electronAPI.updateCharacter(char.id, { name: name.trim() })
-      if (r?.success && r.data) {
-        onSaved(r.data)
-      }
-    } catch (e) { console.error('更新失败:', e) }
-    finally { setSaving(false) }
+  const handleImgError = () => {
+    if (fallbackStage === 0 && skin.preview_url) {
+      setImgSrc(skin.preview_url)
+      setFallbackStage(1)
+    } else {
+      setImgSrc(null)
+      setFallbackStage(2)
+    }
   }
 
+  const rarityColor = {
+    default:   'bg-slate-300',
+    common:    'bg-emerald-400',
+    rare:      'bg-blue-400',
+    epic:      'bg-purple-400',
+    legendary: 'bg-amber-400',
+  }[skin.rarity] || 'bg-slate-400'
+
   return (
-    <>
-      <div>
-        <label className="text-[10px] text-muted-foreground">人物名称</label>
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-          maxLength={30}
-          onKeyDown={e => { if (e.key === 'Enter') handleSave() }}
-        />
+    <button
+      className={cn(
+        'group relative flex flex-col rounded-xl border bg-card overflow-hidden transition-all duration-200',
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:shadow-md',
+        isEquipped
+          ? 'border-primary/60 ring-2 ring-primary/30 shadow-sm'
+          : 'border-border shadow-sm',
+      )}
+      onClick={disabled ? undefined : onEquip}
+      disabled={disabled}
+    >
+      <div className="relative aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
+        {isEquipped && (
+          <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary text-[9px] font-medium text-primary-foreground shadow-sm z-10">
+            <Check className="size-2.5" />
+            使用中
+          </div>
+        )}
+        {disabled && statusText && !isEquipped && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10">
+            <span className="text-[10px] text-muted-foreground font-medium px-2 py-1 rounded bg-background/80">
+              {statusText}
+            </span>
+          </div>
+        )}
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={skin.name}
+            className="w-full h-full object-cover object-top"
+            onError={handleImgError}
+          />
+        ) : (
+          <Shield className="size-10 text-muted-foreground/40" />
+        )}
       </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <button onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted transition-colors">
-          取消
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-          className="px-4 py-1.5 rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          {saving ? '保存中...' : '保存'}
-        </button>
+      <div className="flex flex-col gap-0.5 px-2.5 py-2 border-t border-border/60">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-[12px] font-medium truncate">{skin.name}</span>
+          {'quantity' in skin && (skin.quantity ?? 1) > 1 && (
+            <span className="text-[9px] text-muted-foreground shrink-0">×{skin.quantity}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className={cn('inline-block size-1.5 rounded-full shrink-0', rarityColor)} />
+          <span className="text-[10px] text-muted-foreground">
+            {rarityLabels[skin.rarity] || skin.rarity}
+          </span>
+        </div>
       </div>
-    </>
+    </button>
   )
 }

@@ -239,7 +239,7 @@ export function MainArea(): React.ReactElement {
                 {automationFormOpen ? (
                   // 兼容从会话内入口打开任务设置的场景。
                   <AutomationFormView />
-                ) : tabs.length === 0 ? (
+                ) : tabs.length === 0 || activeTab?.type === 'scratch' ? (
                   <WelcomeView />
                 ) : deferredActiveTabId ? (
                   <div className="flex-1 min-h-0 titlebar-no-drag">

@@ -6,13 +6,14 @@
  */
 
 import * as React from 'react'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
 import {
   agentWorkspacesAtom,
   currentAgentWorkspaceIdAtom,
 } from '@/atoms/agent-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import type { AgentWorkspace } from '@shadiao/shared'
 
 interface UseProjectActionsResult {
@@ -28,6 +29,7 @@ export function useProjectActions(): UseProjectActionsResult {
   const [workspaces, setWorkspaces] = useAtom(agentWorkspacesAtom)
   const [currentWorkspaceId, setCurrentWorkspaceId] = useAtom(currentAgentWorkspaceIdAtom)
   const setActiveView = useSetAtom(activeViewAtom)
+  const selectedCharacter = useAtomValue(selectedCharacterAtom)
   const createInFlightRef = React.useRef(false)
 
   const selectProject = React.useCallback(
@@ -48,7 +50,7 @@ export function useProjectActions(): UseProjectActionsResult {
       createInFlightRef.current = true
 
       try {
-        const workspace = await window.electronAPI.createAgentWorkspace(trimmed)
+        const workspace = await window.electronAPI.createAgentWorkspace(trimmed, selectedCharacter?.id)
         setWorkspaces((prev) => [workspace, ...prev])
         setCurrentWorkspaceId(workspace.id)
         setActiveView('conversations')

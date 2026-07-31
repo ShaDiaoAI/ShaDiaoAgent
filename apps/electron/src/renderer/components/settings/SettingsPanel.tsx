@@ -11,19 +11,11 @@ import { cn } from "@/lib/utils";
 import {
   Settings,
   Radio,
-  Palette,
   Info,
   Globe,
-  BookOpen,
-  Wrench,
-  Bot,
-  GraduationCap,
   X,
   Keyboard,
-  Mic,
-  HardDriveDownload,
   HardDrive,
-  FlaskConical,
   Server,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -66,16 +58,9 @@ interface TabItem {
 const BASE_TABS: TabItem[] = [
   { id: "general", label: "通用设置", icon: <Settings size={16} /> },
   { id: "channels", label: "模型配置", icon: <Radio size={16} /> },
-  { id: "experimental", label: "实验性功能", icon: <FlaskConical size={16} /> },
-  { id: "prompts", label: "提示词管理", icon: <BookOpen size={16} /> },
   { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
 ];
 
-const TOOLS_TAB: TabItem = {
-  id: "tools",
-  label: "Chat 工具",
-  icon: <Wrench size={16} />,
-};
 const SHORTCUTS_TAB: TabItem = {
   id: "shortcuts",
   label: "快捷键管理",
@@ -86,7 +71,6 @@ const SHORTCUTS_TAB: TabItem = {
 const TAIL_TABS: TabItem[] = [
   { id: "django", label: "后端连接", icon: <Server size={16} /> },
   { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
-  { id: "appearance", label: "外观设置", icon: <Palette size={16} /> },
   { id: "about", label: "关于/更新", icon: <Info size={16} /> },
 ];
 
@@ -189,13 +173,13 @@ export function SettingsPanel({
     if (appMode === "agent") {
       return [
         ...BASE_TABS,
-        TOOLS_TAB,        SHORTCUTS_TAB,
+        SHORTCUTS_TAB,
         ...TAIL_TABS,
       ];
     }
     return [
       ...BASE_TABS,
-      TOOLS_TAB,      SHORTCUTS_TAB,
+      SHORTCUTS_TAB,
       ...TAIL_TABS,
     ];
   }, [appMode]);

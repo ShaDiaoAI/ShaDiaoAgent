@@ -1,5 +1,5 @@
 /**
- * Proma 内置 MCP 能力目录
+ * 沙雕智能体 内置 MCP 能力目录
  *
  * 这里只维护可展示的元数据和可用性判断，不负责运行时注入。
  * 元数据本身来自 default-mcp.json（经 baseline 加载），本文件只在其上叠加
@@ -20,7 +20,7 @@ function resolveAvailability(
   item: BuiltinMcpDefinition,
   ctx: BuiltinMcpListContext,
 ): Pick<BuiltinMcpServerSummary, 'enabled' | 'available' | 'availabilityReason'> {
-  // 基础设施型（如 proma-cloud）：登录后始终注入，不受用户开关影响
+  // 基础设施型：登录后始终注入，不受用户开关影响
   if (item.toggleable === false) {
     return { enabled: true, available: true }
   }
@@ -42,19 +42,6 @@ function resolveAvailability(
       enabled: true,
       available,
       availabilityReason: available ? undefined : '需要先选择工作区',
-    }
-  }
-
-  if (item.id === 'nano-banana') {
-    const state = getToolState('nano-banana')
-    const credentials = getToolCredentials('nano-banana')
-    const available = state.enabled && !!credentials.apiKey
-    return {
-      enabled: true,
-      available,
-      availabilityReason: available
-        ? undefined
-        : state.enabled ? '需要配置 Gemini API Key' : 'Nano Banana 未启用',
     }
   }
 

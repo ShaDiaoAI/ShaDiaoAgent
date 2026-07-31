@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useAtom, useAtomValue } from 'jotai'
+import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import {
   riveAgentStateAtom,
   type RiveAgentState,
@@ -24,6 +24,7 @@ export function useRiveAgentState(): RiveAgentState {
   const streamingStates = useAtomValue(agentStreamingStatesAtom)
   const streamErrors = useAtomValue(agentStreamErrorsAtom)
   const rewardQueue = useAtomValue(rewardQueueAtom)
+  const setRewardQueue = useSetAtom(rewardQueueAtom)
   const [riveState, setRiveState] = useAtom(riveAgentStateAtom)
 
   // 独立追踪 reward_drop 计时器
@@ -40,6 +41,10 @@ export function useRiveAgentState(): RiveAgentState {
       if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current)
       rewardTimerRef.current = setTimeout(() => {
         setRiveState('idle')
+        // 标记 reward 为已处理，防止下一轮 useEffect 再次触发
+        setRewardQueue(prev => prev.map(r =>
+          r.id === activeReward.id ? { ...r, dismissed: true } : r
+        ))
         lastRewardIdRef.current = null
       }, REWARD_DROP_DURATION_MS)
       return

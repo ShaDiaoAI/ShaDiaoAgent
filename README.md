@@ -1,181 +1,138 @@
-# Proma
+# 沙雕智能体（ShaDiaoAgent）
 
-Proma 是一个本地优先的 AI 桌面应用，把多模型 Chat、通用 Agent、工作区、Skills、MCP、远程机器人和记忆能力放在同一个开源客户端里。
+沙雕智能体是一个本地优先的 AI 桌面客户端，核心理念是 **"沙雕人物"替代传统工作区**——你不是在切换项目，而是在切换陪你工作的 AI 伙伴。每个沙雕人物有独立的性格、职业、皮肤和系统提示词，使用 AI 消耗 token 还能触发随机奖励掉落。
 
-它不是只面向闲聊的聊天框，而是一个可以长期沉淀个人工作流的 Agent 工作台：简单问题用 Chat，复杂任务交给 Agent，数据和配置尽量留在本地。
+它不是普通的 AI 聊天框，而是一个有灵魂的 Agent 工作台：简单问题用 Chat，复杂任务交给 Agent，数据和配置尽量留在本地。
 
-![Proma 海报](https://img.erlich.fun/personal-blog/uPic/pb.png)
+> **当前阶段**：Phase 1 已完成（核心 Agent 链路跑通），Phase 2（人物系统 + 角色动画）开发中。
 
-<video width="560" controls>
-  <source src="https://img.erlich.fun/personal-blog/uPic/%E7%AE%80%E5%8D%95%E4%BB%8B%E7%BB%8D%20Proma.mp4" type="video/mp4">
-</video>
+## 和一般 AI 客户端的区别
 
-[English README](./README.en.md) | [新手教程](./tutorial/tutorial.md) | [下载开源版](https://github.com/ErlichLiu/Proma/releases) | [下载商业版](https://proma.cool/download)
-
-> **最新思考 ｜ 2026 Q2–Q3**：[勇敢地解决真实的问题 — Proactive · 个人注意力 · 团队协作](./proma-thinking/proma-2026-q2-q3-thinking.md) ｜ 往期思考：[2026 Q1](./proma-thinking/proma-2026-q1-thinking.md)
+- **沙雕人物系统**：创建/选择属于你的 AI 伙伴，每个角色有独立的职业（学者 / 生活家 / 工程师）、等级经验、可装备皮肤和系统提示词。切换人物就是切换工作模式。
+- **角色动画**：你的沙雕人物会根据 Agent 状态实时变化——待机呼吸、思考歪头、调用工具时敲键盘、说话时张嘴。不是静态头像，是活的。
+- **游戏化奖励**：每消耗 100 token 触发沙雕币掉落，每 1000 token 触发皮肤盲盒。使用越多，奖励越多，人物越个性。
+- **本地优先**：会话、工作区、配置、附件全部存在 `~/.shadiao-agent/`，JSON / JSONL 文件格式，不用数据库，方便备份和迁移。
+- **Agent 全能力**：基于 Claude Agent SDK，支持文件操作、Shell 命令、MCP 扩展、Skills 复用、计划模式、权限管理。
 
 ## 现在能做什么
 
-- **Chat 模式**：多模型对话、附件解析、图片输入、Markdown / Mermaid / KaTeX / 代码高亮、并排对话、系统提示词、上下文管理。
 - **Agent 模式**：基于 `@anthropic-ai/claude-agent-sdk` 的通用 Agent，支持工作区隔离、权限模式、文件操作、长任务流式输出、计划确认和用户追问。
-- **SubAgent / Tasks**：复杂任务可以通过 Claude Agent SDK 的 Agent 工具拆分为子 Agent / Task，并在消息流中展示调用过程和结果。
-- **Skills & MCP**：每个工作区可以独立配置 Skills、MCP Server 和工作区文件，适合沉淀可复用能力。
-- **远程机器人**：支持飞书 / Lark 机器人桥接，并已提供钉钉、微信桥接入口，用手机或群聊触发本机 Agent 工作流。
-- **记忆与工具**：Chat 和 Agent 可共享记忆能力，并支持联网搜索、内置 Chat 工具、Agent 推荐等辅助能力。
-- **本地优先**：会话、工作区、附件、配置、Skills 等默认存储在 `~/.proma/`，使用 JSON / JSONL 文件组织，不依赖本地数据库。
-- **桌面体验**：自动更新、代理设置、文件预览、全局快捷键、快速任务窗口、语音输入、亮色 / 暗色 / 跟随系统主题。
+- **Chat 模式**：多模型对话、附件解析、Markdown / Mermaid / KaTeX / 代码高亮、系统提示词、上下文管理。
+- **沙雕人物**：创建多个人物，每人独立配置模型和系统提示词，一键切换工作模式。
+- **角色动画**：CreateJS 驱动的角色动画，随 Agent 状态（idle → thinking → tool_calling → streaming）实时切换。
+- **奖励掉落**：使用 Agent 消耗 token → 自动触发奖励（沙雕币 / 皮肤盲盒）→ 弹窗动画展示。
+- **皮肤 & 背包**：收集皮肤装备在人物身上，管理道具背包，打造个性化 AI 伙伴。
+- **Skills & MCP**：每个工作区独立配置 Skills 和 MCP Server，沉淀可复用能力。
+- **本地优先**：所有数据存储在 `~/.shadiao-agent/`，JSON 配置 + JSONL 追加日志，不用本地数据库。
+
+## 架构概览
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ShaDiaoAgent (Electron + React + CreateJS)          │
+│                                                      │
+│  ┌─────────────────┐   ┌──────────────────────────┐  │
+│  │  Renderer (React)│   │  Main Process            │  │
+│  │  - Agent 视图    │   │  - Agent 编排             │  │
+│  │  - Chat 视图     │   │  - 人物管理               │  │
+│  │  - 人物面板      │   │  - 奖励服务               │  │
+│  │  - 角色动画      │   │  - MCP / Skills           │  │
+│  │  - 皮肤画廊      │   │  - Django 客户端          │  │
+│  └─────────────────┘   └──────────┬───────────────┘  │
+│                                   │                   │
+│  本地存储: ~/.shadiao-agent/      │                   │
+└───────────────────────────────────┼───────────────────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     │      Django 后端              │
+                     │                              │
+                     │  ① LLM 代理转发               │
+                     │     Client → Django → NewAPI  │
+                     │     → 第三方 LLM              │
+                     │                              │
+                     │  ② 业务逻辑                   │
+                     │     人物 / 皮肤 / 物品 / 奖励  │
+                     │     钱包 / 概率表 / 等级经验    │
+                     └──────────────────────────────┘
+```
+
+Agent 请求链路：客户端设置 `ANTHROPIC_BASE_URL` 指向 Django，SDK 自动追加路径 → Django 代理转发至 NewAPI → 第三方 LLM，Django 在代理层旁路解析 token 用量、触发奖励掉落、通过 SSE `reward_drop` 事件混入流式响应。
+
+## 预设人物
+
+| 人物 | 职业 | 性格 |
+|------|------|------|
+| **甲** | 学者 | 知识渊博，擅长解释概念、辅导学习、推荐资源 |
+| **乙** | 生活家 | 风趣幽默，擅长日常建议、娱乐推荐、闲聊陪伴 |
+| **丙** | 工程师 | 高效专业，擅长代码、文档、项目管理和技术方案 |
+
+所有预设人物默认使用虾仁形象（默认皮肤），后续可通过皮肤系统更换外观。
 
 ## 快速开始
 
+### 环境要求
+
+- **macOS** Apple Silicon / Intel，或 **Windows** x64（Linux 后续支持）
+- **Bun** 1.2.x+（运行时和包管理）
+- **Git** 和可用的 Shell（Agent 模式依赖）
+- **Django 后端**（需要单独部署，处理 LLM 代理转发和人物系统）
+
 ### 下载安装
 
-从 [GitHub Releases](https://github.com/ErlichLiu/Proma/releases) 下载开源版本。当前 release notes 以 `v0.9.12` 为准，提供 macOS Apple Silicon、macOS Intel 和 Windows 安装包。
-
-如果你希望开箱即用、减少 API 配置成本，也可以使用 [Proma 商业版](https://proma.cool/download)。商业版和开源版并行运行，主要区别是商业版提供内置渠道和订阅方案。
+从 [GitHub Releases](#) 下载最新版本。提供 macOS Apple Silicon、macOS Intel 和 Windows 安装包。
 
 ### 首次配置
 
-1. 打开 Proma，先完成环境检查。Agent 模式依赖本机基础环境，尤其是 Git、Node.js / Bun 以及可用的 Shell。
-2. 进入 **设置 > 渠道**，添加至少一个 AI 供应商渠道，填写 Base URL、API Key 和模型列表。
-3. Chat 模式可以使用 OpenAI、Anthropic、Google 或 OpenAI 兼容协议的渠道。
-4. Agent 模式需要 Anthropic 协议或 Anthropic 兼容协议渠道，例如 Anthropic、DeepSeek、Kimi API、Kimi Coding Plan。
-5. 进入 **设置 > Agent**，选择默认 Agent 渠道、模型和工作区。
-6. 如需记忆、联网搜索、飞书 / 钉钉 / 微信桥接，在设置页对应 Tab 中继续配置。
+1. 启动沙雕智能体，完成环境检查。
+2. 进入 **设置**，配置 Django 后端地址并登录/注册账号。
+3. Django 后端已内置 NewAPI 渠道管理——用户无需自行配置 API Key。
+4. 进入 **人物**，创建或选择一个沙雕人物（默认提供甲 / 乙 / 丙）。
+5. 进入 **Agent** 视图，选择工作区，开始对话。
 
-## 模式选择
+## 技术栈
 
-### Chat 适合
+| 层级 | 技术 |
+|------|------|
+| 运行时 | Bun |
+| 桌面框架 | Electron 39+ |
+| 前端 | React 18 + TypeScript |
+| 状态管理 | Jotai |
+| 样式 | Tailwind CSS + Radix UI |
+| 富文本输入 | TipTap |
+| Markdown / 图表 / 公式 | React Markdown + Beautiful Mermaid + KaTeX |
+| 代码高亮 | Shiki |
+| 角色动画 | CreateJS / EaselJS |
+| 构建 | Vite + esbuild |
+| 分发 | electron-builder |
+| Agent SDK | `@anthropic-ai/claude-agent-sdk` |
+| 后端 | Django（独立项目） |
 
-- 日常问答、解释、翻译、润色、轻量代码讨论。
-- 读取附件内容后做总结、改写、比较。
-- 使用联网搜索或记忆工具增强一次性对话。
-- 同时对比多个模型输出，或用不同系统提示词做探索。
-
-### Agent 适合
-
-- 修改、创建、整理本地文件。
-- 调研、编写报告、处理多步骤任务。
-- 使用 MCP、Skills、Shell、Git、项目文件等外部上下文。
-- 需要权限确认、计划模式、后台任务或远程机器人持续跟进的工作。
-
-简单说：**只需要回答时用 Chat，需要行动和交付结果时用 Agent。**
-
-## 截图
-
-### Chat 快速分析
-
-用 Chat 处理轻量但真实的分析任务：整理读者关注点、生成对比表，并把首屏文案快速定稿。
-
-![Proma Chat 快速分析](./docs/assets/screenshots/proma-chat-demo.png)
-
-### Agent 工作台
-
-Agent 在工作区里读取文件、推进任务、输出表格化结论，并把可复用文件保留在右侧工作区面板中。
-
-![Proma Agent 工作台](./docs/assets/screenshots/proma-agent-demo.png)
-
-### Skills
-
-每个工作区都可以沉淀专属 Skills。截图中的 `feedback-synthesis` 用于把用户反馈、访谈记录和 issue 聚合成主题、证据与优先级建议。
-
-![Proma 工作区 Skills](./docs/assets/screenshots/proma-skills-demo.png)
-
-### Skills & MCP
-
-同一个工作区可以管理 stdio / HTTP MCP Server，按需启用或关闭，让 Agent 在不同项目里获得不同的外部上下文。
-
-![Proma MCP 配置](./docs/assets/screenshots/proma-mcp-demo.png)
-
-### 流式语音输入(支持全局输入)
-Proma 支持豆包的流式语音输入功能，并且支持在 Proma 内使用和 Proma 外部使用：
-- Proma 内部使用：Ctrl + ` 触发识别，再次按下结束自动输入到 Proma 内对应的输入框
-- Proma 外部使用：Ctrl + ` 触发识别，再次按下结束自动输入到当前的光标所在处，如无光标则默认写入到剪贴板
-- 
-![Proma 语音输入](./docs/assets/screenshots/proma-typeless-input.png)
-
-## 支持的模型渠道
-
-| 供应商 | Chat | Agent | 协议说明 |
-| --- | --- | --- | --- |
-| Anthropic | 支持 | 支持 | Anthropic Messages API |
-| DeepSeek | 支持 | 支持 | Anthropic 兼容协议 |
-| Kimi API | 支持 | 支持 | Anthropic 兼容协议 |
-| Kimi Coding Plan | 支持 | 支持 | Anthropic 兼容协议，使用专用认证头 |
-| OpenAI | 支持 | 暂不支持 | Chat Completions |
-| Google | 支持 | 暂不支持 | Gemini Generative Language API |
-| 智谱 AI | 支持 | 支持 | Anthropic 兼容协议 |
-| MiniMax | 支持 | 支持 | Anthropic 兼容协议 |
-| 豆包 | 支持 | 支持 | Anthropic 兼容协议 |
-| 通义千问 | 支持 | 支持 | Anthropic 兼容协议 |
-| 自定义端点 | 支持 | 暂不支持 | OpenAI 兼容协议 |
-
-> **Kimi Coding Plan 用户须知**：Proma 已获得 Kimi 官方白名单支持，使用 Proma 连接 Kimi Coding Plan 不会触发第三方客户端封号策略，可放心使用。
-
-Agent 模式底层使用 Claude Agent SDK，因此目前要求渠道提供 Anthropic 或 Anthropic 兼容协议。Chat 模式则通过 `@proma/core` 的 Provider Adapter 统一接入不同协议。
-
-## 本地数据
-
-Proma 采用本地文件存储，方便备份、迁移和排查问题。
+## 项目结构
 
 ```text
-~/.proma/
-├── channels.json
-├── conversations.json
-├── conversations/
-│   └── {conversation-id}.jsonl
-├── agent-sessions.json
-├── agent-sessions/
-│   └── {session-id}.jsonl
-├── agent-workspaces/
-│   └── {workspace-slug}/
-│       ├── workspace-files/
-│       ├── mcp.json
-│       └── skills/
-├── attachments/
-├── user-profile.json
-├── settings.json
-└── sdk-config/
+shadiao-agent/
+├── packages/
+│   ├── shared/     # @shadiao/shared — 共享类型、IPC 常量、配置
+│   ├── core/       # @shadiao/core — Provider Adapter、SSE、代码高亮
+│   └── ui/         # @shadiao/ui — 共享 React UI 组件（含角色动画组件）
+└── apps/
+    └── electron/   # @shadiao/electron — Electron 桌面应用
 ```
-
-API Key 会通过 Electron `safeStorage` 加密后写入 `channels.json`。Proma 不使用本地数据库，核心数据结构以 JSON 配置和 JSONL 追加日志为主。
 
 ## 开发
 
-Proma 是 Bun workspace monorepo。
-
-```text
-proma-v2/
-├── packages/
-│   ├── shared/     # 共享类型、IPC 常量、配置、工具函数
-│   ├── core/       # Provider Adapter、SSE、代码高亮
-│   └── ui/         # 共享 React UI 组件
-└── apps/
-    └── electron/   # Electron 桌面应用
-```
-
-当前主要包版本：
-
-| 包 | 版本 | 职责 |
-| --- | --- | --- |
-| `@proma/electron` | `0.10.7` | Electron 桌面应用 |
-| `@proma/shared` | `0.1.20` | 共享类型、IPC 常量、配置和工具 |
-| `@proma/core` | `0.2.9` | Provider Adapter、SSE、Shiki 高亮 |
-| `@proma/ui` | `0.1.6` | 共享 React UI 组件 |
-
-常用命令：
-
 ```bash
 # 安装依赖
-bun install
+cd workspace-files/shadiao-agent && bun install
 
-# 开发模式：自动启动 Vite + Electron + 热重载
-bun run dev
+# 开发模式（Vite + Electron + 热重载）
+cd apps/electron && bun run dev
 
-# 构建 Electron 应用
-bun run electron:build
+# 构建
+cd apps/electron && bun run build
 
-# 构建并运行
-bun run electron:start
+# 打包 macOS
+cd apps/electron && bun run dist:mac
 
 # 类型检查
 bun run typecheck
@@ -184,117 +141,73 @@ bun run typecheck
 bun test
 ```
 
-Electron 子应用内也提供更细的脚本：
-
-```bash
-cd apps/electron
-
-bun run dev:vite
-bun run dev:electron
-bun run build:main
-bun run build:preload
-bun run build:renderer
-bun run dist:fast
-```
-
-## 技术栈
-
-| 层级 | 技术 |
-| --- | --- |
-| 运行时 | Bun |
-| 桌面框架 | Electron 39 |
-| 前端 | React 18 + TypeScript |
-| 状态管理 | Jotai |
-| 样式 | Tailwind CSS + Radix UI |
-| 富文本输入 | TipTap |
-| Markdown / 图表 / 公式 | React Markdown + Beautiful Mermaid + KaTeX |
-| 代码高亮 | Shiki |
-| 构建 | Vite + esbuild |
-| 分发 | electron-builder |
-| Agent SDK | `@anthropic-ai/claude-agent-sdk@0.3.143` |
-
-## 架构概览
-
-Proma 的核心通信路径是：
+## 本地数据
 
 ```text
-shared 类型和 IPC 常量
-  -> main/ipc.ts 注册处理器
-  -> preload/index.ts 暴露 window.electronAPI
-  -> renderer Jotai atoms 和 React 组件调用
+~/.shadiao-agent/
+├── auth.json                 # 用户 JWT 本地存储
+├── user-profile.json         # 用户信息缓存
+├── characters-cache.json     # 人物列表本地缓存
+├── conversations.json        # Chat 会话索引
+├── conversations/
+│   └── {uuid}.jsonl          # Chat 会话记录
+├── agent-sessions.json       # Agent 会话索引
+├── agent-sessions/
+│   └── {uuid}.jsonl          # Agent 会话记录
+├── agent-workspaces/
+│   └── {slug}/
+│       ├── workspace-files/  # 工作区持久文件
+│       ├── mcp.json          # MCP Server 配置
+│       └── skills/           # Skills 配置
+├── anim-cache/               # 角色动画文件缓存
+├── attachments/              # 附件文件
+├── settings.json             # 应用设置
+└── sdk-config/               # Agent SDK 配置
 ```
 
-主进程服务集中在 `apps/electron/src/main/lib/`：
+API Key 由 Django 后端统一管理，客户端不需存储。JWT 通过 Electron `safeStorage` 加密存储。
 
-- `agent-orchestrator.ts`：Agent 编排、环境变量、SDK 调用、事件流、错误处理。
-- `agent-session-manager.ts`：Agent 会话索引和 JSONL 消息持久化。
-- `agent-workspace-manager.ts`：工作区、MCP、Skills 和工作区文件管理。
-- `chat-service.ts`：Chat 流式调用、Provider Adapter、工具活动。
-- `conversation-manager.ts`：Chat 会话索引和消息存储。
-- `channel-manager.ts`：渠道 CRUD、API Key 加密、连接测试、模型获取。
-- `feishu-bridge.ts` / `dingtalk-bridge.ts` / `wechat-bridge.ts`：远程机器人桥接。
-- `chat-tool-*`、`document-parser.ts`、`workspace-watcher.ts`：工具、文档解析和文件监听。
+## 实施阶段
 
-渲染进程以 Jotai 管理状态，关键 atoms 位于 `apps/electron/src/renderer/atoms/`。Agent IPC 监听器在应用顶层全局挂载，避免切换页面时丢失流式事件、权限请求或后台任务状态。
-
-## 打包注意事项
-
-`@anthropic-ai/claude-agent-sdk` 在 `0.2.113+` 后改为平台 native binary 分发。Proma 的 esbuild 配置会把 SDK 标记为 external，`electron-builder.yml` 会把 SDK 主包和平台子包一起打进安装包。
-
-修改打包配置时请特别确认：
-
-- 主进程 esbuild 保持 `--external:@anthropic-ai/claude-agent-sdk`。
-- `apps/electron/package.json` 的 `optionalDependencies` 包含目标平台的 SDK 子包。
-- `apps/electron/electron-builder.yml` 的 `files` 包含 SDK 主包和平台子包。
-- 其它普通 npm 依赖通常应由 esbuild 打包进 `main.cjs`，不要随意 external。
-
-更完整的工程约定见 [AGENTS.md](./AGENTS.md)。
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 1 | 骨架搭建 + 核心 Agent 链路 | ✅ 已完成 |
+| Phase 2 | 人物系统 + 角色动画 | 🔧 开发中 |
+| Phase 3 | 奖励系统 + 游戏化 | 📋 待开始 |
+| Phase 4 | Skills/MCP + 系统完善 | 📋 待开始 |
+| Phase 5 | 商店 + 社交 | 📅 远期 |
 
 ## 贡献
 
-欢迎修 Bug、补文档、加测试、完善体验，也欢迎围绕真实场景提交新的 Skills、MCP 配置或 Agent 工作流。
+欢迎修 Bug、补文档、加测试、完善体验，也欢迎围绕沙雕人物提交新的皮肤设计、动画效果或 Agent 工作流。
 
-提交 PR 前建议先确认：
+提交 PR 前请确认：
 
 - 使用 Bun 运行脚本，不混用 npm / pnpm lockfile。
 - 状态管理使用 Jotai。
-- 尽量保持本地优先，优先使用配置文件和 JSON / JSONL。
+- 尽量保持本地优先，优先使用 JSON / JSONL 配置文件。
 - TypeScript 不使用 `any`，对象结构优先使用 `interface`。
 - 新增 IPC 时同步修改 shared 类型、main handler、preload bridge 和 renderer 调用。
 - 影响包行为时递增对应 package 的 patch 版本。
-- 能用测试覆盖的行为尽量补上测试，尤其是共享逻辑、IPC 契约和持久化格式。
-
-## 作者
-
-- 个人网站：[erlich.fun](https://erlich.fun)
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=ErlichLiu%2FProma&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ErlichLiu/Proma&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ErlichLiu/Proma&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ErlichLiu/Proma&type=date&legend=top-left" />
- </picture>
-</a>
-
+- 注释和日志采用中文，保留专业术语。
 
 ## 致谢
 
+- [Proma](https://github.com/ErlichLiu/Proma)：架构灵感与 Agent SDK 集成参考。
 - [Shiki](https://shiki.style/)：代码高亮。
-- [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid) 与 [Mermaid](https://mermaid.js.org/)：Mermaid 图表渲染与官方兜底渲染。
+- [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid)：Mermaid 图表渲染。
 - [Cherry Studio](https://github.com/CherryHQ/cherry-studio)：多供应商桌面 AI 产品启发。
 - [Lobe Icons](https://github.com/lobehub/lobe-icons)：AI / LLM 品牌图标。
 - [Craft Agents OSS](https://github.com/lukilabs/craft-agents-oss)：Agent SDK 集成模式参考。
 
 ## 许可证
 
-Proma 社区版采用 [GNU Affero General Public License v3.0（AGPL-3.0）](./LICENSE) 开源，完整条款见根目录 `LICENSE` 文件。
+沙雕智能体社区版采用 [GNU Affero General Public License v3.0（AGPL-3.0）](./LICENSE) 开源，完整条款见根目录 `LICENSE` 文件。
 
 **个人 / 非商业使用**：自由使用、修改、分发，仅需遵守 AGPL-3.0 条款。
 
 **商业使用**：在完全遵守 AGPL-3.0 条款的前提下允许进行商业使用，包括但不限于：以源代码或修改后的形式分发软件、通过网络对外提供服务时必须公开完整修改源码（含网络交互层）、衍生作品须以 AGPL-3.0 继续授权。
 
-**商业授权（豁免 AGPL-3.0 义务）**：如果你希望将 Proma 集成到闭源产品、对外提供 SaaS 服务但不想公开衍生代码，或有其他无法满足 AGPL-3.0 条款的商业场景，请通过邮件联系获取商业许可：[erlichliu@gmail.com](mailto:erlichliu@gmail.com)。
+**商业授权（豁免 AGPL-3.0 义务）**：如果你希望将沙雕智能体集成到闭源产品、对外提供 SaaS 服务但不想公开衍生代码、或有其他无法满足 AGPL-3.0 条款的商业场景，请联系作者获取商业许可。
 
 向本项目提交 Pull Request 即视为同意将贡献以 AGPL-3.0 及未来商业许可形式授权给项目维护者。

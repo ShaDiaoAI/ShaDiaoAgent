@@ -46,6 +46,11 @@ import {
   askUserDraftsAtom,
 } from '@/atoms/agent-atoms'
 import {
+  rewardQueueAtom,
+  walletAtom,
+  selectedCharacterAtom,
+} from '@/atoms/character-atoms'
+import {
   notificationsEnabledAtom,
   notificationSoundEnabledAtom,
   notificationSoundsAtom,
@@ -1125,6 +1130,28 @@ export function useGlobalAgentListeners(): void {
               store.set(stoppedByUserSessionsAtom, new Set<string>(
                 sessions.filter((s) => s.stoppedByUser).map((s) => s.id)
               ))
+
+              // 🆕 沙雕人物：会话完成后刷新 wallet + 触发 reward_drop 动画
+              const completedSession = sessions.find(s => s.id === data.sessionId)
+              const selectedChar = store.get(selectedCharacterAtom)
+              if (completedSession?.characterId != null &&
+                  selectedChar != null &&
+                  completedSession.characterId === selectedChar.id &&
+                  !data.stoppedByUser) {
+                window.electronAPI.getWallet?.().then((wr: any) => {
+                  if (wr?.success && wr.data) {
+                    store.set(walletAtom, wr.data)
+                    store.set(rewardQueueAtom, (prev) => [...prev, {
+                      id: crypto.randomUUID(),
+                      reward_type: 'coin' as const,
+                      name: '沙雕币',
+                      amount: wr.data.coins,
+                      timestamp: Date.now(),
+                      dismissed: false,
+                    }])
+                  }
+                }).catch(() => {})
+              }
             })
             .catch(console.error)
 

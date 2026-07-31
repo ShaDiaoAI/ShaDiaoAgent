@@ -1,16 +1,19 @@
 import * as React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom, useSetAtom } from 'jotai'
 import { X } from 'lucide-react'
 import { charactersAtom, type ShadiaoCharacter } from '@/atoms/character-atoms'
+import { agentWorkspacesAtom } from '@/atoms/agent-atoms'
 
 interface CharacterCreateProps {
   open: boolean
   editChar?: ShadiaoCharacter | null
   onClose: () => void
+  onCreated?: (char: ShadiaoCharacter) => void
 }
 
-export function CharacterCreate({ open, editChar, onClose }: CharacterCreateProps): React.ReactElement | null {
+export function CharacterCreate({ open, editChar, onClose, onCreated }: CharacterCreateProps): React.ReactElement | null {
   const [characters, setCharacters] = useAtom(charactersAtom)
+  const setWorkspaces = useSetAtom(agentWorkspacesAtom)
   const [name, setName] = React.useState('')
   const [systemPrompt, setSystemPrompt] = React.useState('')
   const [boundModel, setBoundModel] = React.useState('')
@@ -49,6 +52,12 @@ export function CharacterCreate({ open, editChar, onClose }: CharacterCreateProp
         })
         if (r?.success && r.data) {
           setCharacters(prev => prev.map(c => c.id === r.data.id ? r.data : c))
+          // 🆕 人物名称变更时同步更新左侧栏项目名称
+          if (name.trim() !== editChar.name) {
+            setWorkspaces(prev => prev.map(w =>
+              w.id === `char-${r.data.id}` ? { ...w, name: r.data.name, updatedAt: Date.now() } : w
+            ))
+          }
         }
       } else {
         const r = await window.electronAPI.createCharacter?.({
@@ -58,6 +67,7 @@ export function CharacterCreate({ open, editChar, onClose }: CharacterCreateProp
         })
         if (r?.success && r.data) {
           setCharacters(prev => [...prev, r.data])
+          onCreated?.(r.data)
         }
       }
       onClose()

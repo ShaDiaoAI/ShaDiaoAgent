@@ -267,6 +267,8 @@ export interface AppSettings {
   autoCleanupArchivedDays?: number
   /** 主窗口状态（大小、位置、是否最大化） */
   mainWindowState?: MainWindowState
+  /** 🆕 沙雕人物：每人物上一次活跃 Agent 会话 ID（持久化，重启后可恢复） */
+  perCharacterLastSession?: Record<number, string>
 }
 
 /** 主窗口大小、位置和最大化状态 */

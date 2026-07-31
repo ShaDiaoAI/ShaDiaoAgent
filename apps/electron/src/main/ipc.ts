@@ -11,6 +11,18 @@ import { writeFile } from 'node:fs/promises'
 
 /** 🆕 当前选中的人物 ID（主进程全局状态，用于创建会话时自动关联） */
 let selectedCharacterId: number | null = null
+
+/** 🆕 每人物上一次活跃会话 ID（从 settings 持久化加载，重启后可恢复） */
+const perCharacterLastSession = new Map<number, string>()
+try {
+  const saved = getSettings().perCharacterLastSession ?? {}
+  for (const [key, value] of Object.entries(saved)) {
+    const id = Number(key)
+    if (!isNaN(id) && typeof value === 'string' && value.length > 0) {
+      perCharacterLastSession.set(id, value)
+    }
+  }
+} catch { /* settings 读取失败，使用空 Map */ }
 import { tmpdir } from 'node:os'
 import { IPC_CHANNELS, CHANNEL_IPC_CHANNELS, CHAT_IPC_CHANNELS, AGENT_IPC_CHANNELS, ENVIRONMENT_IPC_CHANNELS, INSTALLER_IPC_CHANNELS, PROXY_IPC_CHANNELS, GITHUB_RELEASE_IPC_CHANNELS, SYSTEM_PROMPT_IPC_CHANNELS, CHAT_TOOL_IPC_CHANNELS, FEISHU_IPC_CHANNELS, DINGTALK_IPC_CHANNELS, WECHAT_IPC_CHANNELS, AUTOMATION_IPC_CHANNELS, isPromaPermissionMode, normalizePathForCompare } from '@shadiao/shared'
 import { USER_PROFILE_IPC_CHANNELS, SETTINGS_IPC_CHANNELS, SCRATCH_PAD_IPC_CHANNELS, QUICK_TASK_IPC_CHANNELS, VOICE_DICTATION_IPC_CHANNELS, APP_ICON_IPC_CHANNELS, DOCK_BADGE_IPC_CHANNELS, STORAGE_IPC_CHANNELS } from '../types'
@@ -2014,8 +2026,8 @@ export function registerIpcHandlers(): void {
   // 创建 Agent 工作区
   ipcMain.handle(
     AGENT_IPC_CHANNELS.CREATE_WORKSPACE,
-    async (_, name: string): Promise<AgentWorkspace> => {
-      return createAgentWorkspace(name)
+    async (_, name: string, characterId?: number): Promise<AgentWorkspace> => {
+      return createAgentWorkspace(name, characterId)
     }
   )
 
@@ -4589,7 +4601,16 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('character:update', async (_, id: number, data: any) => {
     try {
       const { updateChar } = await import('./lib/character-service.js')
-      return { success: true, data: await updateChar(id, data) }
+      const result = await updateChar(id, data)
+      // 🆕 人物名称变更时同步更新 workspace 名称
+      if (data.name) {
+        try {
+          updateAgentWorkspace(`char-${id}`, { name: data.name })
+        } catch (e) {
+          console.warn(`[沙雕人物] 同步 workspace 名称失败 (char-${id}):`, e)
+        }
+      }
+      return { success: true, data: result }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 
@@ -4601,10 +4622,37 @@ export function registerIpcHandlers(): void {
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 
-  ipcMain.handle('character:select', async (_, char: any) => {
+  ipcMain.handle('character:select', async (_, char: any, currentSessionId?: string) => {
     try {
-      selectedCharacterId = char?.id ?? null
-      return { success: true }
+      const newCharId = char?.id ?? null
+      const oldCharId = selectedCharacterId
+
+      // 🆕 保存当前会话作为旧人物的"上次会话"（内存 + 持久化）
+      // 仅当切换到了不同人物时才记录；同人物重复 select 不应污染记录
+      if (oldCharId != null && oldCharId !== newCharId && currentSessionId != null) {
+        perCharacterLastSession.set(oldCharId, currentSessionId)
+        // 持久化到 settings
+        try {
+          const currentSettings = getSettings()
+          updateSettings({
+            perCharacterLastSession: {
+              ...(currentSettings.perCharacterLastSession ?? {}),
+              [oldCharId]: currentSessionId,
+            },
+          })
+        } catch { /* 持久化失败不影响切换 */ }
+      }
+
+      selectedCharacterId = newCharId
+
+      return {
+        success: true,
+        // 🆕 返回新人物的上次会话 ID（用于渲染层自动恢复）
+        // 同人物不返回 lastSessionId——当前会话本就属于该人物，无需"恢复"
+        lastSessionId: newCharId != null && newCharId !== oldCharId
+          ? (perCharacterLastSession.get(newCharId) ?? null)
+          : null,
+      }
     } catch (e) { return { success: false } }
   })
 
@@ -4627,6 +4675,13 @@ export function registerIpcHandlers(): void {
       const { equipCharSkin } = await import('./lib/character-service.js')
       await equipCharSkin(characterId, skinId)
       return { success: true }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('character:creation-limit', async () => {
+    try {
+      const { getCreationLimit } = await import('./lib/character-service.js')
+      return { success: true, data: await getCreationLimit() }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 

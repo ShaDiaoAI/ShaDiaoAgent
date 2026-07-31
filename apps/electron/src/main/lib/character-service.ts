@@ -3,17 +3,17 @@ import {
   fetchSkinCatalog, fetchMySkins, equipSkin,
   fetchInventory, equipItem, unequipItem,
   fetchWallet, fetchRewards,
-  drawGacha, fetchGachaProgress,
+  drawGacha, fetchGachaProgress, fetchCreationLimit,
   getCachedCharacters,
 } from './django-client.js'
-import type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog, DrawOutput, GachaProgress } from './django-client.js'
+import type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog, DrawOutput, GachaProgress, CreationLimit } from './django-client.js'
 import { existsSync, mkdirSync, writeFileSync, readdirSync, cpSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { getConfigDir } from './config-paths'
 import { rmSyncWithRetry } from './fs-retry'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file'
-import { skillCopyFilter } from './agent-workspace-manager'
+import { skillCopyFilter, updateAgentWorkspace } from './agent-workspace-manager'
 
 // Re-export types
 export type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog }
@@ -161,17 +161,34 @@ function ensureCharacterWorkspaceEntry(characterId: number, characterName: strin
   }
 
   const wsId = `char-${characterId}`
-  if (!index.workspaces.some((w) => w.id === wsId)) {
+  const existing = index.workspaces.find((w) => w.id === wsId)
+  if (!existing) {
     const now = Date.now()
     index.workspaces.unshift({
       id: wsId,
       name: characterName,
       slug: wsId,
+      characterId,
       createdAt: now,
       updatedAt: now,
     })
     writeJsonFileAtomic(indexPath, index)
     console.log(`[沙雕人物] 已注册 workspace 条目: ${wsId}`)
+  } else {
+    // 🆕 回填：已有 workspace 可能缺少 characterId（旧版创建），或名称不一致
+    let changed = false
+    if (existing.characterId === undefined) {
+      existing.characterId = characterId
+      changed = true
+    }
+    if (existing.name !== characterName) {
+      existing.name = characterName
+      changed = true
+    }
+    if (changed) {
+      writeJsonFileAtomic(indexPath, index)
+      console.log(`[沙雕人物] 已回填 workspace 条目: ${wsId} (characterId=${characterId}, name=${characterName})`)
+    }
   }
 }
 
@@ -272,7 +289,18 @@ export async function createChar(data: {
 export async function updateChar(id: number, data: {
   name?: string; bound_model?: string; system_prompt?: string
 }): Promise<ShadiaoCharacter> {
-  return updateCharacter(id, data)
+  const updated = await updateCharacter(id, data)
+  // 如果人物名称变更，同步更新 agent-workspaces.json 中的 workspace 名称
+  if (data.name) {
+    const wsId = `char-${id}`
+    try {
+      updateAgentWorkspace(wsId, { name: data.name })
+    } catch (err) {
+      // workspace 条目可能不存在（旧人物），不阻塞主流程
+      console.warn(`[沙雕人物] 同步人物 ${id} workspace 名称失败:`, err)
+    }
+  }
+  return updated
 }
 
 export async function deleteChar(id: number): Promise<void> {
@@ -299,7 +327,7 @@ export async function listMySkins(): Promise<Skin[]> {
   return fetchMySkins()
 }
 
-export async function equipCharSkin(characterId: number, skinId: number): Promise<void> {
+export async function equipCharSkin(characterId: number, skinId: number | string): Promise<void> {
   return equipSkin(characterId, skinId)
 }
 
@@ -335,4 +363,10 @@ export async function doGachaDraw(count: number): Promise<DrawOutput> {
 
 export async function getGachaProgress(): Promise<GachaProgress> {
   return fetchGachaProgress()
+}
+
+// ===== Creation Limit =====
+
+export async function getCreationLimit(): Promise<CreationLimit> {
+  return fetchCreationLimit()
 }

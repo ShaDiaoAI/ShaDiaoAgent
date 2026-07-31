@@ -31,6 +31,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       experimentalAgentRuntimeSwitchEnabled: false,
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      perCharacterLastSession: {},
     }
   }
 
@@ -52,6 +53,7 @@ export function getSettings(): AppSettings {
       agentRuntime: data.experimentalAgentRuntimeSwitchEnabled === true
         ? data.agentRuntime ?? DEFAULT_AGENT_RUNTIME
         : DEFAULT_AGENT_RUNTIME,
+      perCharacterLastSession: data.perCharacterLastSession ?? {},
     }
   } catch (error) {
     console.error('[设置] 读取失败:', error)
@@ -67,6 +69,7 @@ export function getSettings(): AppSettings {
       builtinMcpDisabledIds: [],
       experimentalAgentRuntimeSwitchEnabled: false,
       agentRuntime: DEFAULT_AGENT_RUNTIME,
+      perCharacterLastSession: {},
     }
   }
 }

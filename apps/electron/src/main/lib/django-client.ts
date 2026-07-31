@@ -89,6 +89,20 @@ export interface GachaProgress {
   can_multi_draw: boolean
 }
 
+export interface CreationLimit {
+  max_characters: number
+  current_count: number
+  can_create: boolean
+  base: number
+  from_characters: Array<{
+    character_id: number
+    name: string
+    level: number
+    slots: number
+  }>
+  total_extra: number
+}
+
 // ===== Auth =====
 
 export function getAuthState(): DjangoAuthState {
@@ -196,7 +210,7 @@ export async function fetchMySkins(): Promise<Skin[]> {
   return djangoApiRequest<Skin[]>('/api/characters/skins/mine')
 }
 
-export async function equipSkin(characterId: number, skinId: number): Promise<void> {
+export async function equipSkin(characterId: number, skinId: number | string): Promise<void> {
   await djangoApiRequest(`/api/characters/${characterId}/equip-skin`, {
     method: 'POST',
     body: JSON.stringify({ skin_id: skinId }),
@@ -242,4 +256,8 @@ export async function drawGacha(count: number): Promise<DrawOutput> {
 
 export async function fetchGachaProgress(): Promise<GachaProgress> {
   return djangoApiRequest<GachaProgress>('/api/gacha/progress')
+}
+
+export async function fetchCreationLimit(): Promise<CreationLimit> {
+  return djangoApiRequest<CreationLimit>('/api/characters/creation-limit')
 }

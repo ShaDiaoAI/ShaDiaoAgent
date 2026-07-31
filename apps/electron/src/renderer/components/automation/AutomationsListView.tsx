@@ -15,7 +15,7 @@
 import * as React from 'react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { toast } from 'sonner'
-import { Clock, Pause, Play, Power, Plus, Trash2 } from 'lucide-react'
+import { Clock, Pause, Play, Power, Plus, Trash2, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -25,6 +25,7 @@ import {
   createEmptyDraft,
 } from '@/atoms/automation-atoms'
 import type { Automation } from '@shadiao/shared'
+import { activeViewAtom } from '@/atoms/active-view'
 
 /** 把调度配置格式化为可读文案 */
 function formatSchedule(a: Automation): string {
@@ -58,6 +59,7 @@ export function AutomationsListView(): React.ReactElement {
   const automations = useAtomValue(automationsAtom)
   const setAutomations = useSetAtom(automationsAtom)
   const setForm = useSetAtom(automationFormAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
 
   const refreshList = React.useCallback(async () => {
     const list = await window.electronAPI.listAutomations()
@@ -87,9 +89,21 @@ export function AutomationsListView(): React.ReactElement {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {/* 返回栏 */}
+      <div className="titlebar-no-drag flex items-center max-w-5xl w-full mx-auto px-8 pt-14 pb-5 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveView('conversations')}
+          className="titlebar-no-drag -ml-2 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+          aria-label="返回会话"
+        >
+          <ArrowLeft className="size-3.5" />
+          <span>返回</span>
+        </button>
+      </div>
+
       {/* 标题栏 */}
-      {/* 空列表时隐藏右上角「新建」按钮，避免与空状态中心按钮重复 */}
-      <div className="titlebar-drag-region flex items-center justify-between max-w-5xl w-full mx-auto px-8 pt-8 pb-6 flex-shrink-0">
+      <div className="titlebar-drag-region flex items-center justify-between max-w-5xl w-full mx-auto px-8 pb-6 flex-shrink-0">
         <h1 className="text-2xl font-semibold text-foreground">定时任务</h1>
         {automations.length > 0 && (
           <button

@@ -277,7 +277,7 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
       stageRef.current = null
       exportRootRef.current = null
     }
-  }, [animAssetId])
+  }, [selectedChar, animAssetId])
 
   // ===== 皮肤切换闪烁反馈 =====
   React.useEffect(() => {
