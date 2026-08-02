@@ -1,5 +1,5 @@
 /**
- * 文件 IO 层 — 仅供 Node 侧（proma CLI / Electron 主进程）使用。
+ * 文件 IO 层 — 仅供 Node 侧（shadiao-agent CLI / Electron 主进程）使用。
  *
  * 本文件 import 'node:fs'，因此**不能**进入浏览器可达的主 barrel（'@shadiao/session-core'）。
  * 它只通过子路径 '@shadiao/session-core/node' 暴露，避免 Vite 把 node:fs 打进渲染层 bundle。

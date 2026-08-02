@@ -2,7 +2,7 @@
  * 全局代理配置服务
  *
  * 管理应用的全局代理配置，支持系统代理自动检测和手动配置。
- * 配置文件存储在 ~/.proma/proxy-settings.json。
+ * 配置文件存储在 ~/.shadiao-agent/proxy-settings.json。
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'

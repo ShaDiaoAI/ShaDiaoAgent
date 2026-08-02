@@ -3,7 +3,7 @@
  *
  * 显示单个环境项（Shell / Node.js 等）的检测结果，
  * 支持两种恢复动作：
- *  - download: 从 proma-api 返回的清单一键下载官方安装包，并自动拉起
+ *  - download: 从 API 返回的清单一键下载官方安装包，并自动拉起
  *  - openExternal: 打开外部链接（macOS / 高级用户的官方下载页）
  */
 

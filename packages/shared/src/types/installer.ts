@@ -1,7 +1,7 @@
 /**
  * 第三方安装包（Git、Node.js 等）相关类型
  *
- * Proma 通过 proma-api 的 /installers/manifest 接口拿到可安装的第三方工具清单，
+ * Proma 通过 API 的 /installers/manifest 接口拿到可安装的第三方工具清单，
  * 让 Windows 用户一键下载并自动拉起官方安装程序。
  */
 

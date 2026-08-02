@@ -22,19 +22,19 @@ function canUseSessionCleaner(): boolean {
 
 function getSessionCleanerSkillName(workspaceSlug?: string): string {
   return workspaceSlug
-    ? `proma-workspace-${workspaceSlug}:session-cleaner`
+    ? `shadiao-workspace-${workspaceSlug}:session-cleaner`
     : 'session-cleaner'
 }
 
 function getSessionCliCommandPrefix(): string {
-  return getBundledCliPath() ? '"$PROMA_CLI"' : 'proma'
+  return getBundledCliPath() ? '"$SHADIAO_CLI"' : 'shadiao-agent'
 }
 
 function buildSessionCliAccessGuide(sessionId: string, historyPath: string, workspaceSlug?: string): string {
   const cli = getSessionCliCommandPrefix()
   const skillName = getSessionCleanerSkillName(workspaceSlug)
   return [
-    `优先使用 session-cleaner skill（${skillName}）读取当前会话历史；它是 Proma CLI 的薄封装，会把 Agent JSONL 清洗为干净对话。`,
+    `优先使用 session-cleaner skill（${skillName}）读取当前会话历史；它是 ShaDiao CLI 的薄封装，会把 Agent JSONL 清洗为干净对话。`,
     `可用 CLI 命令前缀: ${cli}`,
     `建议流程:`,
     `1. ${cli} session info ${sessionId}`,
@@ -57,7 +57,7 @@ function buildCurrentSessionHistoryInstruction(sessionId: string, workspaceSlug?
 function buildReferencedSessionsHistoryInstruction(workspaceSlug?: string): string {
   if (canUseSessionCleaner()) {
     const skillName = getSessionCleanerSkillName(workspaceSlug)
-    return `需要这些会话的上下文时，优先使用 session-cleaner skill（${skillName}）或 Proma CLI 读取清洗后的会话历史。按 info → outline/search → export 的顺序渐进式读取；不要假设会话内容，也不要直接 Read 原始 .jsonl 历史文件。`
+    return `需要这些会话的上下文时，优先使用 session-cleaner skill（${skillName}）或 ShaDiao CLI 读取清洗后的会话历史。按 info → outline/search → export 的顺序渐进式读取；不要假设会话内容，也不要直接 Read 原始 .jsonl 历史文件。`
   }
 
   return `不要假设这些会话的内容；需要上下文时，请先读取对应的 History path，再基于读取结果继续完成任务。\n\n重要提示：会话历史文件（.jsonl）可能包含大量消息和 tool results，文件较大。请优先使用 Grep 搜索关键词定位相关消息片段，再局部读取。避免一次性 Read 整个大文件。`

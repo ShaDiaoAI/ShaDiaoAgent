@@ -7,11 +7,11 @@ describe('Agent SDK 认证环境变量', () => {
     (provider) => {
       const env: Record<string, string | undefined> = {}
 
-      applyAgentSdkAuthEnv(env, provider, 'test-key', 'Proma/test')
+      applyAgentSdkAuthEnv(env, provider, 'test-key', 'ShaDiaoAgent/test')
 
       expect(usesAgentSdkBearerWithUserAgent(provider)).toBe(true)
       expect(env.ANTHROPIC_AUTH_TOKEN).toBe('test-key')
-      expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe('User-Agent: Proma/test')
+      expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe('User-Agent: ShaDiaoAgent/test')
       expect(env.ANTHROPIC_API_KEY).toBeUndefined()
     },
   )
@@ -23,17 +23,17 @@ describe('Agent SDK 认证环境变量', () => {
       env,
       'zhipu-coding-team',
       '{"apiKey":"model-key","organization":"org","project":"proj"}',
-      'Proma/test',
+      'ShaDiaoAgent/test',
     )
 
     expect(env.ANTHROPIC_AUTH_TOKEN).toBe('model-key')
-    expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe('User-Agent: Proma/test')
+    expect(env.ANTHROPIC_CUSTOM_HEADERS).toBe('User-Agent: ShaDiaoAgent/test')
   })
 
   test('Given 普通 Anthropic 渠道 When 写入 SDK 认证 env Then 使用 API Key', () => {
     const env: Record<string, string | undefined> = {}
 
-    applyAgentSdkAuthEnv(env, 'anthropic', 'test-key', 'Proma/test')
+    applyAgentSdkAuthEnv(env, 'anthropic', 'test-key', 'ShaDiaoAgent/test')
 
     expect(env.ANTHROPIC_API_KEY).toBe('test-key')
     expect(env.ANTHROPIC_AUTH_TOKEN).toBeUndefined()

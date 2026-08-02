@@ -2,7 +2,7 @@
  * Turn 分组 — 将流式产生的 SDKMessage 列表(含同一回合的多行快照碎片)
  * 合并为可渲染/可导出的 Turn 分组。
  *
- * 这是 Proma 会话「快照去重」的唯一真源：Electron 渲染层、proma CLI 以及
+ * 这是 Proma 会话「快照去重」的唯一真源：Electron 渲染层、shadiao-agent CLI 以及
  * 未来的 query 型接口都复用本模块，避免各处重抄一份会随存储格式漂移的解析器。
  *
  * 逻辑逐字迁移自 apps/electron 渲染层 SDKMessageRenderer.tsx，保持行为一致。
@@ -256,7 +256,7 @@ function mergeAdjacentSameModelTurns(groups: MessageGroup[]): MessageGroup[] {
 
 // ===== 预览/摘要 =====
 
-const SCHEDULED_RUN_MARKER = '<!--PROMA_SCHEDULED_RUN-->'
+const SCHEDULED_RUN_MARKER = '<!--SHADIAO_SCHEDULED_RUN-->'
 
 export function stripScheduledRunMarker(text: string): string {
   return text.replaceAll(SCHEDULED_RUN_MARKER, '').trim()

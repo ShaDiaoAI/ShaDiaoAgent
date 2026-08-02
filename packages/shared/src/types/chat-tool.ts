@@ -66,7 +66,7 @@ export interface ChatToolState {
   enabled: boolean
 }
 
-/** 配置文件结构（~/.proma/chat-tools.json） */
+/** 配置文件结构（~/.shadiao-agent/chat-tools.json） */
 export interface ChatToolsFileConfig {
   /** 各工具的开关状态，key 为工具 id */
   toolStates: Record<string, ChatToolState>

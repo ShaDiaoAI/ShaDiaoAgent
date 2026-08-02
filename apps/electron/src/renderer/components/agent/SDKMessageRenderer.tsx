@@ -882,7 +882,7 @@ function QuoteChip({ quote }: { quote: QuotedFileRef }): React.ReactElement {
 // ===== 用户输入消息渲染 =====
 
 
-const SCHEDULED_RUN_MARKER = '<!--PROMA_SCHEDULED_RUN-->'
+const SCHEDULED_RUN_MARKER = '<!--SHADIAO_SCHEDULED_RUN-->'
 
 // stripScheduledRunMarker 已迁移至 @shadiao/session-core（本文件从该包 import 使用）
 
@@ -1292,7 +1292,7 @@ let fallbackIdCounter = 0
 export function getGroupId(group: MessageGroup): string {
   if (group.type === 'user') {
     if (group.message.uuid) return group.message.uuid
-    const stableKey = (group.message as unknown as Record<string, unknown>)._promaStableKey
+    const stableKey = (group.message as unknown as Record<string, unknown>)._shadiaoStableKey
     if (typeof stableKey === 'string') return stableKey
     // 没有 uuid：使用基于 message 对象引用的缓存 ID（message 引用在重渲染间稳定）
     if (!messageIdCache.has(group.message)) {
@@ -1309,7 +1309,7 @@ export function getGroupId(group: MessageGroup): string {
   // assistant-turn：取首条 assistant 消息的 uuid
   const first = group.assistantMessages[0]
   if (first?.uuid) return first.uuid
-  const stableKey = first ? (first as unknown as Record<string, unknown>)._promaStableKey : undefined
+  const stableKey = first ? (first as unknown as Record<string, unknown>)._shadiaoStableKey : undefined
   if (typeof stableKey === 'string') return stableKey
   // 没有 uuid：使用基于首条 assistant message 对象引用的缓存 ID
   if (first) {

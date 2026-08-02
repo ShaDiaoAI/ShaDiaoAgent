@@ -203,15 +203,15 @@ export function MarkdownRichEditor({
         className={cn(
           editing ? 'min-h-0 flex-1 overflow-auto scrollbar-thin' : 'h-full min-h-full flex-1',
           isEditable
-            ? '[&_.proma-mermaid-preview]:hidden [&_.proma-code-source-body]:block'
+            ? '[&_.shadiao-mermaid-preview]:hidden [&_.shadiao-code-source-body]:block'
             : [
-                '[&_.proma-code-block--mermaid]:overflow-visible',
-                '[&_.proma-code-block--mermaid]:rounded-none',
-                '[&_.proma-code-block--mermaid]:border-0',
-                '[&_.proma-code-block--mermaid]:bg-transparent',
-                '[&_.proma-code-block--mermaid_.proma-code-header]:hidden',
-                '[&_.proma-code-block--mermaid_.proma-mermaid-preview]:block',
-                '[&_.proma-code-block--mermaid_.proma-code-source-body]:hidden',
+                '[&_.shadiao-code-block--mermaid]:overflow-visible',
+                '[&_.shadiao-code-block--mermaid]:rounded-none',
+                '[&_.shadiao-code-block--mermaid]:border-0',
+                '[&_.shadiao-code-block--mermaid]:bg-transparent',
+                '[&_.shadiao-code-block--mermaid_.shadiao-code-header]:hidden',
+                '[&_.shadiao-code-block--mermaid_.shadiao-mermaid-preview]:block',
+                '[&_.shadiao-code-block--mermaid_.shadiao-code-source-body]:hidden',
               ],
         )}
       />

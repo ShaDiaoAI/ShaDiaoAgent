@@ -12,7 +12,6 @@ import { ExternalLink, Eye, EyeOff, Loader2, CheckCircle2, XCircle, Trash2 } fro
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
-import { MemorySettings } from './MemorySettings'
 import { SettingsSection, SettingsCard } from './primitives'
 import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import { toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
@@ -467,7 +466,6 @@ function CustomToolsSection(): React.ReactElement | null {
 
 export function ToolSettings(): React.ReactElement {
   const [focusedTool, setFocusedTool] = useAtom(toolSettingsFocusAtom)
-  const memoryRef = React.useRef<HTMLDivElement>(null)
   const webSearchRef = React.useRef<HTMLDivElement>(null)
   const nanoBananaRef = React.useRef<HTMLDivElement>(null)
   const customToolsRef = React.useRef<HTMLDivElement>(null)
@@ -475,7 +473,6 @@ export function ToolSettings(): React.ReactElement {
   React.useEffect(() => {
     if (!focusedTool) return
     const refs: Record<ToolSettingsFocus, React.RefObject<HTMLDivElement>> = {
-      memory: memoryRef,
       'web-search': webSearchRef,
       'nano-banana': nanoBananaRef,
       'custom-tools': customToolsRef,
@@ -488,11 +485,6 @@ export function ToolSettings(): React.ReactElement {
 
   return (
     <div className="space-y-8">
-      {/* 记忆工具（复用现有 MemorySettings 组件） */}
-      <div ref={memoryRef}>
-        <MemorySettings />
-      </div>
-
       {/* 联网搜索工具 */}
       <div ref={webSearchRef}>
         <WebSearchSettings />

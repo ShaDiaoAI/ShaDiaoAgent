@@ -1,5 +1,5 @@
 /**
- * Shared configuration for proma
+ * Shared configuration for shadiao-agent
  */
 
 // Placeholder - will be expanded as needed

@@ -33,6 +33,11 @@ import { ChannelForm } from './ChannelForm'
 /** 组件视图模式 */
 type ViewMode = 'list' | 'create' | 'edit'
 
+/** 判断渠道是否由系统管理（Django 代理渠道，用户不可编辑/删除/关闭） */
+function isManagedChannel(channel: Channel): boolean {
+  return channel.baseUrl.includes('/api/agent')
+}
+
 export function ChannelSettings(): React.ReactElement {
   const [channels, setChannels] = React.useState<Channel[]>([])
   const [viewMode, setViewMode] = React.useState<ViewMode>('list')
@@ -209,45 +214,73 @@ export function ChannelSettings(): React.ReactElement {
     (c) => isAgentCompatibleProvider(c.provider) && c.enabled
   )
 
+  // 是否有非管理的渠道（即可由用户编辑的）
+  const hasUserChannels = channels.some((c) => !isManagedChannel(c))
+
   // 列表视图
   return (
     <div className="space-y-8">
       {/* 区块一：模型配置 */}
-      <SettingsSection
-        title="模型配置"
-        description="管理 AI 供应商连接，配置 API Key 和可用模型。Anthropic 渠道同时可用于 Agent 模式"
-        action={
-          <Button size="sm" onClick={() => setViewMode('create')}>
-            <Plus size={16} />
-            <span>添加配置</span>
-          </Button>
-        }
-      >
-        {loading ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">加载中...</div>
-        ) : channels.length === 0 ? (
-          <SettingsCard divided={false}>
-            <div className="text-sm text-muted-foreground py-12 text-center">
-              还没有配置任何模型，点击上方"添加配置"开始
-            </div>
-          </SettingsCard>
-        ) : (
+      {!loading && channels.length > 0 && !hasUserChannels ? (
+        // 纯管理渠道：只读展示，不提供添加/编辑/删除
+        <SettingsSection
+          title="模型配置"
+          description="当前使用沙雕后端提供的 LLM 渠道，无需额外配置"
+        >
           <SettingsCard>
             {channels.map((channel) => (
               <ChannelRow
                 key={channel.id}
                 channel={channel}
                 onEdit={() => {
+                  if (isManagedChannel(channel)) return
                   setEditingChannel(channel)
                   setViewMode('edit')
                 }}
-                onDelete={() => handleDeleteRequest(channel)}
-                onToggle={() => handleToggle(channel)}
+                onDelete={() => { if (!isManagedChannel(channel)) handleDeleteRequest(channel) }}
+                onToggle={() => { if (!isManagedChannel(channel)) handleToggle(channel) }}
               />
             ))}
           </SettingsCard>
-        )}
-      </SettingsSection>
+        </SettingsSection>
+      ) : (
+        <SettingsSection
+          title="模型配置"
+          description="管理 AI 供应商连接，配置 API Key 和可用模型。Anthropic 渠道同时可用于 Agent 模式"
+          action={
+            <Button size="sm" onClick={() => setViewMode('create')}>
+              <Plus size={16} />
+              <span>添加配置</span>
+            </Button>
+          }
+        >
+          {loading ? (
+            <div className="text-sm text-muted-foreground py-8 text-center">加载中...</div>
+          ) : channels.length === 0 ? (
+            <SettingsCard divided={false}>
+              <div className="text-sm text-muted-foreground py-12 text-center">
+                还没有配置任何模型，点击上方"添加配置"开始
+              </div>
+            </SettingsCard>
+          ) : (
+            <SettingsCard>
+              {channels.map((channel) => (
+                <ChannelRow
+                  key={channel.id}
+                  channel={channel}
+                  onEdit={() => {
+                    if (isManagedChannel(channel)) return
+                    setEditingChannel(channel)
+                    setViewMode('edit')
+                  }}
+                  onDelete={() => { if (!isManagedChannel(channel)) handleDeleteRequest(channel) }}
+                  onToggle={() => { if (!isManagedChannel(channel)) handleToggle(channel) }}
+                />
+              ))}
+            </SettingsCard>
+          )}
+        </SettingsSection>
+      )}
 
       {/* 区块二：Agent 供应商 */}
       <SettingsSection
@@ -268,8 +301,11 @@ export function ChannelSettings(): React.ReactElement {
               <AgentProviderRow
                 key={channel.id}
                 channel={channel}
-                enabled={agentChannelIds.includes(channel.id)}
-                onToggle={(enabled) => handleToggleAgentProvider(channel.id, enabled)}
+                enabled={agentChannelIds.includes(channel.id) || isManagedChannel(channel)}
+                onToggle={(enabled) => {
+                  if (isManagedChannel(channel)) return
+                  handleToggleAgentProvider(channel.id, enabled)
+                }}
               />
             ))}
           </SettingsCard>
@@ -305,6 +341,7 @@ interface ChannelRowProps {
 }
 
 function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): React.ReactElement {
+  const managed = isManagedChannel(channel)
   const enabledCount = channel.models.filter((m) => m.enabled).length
   const description = [
     PROVIDER_LABELS[channel.provider],
@@ -322,26 +359,31 @@ function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): R
       className="group"
     >
       <div className="flex items-center gap-2">
-        {/* 操作按钮 */}
-        <button
-          onClick={onEdit}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
-          title="编辑"
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-          title="删除"
-        >
-          <Trash2 size={14} />
-        </button>
+        {/* 操作按钮 — 管理渠道不显示编辑/删除 */}
+        {!managed && (
+          <>
+            <button
+              onClick={onEdit}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover:opacity-100"
+              title="编辑"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+              title="删除"
+            >
+              <Trash2 size={14} />
+            </button>
+          </>
+        )}
 
-        {/* 启用/关闭开关 */}
+        {/* 启用/关闭开关 — 管理渠道始终启用且不可关闭 */}
         <Switch
-          checked={channel.enabled}
-          onCheckedChange={onToggle}
+          checked={managed ? true : channel.enabled}
+          onCheckedChange={managed ? undefined : onToggle}
+          disabled={managed}
         />
       </div>
     </SettingsRow>
@@ -357,6 +399,7 @@ interface AgentProviderRowProps {
 }
 
 function AgentProviderRow({ channel, enabled, onToggle }: AgentProviderRowProps): React.ReactElement {
+  const managed = isManagedChannel(channel)
   const enabledCount = channel.models.filter((m) => m.enabled).length
   const description = [
     PROVIDER_LABELS[channel.provider],
@@ -372,8 +415,9 @@ function AgentProviderRow({ channel, enabled, onToggle }: AgentProviderRowProps)
       description={description}
     >
       <Switch
-        checked={enabled}
-        onCheckedChange={onToggle}
+        checked={managed ? true : enabled}
+        onCheckedChange={managed ? undefined : onToggle}
+        disabled={managed}
       />
     </SettingsRow>
   )

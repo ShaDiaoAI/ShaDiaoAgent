@@ -8,7 +8,7 @@ type AgentSessionManager = typeof import('./agent-session-manager')
 let manager: AgentSessionManager
 let tempHome: string
 const originalHome = process.env.HOME
-const originalPromaDev = process.env.PROMA_DEV
+const originalShadiaoDev = process.env.PROMA_DEV
 const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
 
 mock.module('electron', () => ({
@@ -42,13 +42,13 @@ function jsonl(rows: string[]): string {
 }
 
 function writeAgentSessionJsonl(sessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.proma', 'agent-sessions')
+  const dir = join(tempHome, '.shadiao-agent', 'agent-sessions')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
 
 function writeSdkSessionJsonl(sdkSessionId: string, rows: string[]): void {
-  const dir = join(tempHome, '.proma', 'sdk-config', 'projects', 'test-project')
+  const dir = join(tempHome, '.shadiao-agent', 'sdk-config', 'projects', 'test-project')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, `${sdkSessionId}.jsonl`), jsonl(rows), 'utf-8')
 }
@@ -60,7 +60,7 @@ function writeAgentSessionsIndex(sessions: Array<{
   createdAt: number
   updatedAt: number
 }>): void {
-  const dir = join(tempHome, '.proma')
+  const dir = join(tempHome, '.shadiao-agent')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'agent-sessions.json'), JSON.stringify({ version: 1, sessions }), 'utf-8')
 }
@@ -76,7 +76,7 @@ function createIndexedSessions(count: number) {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'proma-agent-session-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'shadiao-agent-session-manager-'))
   process.env.HOME = tempHome
   process.env.PROMA_DEV = '0'
   delete process.env.CLAUDE_CONFIG_DIR
@@ -89,10 +89,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalPromaDev === undefined) {
+  if (originalShadiaoDev === undefined) {
     delete process.env.PROMA_DEV
   } else {
-    process.env.PROMA_DEV = originalPromaDev
+    process.env.PROMA_DEV = originalShadiaoDev
   }
   if (originalClaudeConfigDir === undefined) {
     delete process.env.CLAUDE_CONFIG_DIR

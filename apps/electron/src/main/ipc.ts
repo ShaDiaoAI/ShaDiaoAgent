@@ -302,7 +302,7 @@ function realpathOrResolve(path: string): string {
 function getAuthorizedRoots(options?: FileAccessOptions): string[] {
   const roots: string[] = [
     getAgentWorkspacesDir(),
-    join(tmpdir(), 'proma-preview'),
+    join(tmpdir(), 'shadiao-preview'),
   ]
 
   const workspaceSlugs = new Set<string>()
@@ -406,7 +406,7 @@ function ensurePathAllowed(filePath: string, options?: FileAccessOptions): boole
 /**
  * 在 ensurePathAllowed 基础上，额外放行「已授权仓库的 worktree」。
  *
- * worktree 常被放在主仓库之外（如 ~/proma-dev/worktrees/xxx），其路径不在任何
+ * worktree 常被放在主仓库之外（如 ~/shadiao-agent-dev/worktrees/xxx），其路径不在任何
  * 授权根下，会被 ensurePathAllowed 拒绝。但只要它回溯到的主仓库已被授权，就应放行。
  * 用 git 自身背书（--git-common-dir），避免粗暴跳过安全检查。
  */
@@ -505,7 +505,7 @@ async function getMacAppIconViaSips(appPath: string): Promise<string> {
   const icnsPath = candidates.find((p) => existsSync(p))
   if (!icnsPath) return ''
 
-  const tmp = mkdtempSync(join(tmpdir(), 'proma-icon-'))
+  const tmp = mkdtempSync(join(tmpdir(), 'shadiao-icon-'))
   const outPath = join(tmp, 'icon.png')
   try {
     const r = await runCmd('sips', ['-s', 'format', 'png', '-Z', '64', icnsPath, '--out', outPath], { timeoutMs: 4000 })
@@ -833,7 +833,7 @@ export function resolveAppIconPath(variantId: string): string | null {
   if (!variantId || variantId === 'default') {
     return join(resourcesDir, 'icon.png')
   }
-  return join(resourcesDir, 'proma-logos', `proma-${variantId}.png`)
+  return join(resourcesDir, 'shadiao-logos', `proma-${variantId}.png`)
 }
 
 // ===== IM Bridge stubs (removed in ShaDiaoAgent) =====
@@ -2176,7 +2176,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // 获取默认 Skills 的 slug 列表（来自 ~/.proma/default-skills/）
+  // 获取默认 Skills 的 slug 列表（来自 ~/.shadiao-agent/default-skills/）
   ipcMain.handle(
     AGENT_IPC_CHANNELS.GET_DEFAULT_SKILL_SLUGS,
     async () => {
@@ -2368,7 +2368,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'permission_resolved', requestId, behavior } },
+          payload: { kind: 'shadiao_event', event: { type: 'permission_resolved', requestId, behavior } },
         })
       }
     }
@@ -2593,7 +2593,7 @@ export function registerIpcHandlers(): void {
       if (sessionId) {
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'ask_user_resolved', requestId } },
+          payload: { kind: 'shadiao_event', event: { type: 'ask_user_resolved', requestId } },
         })
       }
     }
@@ -2613,7 +2613,7 @@ export function registerIpcHandlers(): void {
         // 通知渲染进程请求已处理
         event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
           sessionId,
-          payload: { kind: 'proma_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
+          payload: { kind: 'shadiao_event', event: { type: 'exit_plan_mode_resolved', requestId: response.requestId } },
         })
 
         // 如果用户选择了新的权限模式，通知渲染进程更新 UI
@@ -2629,7 +2629,7 @@ export function registerIpcHandlers(): void {
           }
           event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
             sessionId,
-            payload: { kind: 'proma_event', event: { type: 'permission_mode_changed', mode: targetMode } },
+            payload: { kind: 'shadiao_event', event: { type: 'permission_mode_changed', mode: targetMode } },
           })
           console.log(`[IPC] ExitPlanMode 权限模式切换: ${targetMode}`)
         }
@@ -2959,7 +2959,7 @@ export function registerIpcHandlers(): void {
       const { existsSync, mkdirSync } = await import('node:fs')
       const { writeFile } = await import('node:fs/promises')
 
-      const tmpDir = join(tmpdir(), 'proma-preview')
+      const tmpDir = join(tmpdir(), 'shadiao-preview')
       if (!existsSync(tmpDir)) {
         mkdirSync(tmpDir, { recursive: true })
       }
@@ -3809,7 +3809,7 @@ export function registerIpcHandlers(): void {
         const lark = await import('@larksuiteoapi/node-sdk')
         const QRCode = (await import('qrcode')).default
         const result = await lark.registerApp({
-          source: 'proma',
+          source: 'shadiao-agent',
           signal: abort.signal,
           onQRCodeReady: async (info) => {
             if (event.sender.isDestroyed()) return
@@ -4091,7 +4091,7 @@ export function registerIpcHandlers(): void {
 
   // 迁移取消时清理临时解压目录
   ipcMain.handle('migration:cancelImport', async (_, tempDir: string) => {
-    if (tempDir && existsSync(tempDir) && tempDir.includes('proma-import-')) {
+    if (tempDir && existsSync(tempDir) && tempDir.includes('shadiao-import-')) {
       rmSync(tempDir, { recursive: true, force: true })
       console.log(`[迁移] 已清理临时目录: ${tempDir}`)
     }
@@ -4316,7 +4316,7 @@ export function registerIpcHandlers(): void {
     const result = await dialog.showOpenDialog({
       title: '选择迁移文件',
       filters: [
-        { name: 'Proma 迁移文件', extensions: ['proma-backup', 'proma-share'] },
+        { name: 'ShaDiao 迁移文件', extensions: ['shadiao-backup', 'shadiao-share'] },
         { name: '所有文件', extensions: ['*'] },
       ],
       properties: ['openFile'],
@@ -4326,8 +4326,8 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('migration:saveFileDialog', async (_, mode: string) => {
     const { dialog } = await import('electron')
-    const ext = mode === 'personal' ? 'proma-backup' : 'proma-share'
-    const defaultName = `proma-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
+    const ext = mode === 'personal' ? 'shadiao-backup' : 'shadiao-share'
+    const defaultName = `shadiao-migration-${new Date().toISOString().slice(0, 10)}.${ext}`
     const result = await dialog.showSaveDialog({
       title: '保存迁移文件',
       defaultPath: defaultName,
@@ -4377,7 +4377,7 @@ export function registerIpcHandlers(): void {
   // ===== 定时任务（Automation）=====
 
   // 渲染进程可能被注入内容污染（XSS via markdown / MCP tool output），主进程必须自己校验入参，
-  // 否则 NaN / -Infinity / 越界值会污染 ~/.proma/automations.json，无法回滚。
+  // 否则 NaN / -Infinity / 越界值会污染 ~/.shadiao-agent/automations.json，无法回滚。
   const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0
   const isNonBlankString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
   const isFiniteInt = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v)

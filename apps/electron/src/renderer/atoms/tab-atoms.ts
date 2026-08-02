@@ -99,7 +99,7 @@ export const sessionViewStateMapAtom = atom<Map<string, SessionViewState>>(new M
 
 /** 侧边栏是否收起（持久化） */
 export const sidebarCollapsedAtom = atomWithStorage<boolean>(
-  'proma-sidebar-collapsed',
+  'shadiao-sidebar-collapsed',
   false,
 )
 
@@ -121,7 +121,7 @@ export const scratchPadLoadedAtom = atom<boolean>(false)
 export const scratchPadPanelOpenAtom = atom<boolean>(false)
 /** 右侧工作区中 Preview 与 Scratch 并排时，Preview 占比 */
 export const rightWorkspaceSplitRatioAtom = atomWithStorage<number>(
-  'proma-right-workspace-split-ratio',
+  'shadiao-right-workspace-split-ratio',
   0.58,
   undefined,
   { getOnInit: true },

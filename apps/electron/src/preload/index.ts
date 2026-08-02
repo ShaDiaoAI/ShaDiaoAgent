@@ -541,7 +541,7 @@ export interface ElectronAPI {
   /** 获取其他工作区的 Skill 列表 */
   getOtherWorkspaceSkills: (currentSlug: string) => Promise<OtherWorkspaceSkillsGroup[]>
 
-  /** 获取默认 Skills 的 slug 列表（来自 ~/.proma/default-skills/） */
+  /** 获取默认 Skills 的 slug 列表（来自 ~/.shadiao-agent/default-skills/） */
   getDefaultSkillSlugs: () => Promise<string[]>
 
   /** 从其他工作区导入 Skill */
@@ -1023,7 +1023,7 @@ export interface ElectronAPI {
   migrationParseImportFile: (filePath: string) => Promise<unknown>
   /** 确认导入 */
   migrationConfirmImport: (options: unknown) => Promise<{ success: boolean }>
-  /** 打开文件选择对话框（选择 .proma-backup 或 .proma-share） */
+  /** 打开文件选择对话框（选择 .shadiao-backup 或 .shadiao-share） */
   migrationOpenFileDialog: () => Promise<string | null>
   /** 打开文件保存对话框（选择导出路径） */
   migrationSaveFileDialog: (mode: string) => Promise<string | null>

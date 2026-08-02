@@ -209,7 +209,7 @@ export interface FileAccessOptions {
   candidateBasePaths?: string[]
 }
 
-/** 已授权本地文件的 proma-file URL */
+/** 已授权本地文件的 shadiao-file URL */
 export interface ResolvedFileUrl {
   url: string
 }

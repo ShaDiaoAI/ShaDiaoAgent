@@ -1,7 +1,7 @@
 /**
  * 工作区文件监听器
  *
- * 使用 fs.watch 递归监听 ~/.proma/agent-workspaces/ 目录，
+ * 使用 fs.watch 递归监听 ~/.shadiao-agent/agent-workspaces/ 目录，
  * 根据变化的文件路径区分事件类型：
  * - mcp.json / skills/ 变化 → 推送 CAPABILITIES_CHANGED（侧边栏刷新）
  * - 其他文件变化 → 推送 WORKSPACE_FILES_CHANGED（文件浏览器刷新）

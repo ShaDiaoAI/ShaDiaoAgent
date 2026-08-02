@@ -288,7 +288,7 @@ function buildCodeBlockRenderModeDecorations(doc: ProseMirrorNode, editable: boo
   doc.descendants((node, pos) => {
     if (node.type.name !== 'codeBlock') return true
     decorations.push(Decoration.node(pos, pos + node.nodeSize, {
-      'data-proma-render-mode': editable ? 'editing' : 'preview',
+      'data-shadiao-render-mode': editable ? 'editing' : 'preview',
     }))
     return false
   })
@@ -586,12 +586,12 @@ function createMathView(initialNode: ProseMirrorNode, displayMode: boolean) {
 function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView) {
   const dom = document.createElement('div')
   setClass(dom, 'not-prose my-3 overflow-hidden rounded-md border border-border/40 bg-muted/30')
-  dom.dataset.promaCodeBlock = 'true'
+  dom.dataset.shadiaoCodeBlock = 'true'
 
   // 头部栏：语言标签 + 复制按钮
   const header = document.createElement('div')
   header.contentEditable = 'false'
-  setClass(header, 'proma-code-header flex h-8 items-center justify-between border-b border-border/30 px-3 text-xs text-muted-foreground')
+  setClass(header, 'shadiao-code-header flex h-8 items-center justify-between border-b border-border/30 px-3 text-xs text-muted-foreground')
   const label = document.createElement('span')
   label.className = 'font-medium select-none'
   header.appendChild(label)
@@ -614,7 +614,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
   header.appendChild(copyBtn)
 
   const body = document.createElement('div')
-  setClass(body, 'proma-code-source-body markdown-code-block-body overflow-x-auto')
+  setClass(body, 'shadiao-code-source-body markdown-code-block-body overflow-x-auto')
 
   const editPre = document.createElement('pre')
   setClass(editPre, 'markdown-code-edit-layer m-0 min-h-[3.2em] overflow-x-auto bg-transparent p-4 font-mono text-[13px] leading-[1.6]')
@@ -628,7 +628,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
 
   const mermaidHost = document.createElement('div')
   mermaidHost.contentEditable = 'false'
-  setClass(mermaidHost, 'proma-mermaid-preview hidden')
+  setClass(mermaidHost, 'shadiao-mermaid-preview hidden')
   const mermaidRoot: Root = createRoot(mermaidHost)
   let mermaidRenderTimer: ReturnType<typeof setTimeout> | null = null
   let destroyed = false
@@ -652,7 +652,7 @@ function createShikiCodeBlockView(initialNode: ProseMirrorNode, view: EditorView
     label.textContent = language === 'text' ? 'Code' : getDisplayName(language)
     const className = language === 'text' ? undefined : `language-${language}`
     const shouldRenderMermaid = !view.editable && shouldRenderMermaidCodeBlock(className, currentCode)
-    dom.classList.toggle('proma-code-block--mermaid', shouldRenderMermaid)
+    dom.classList.toggle('shadiao-code-block--mermaid', shouldRenderMermaid)
     scheduleMermaidRender(shouldRenderMermaid ? currentCode : null)
   }
 

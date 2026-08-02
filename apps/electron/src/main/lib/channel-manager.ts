@@ -3,7 +3,7 @@
  *
  * 负责渠道的 CRUD 操作、API Key 加密/解密、连接测试。
  * 使用 Electron safeStorage 进行 API Key 加密（底层使用 OS 级加密）。
- * 数据持久化到 ~/.proma/channels.json。
+ * 数据持久化到 ~/.shadiao-agent/channels.json。
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -40,6 +40,7 @@ import {
   resolveOpenAIModelsUrl,
 } from '@shadiao/core'
 import { normalizeHttpResponse, normalizeRequestError } from './channel-test-error'
+import { getAuthState } from './django-client'
 import pkg from '../../../package.json' with { type: 'json' }
 
 /** 当前配置版本 */
@@ -262,35 +263,94 @@ function decryptKey(encryptedKey: string): string {
 }
 
 /**
+ * 从 Django 后端 /api/models 获取可用模型列表（仅 Anthropic 兼容的）
+ * @param baseUrl Django 后端地址（如 http://localhost:8000）
+ * @returns 模型列表，失败时返回 hardcode 兜底
+ */
+async function fetchDjangoModels(baseUrl: string): Promise<ChannelModel[]> {
+  try {
+    const r = await fetch(`${baseUrl}/api/models`)
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const data = await r.json() as Array<{ id: string; supported_endpoint_types?: string[] }>
+    const models = data
+      .filter(m => !m.supported_endpoint_types || m.supported_endpoint_types.includes('anthropic'))
+      .map(m => ({ id: m.id, name: m.id, enabled: true }))
+    if (models.length > 0) return models
+  } catch (e) {
+    console.warn('[渠道管理] 从 Django 获取模型列表失败:', e)
+  }
+  // hardcode 兜底
+  return [{ id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true }]
+}
+
+/**
  * 获取所有渠道
  *
  * 返回的渠道中 apiKey 保持加密状态。
- * 首次调用时，如果没有任何 DeepSeek 渠道，自动创建预设渠道。
+ * 首次调用时，如果没有 Django 代理渠道，自动创建沙雕后端预设渠道。
  */
 export function listChannels(): Channel[] {
   const config = readConfig()
+  const authState = getAuthState()
 
-  // 首次使用：如果没有 DeepSeek 渠道，自动创建预设
-  const hasDeepSeek = config.channels.some(
-    (c) => c.provider === 'deepseek' || c.baseUrl.includes('api.deepseek.com'),
+  // 首次使用：如果没有 Django 代理渠道，自动创建沙雕后端预设
+  const hasDjangoChannel = config.channels.some(
+    (c) => c.baseUrl.startsWith(authState.baseUrl)
   )
-  if (!hasDeepSeek) {
+  if (!hasDjangoChannel && authState.baseUrl) {
     const now = Date.now()
+    const baseUrl = authState.baseUrl.replace(/\/+$/, '') + '/api/agent'
     const presetChannel: Channel = {
       id: randomUUID(),
-      name: 'DeepSeek',
-      provider: 'deepseek',
-      baseUrl: PROVIDER_DEFAULT_URLS.deepseek,
-      apiKey: encryptApiKey(''),
-      models: cloneModels(DEEPSEEK_PRESET_MODELS),
-      enabled: false,
+      name: '沙雕后端',
+      provider: 'anthropic',
+      baseUrl,
+      apiKey: encryptApiKey('django-managed'),
+      models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true }],
+      enabled: true,
       createdAt: now,
       updatedAt: now,
     }
-    config.channels.push(presetChannel)
+    config.channels.unshift(presetChannel)
     writeConfig(config)
-    console.log('[渠道管理] 已自动创建 DeepSeek 预设渠道')
+    console.log('[渠道管理] 已自动创建沙雕后端代理渠道')
     return config.channels
+  }
+
+  // 已有用户迁移：清理旧的空 DeepSeek 预设渠道
+  // 以及：同步 Django 渠道的 baseUrl（用户可能换了后端地址）
+  if (hasDjangoChannel) {
+    let changed = false
+
+    // 清理旧的 DeepSeek 预设
+    config.channels = config.channels.filter(c => {
+      if (c.provider === 'deepseek' && c.baseUrl.includes('api.deepseek.com')) {
+        if (c.enabled) return true
+        try {
+          const key = decryptKey(c.apiKey)
+          if (key && key.length > 0) return true
+        } catch { /* 解密失败，视为无效 */ }
+        changed = true
+        return false
+      }
+      return true
+    })
+
+    // 同步 Django 渠道 baseUrl（处理用户换后端地址的场景）
+    const expectedBaseUrl = authState.baseUrl.replace(/\/+$/, '') + '/api/agent'
+    for (const c of config.channels) {
+      if (c.baseUrl.includes('/api/agent') && c.baseUrl !== expectedBaseUrl) {
+        c.baseUrl = expectedBaseUrl
+        c.updatedAt = Date.now()
+        changed = true
+        console.log('[渠道管理] 已同步 Django 渠道 baseUrl:', c.baseUrl)
+      }
+    }
+
+    if (changed) {
+      writeConfig(config)
+      console.log('[渠道管理] 已清理/同步旧渠道配置')
+    }
   }
 
   return config.channels
@@ -1480,6 +1540,25 @@ export async function testChannelDirect(input: ChannelDirectTestInput): Promise<
 export async function fetchModels(input: FetchModelsInput): Promise<FetchModelsResult> {
   const proxyUrl = await getEffectiveProxyUrl()
   const provider = inferProviderFromBaseUrl(input.provider, input.baseUrl)
+
+  // Django 代理渠道：从后端 /api/models 拉取模型列表
+  const authState = getAuthState()
+  if (authState.baseUrl && input.baseUrl.startsWith(authState.baseUrl)) {
+    try {
+      const models = await fetchDjangoModels(authState.baseUrl)
+      return {
+        success: true,
+        message: `成功获取 ${models.length} 个模型`,
+        models,
+      }
+    } catch (err) {
+      return {
+        success: false,
+        message: `获取模型列表失败: ${err instanceof Error ? err.message : String(err)}`,
+        models: [],
+      }
+    }
+  }
 
   try {
     switch (provider) {

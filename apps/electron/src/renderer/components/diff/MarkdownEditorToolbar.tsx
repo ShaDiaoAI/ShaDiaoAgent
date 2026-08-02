@@ -107,7 +107,7 @@ function buildScreenshotPayload(editor: Editor): {
   clone.style.height = 'auto'
   clone.style.maxHeight = 'none'
   clone.style.overflow = 'visible'
-  clone.setAttribute('data-proma-screenshot-root', 'true')
+  clone.setAttribute('data-shadiao-screenshot-root', 'true')
 
   // 透传主题 class（dark / theme-ocean-dark / theme-forest-dark 等），
   // 确保 globals.css 里基于这些 class 的 CSS 变量在截图侧也生效

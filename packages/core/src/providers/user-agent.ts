@@ -1,16 +1,16 @@
-const PROMA_REPO_URL = 'https://github.com/ErlichLiu/Proma'
+const SHADIAO_REPO_URL = 'https://github.com/ErlichLiu/Proma'
 
-let _promaVersion = '0.0.0'
+let _shadiaoVersion = '0.0.0'
 
 export function setPromaVersion(version: string): void {
-  _promaVersion = version
+  _shadiaoVersion = version
 }
 
 export function getPromaVersion(): string {
-  return _promaVersion
+  return _shadiaoVersion
 }
 
 export function getPromaUserAgent(version?: string): string {
-  const v = version ?? _promaVersion
-  return `Proma/${v} (+${PROMA_REPO_URL})`
+  const v = version ?? _shadiaoVersion
+  return `ShaDiaoAgent/${v} (+${SHADIAO_REPO_URL})`
 }

@@ -482,7 +482,15 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const sessionMetaChannelId = sessionMeta?.channelId
   const sessionMetaModelId = sessionMeta?.modelId
   const hasSessionMeta = Boolean(sessionMeta)
-  const agentChannelId = sessionMetaChannelId ?? sessionChannelMap.get(sessionId) ?? defaultChannelId
+  // 防御：如果会话记录的 channelId 已不存在于渠道列表中，回退到全局默认
+  const globalChannels = useAtomValue(channelsAtom)
+  const resolvedChannelId = React.useMemo(() => {
+    const raw = sessionMetaChannelId ?? sessionChannelMap.get(sessionId) ?? defaultChannelId
+    if (raw && globalChannels.some(c => c.id === raw)) return raw
+    // 会话的渠道已失效 → 回退到全局默认
+    return defaultChannelId
+  }, [sessionMetaChannelId, sessionChannelMap, sessionId, defaultChannelId, globalChannels])
+  const agentChannelId = resolvedChannelId
   const agentModelId = sessionMetaModelId ?? sessionModelMap.get(sessionId) ?? defaultModelId
   const agentChannelIds = useAtomValue(agentChannelIdsAtom)
   const setAgentChannelIds = useSetAtom(agentChannelIdsAtom)
@@ -639,7 +647,6 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   }, [pendingFiles])
 
   // 渠道已选但模型未选时，自动选择第一个可用模型
-  const globalChannels = useAtomValue(channelsAtom)
   const stableChannel = React.useMemo(
     () => stableChannelId ? globalChannels.find((channel) => channel.id === stableChannelId) : undefined,
     [globalChannels, stableChannelId],
@@ -2348,8 +2355,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const handler = (): void => {
       if (streaming) handleStop()
     }
-    window.addEventListener('proma:stop-generation', handler)
-    return () => window.removeEventListener('proma:stop-generation', handler)
+    window.addEventListener('shadiao:stop-generation', handler)
+    return () => window.removeEventListener('shadiao:stop-generation', handler)
   }, [streaming, handleStop])
 
   // 监听快捷键系统分发的 focus-input 事件（Cmd+L）
@@ -2358,8 +2365,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       const proseMirror = document.querySelector('[data-input-mode="agent"] .ProseMirror') as HTMLElement | null
       proseMirror?.focus()
     }
-    window.addEventListener('proma:focus-input', handler)
-    return () => window.removeEventListener('proma:focus-input', handler)
+    window.addEventListener('shadiao:focus-input', handler)
+    return () => window.removeEventListener('shadiao:focus-input', handler)
   }, [])
 
   const allAskUserRequests = useAtomValue(allPendingAskUserRequestsAtom)

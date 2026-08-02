@@ -14,7 +14,7 @@
 import { atom } from 'jotai'
 
 export type SettingsTab = 'general' | 'channels' | 'experimental' | 'proxy' | 'appearance' | 'about' | 'prompts' | 'tools' | 'shortcuts' | 'storage' | 'django'
-export type ToolSettingsFocus = 'memory' | 'web-search' | 'nano-banana' | 'custom-tools'
+export type ToolSettingsFocus = 'web-search' | 'nano-banana' | 'custom-tools'
 
 /** 当前设置标签页（不持久化，每次打开设置默认显示渠道） */
 export const settingsTabAtom = atom<SettingsTab>('channels')

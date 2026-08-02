@@ -595,7 +595,7 @@ export const MessageResponse = React.memo(
           urlTransform={mentionUrlTransform}
           components={components}
         >
-          {normalizeLatexDelimiters(children.replace(/<!--PROMA_AUTOMATION:[\s\S]*?-->/g, '').trim())}
+          {normalizeLatexDelimiters(children.replace(/<!--SHADIAO_AUTOMATION:[\s\S]*?-->/g, '').trim())}
         </Markdown>
       </div>
     )

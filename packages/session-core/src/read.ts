@@ -3,7 +3,7 @@
  *
  * 逻辑迁移自 apps/electron 主进程 agent-session-manager.ts 的
  * getAgentSessionSDKMessages / convertLegacyMessage，作为唯一真源由
- * Electron 主进程与 proma CLI 共用。旧扁平格式（AgentMessage，带 role 字段）
+ * Electron 主进程与 shadiao-agent CLI 共用。旧扁平格式（AgentMessage，带 role 字段）
  * 在此统一归一为近似 SDKMessage，下游无需再区分「格式 A / 格式 B」。
  */
 /**

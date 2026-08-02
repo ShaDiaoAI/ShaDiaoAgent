@@ -10,7 +10,7 @@ let manager: AgentWorkspaceManager
 let configPaths: ConfigPathsModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalPromaDev = process.env.PROMA_DEV
+const originalShadiaoDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
   app: {
@@ -30,7 +30,7 @@ mock.module('node:os', () => ({
 }))
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'proma-agent-workspace-manager-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'shadiao-agent-workspace-manager-'))
   process.env.HOME = tempHome
   process.env.PROMA_DEV = '0'
   configPaths = await import('./config-paths')
@@ -38,8 +38,8 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.proma'), { recursive: true, force: true })
-  mkdirSync(join(tempHome, '.proma'), { recursive: true })
+  rmSync(join(tempHome, '.shadiao-agent'), { recursive: true, force: true })
+  mkdirSync(join(tempHome, '.shadiao-agent'), { recursive: true })
 })
 
 afterAll(() => {
@@ -48,10 +48,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalPromaDev === undefined) {
+  if (originalShadiaoDev === undefined) {
     delete process.env.PROMA_DEV
   } else {
-    process.env.PROMA_DEV = originalPromaDev
+    process.env.PROMA_DEV = originalShadiaoDev
   }
   rmSync(tempHome, { recursive: true, force: true })
 })

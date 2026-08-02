@@ -30,11 +30,11 @@ const CASE_INSENSITIVE_MERGE_KEYS = new Set([
   'https_proxy',
   'all_proxy',
   'no_proxy',
-  'proma_cli',
+  'shadiao_cli',
   'claude_code_shell',
   'shell',
-  'proma_windows_shell',
-  'proma_wsl_distro',
+  'shadiao_windows_shell',
+  'shadiao_wsl_distro',
 ])
 
 function getCaseInsensitiveEnvValue(env: NodeJS.ProcessEnv, key: string): string | undefined {
@@ -123,7 +123,7 @@ function collectWindowsShellEnv(
 
   if (shellStatus?.gitBash.available && shellStatus.gitBash.path) {
     const shellPath = shellStatus.gitBash.path
-    env.PROMA_WINDOWS_SHELL = 'git-bash'
+    env.SHADIAO_WINDOWS_SHELL = 'git-bash'
     env.CLAUDE_CODE_SHELL = shellPath
     env.SHELL = shellPath
     return {
@@ -135,11 +135,11 @@ function collectWindowsShellEnv(
 
   if (shellStatus?.wsl.available) {
     const wslCommand = getWslCommandPath(processEnv, pathExists)
-    env.PROMA_WINDOWS_SHELL = 'wsl'
+    env.SHADIAO_WINDOWS_SHELL = 'wsl'
     env.CLAUDE_CODE_SHELL = wslCommand
     env.SHELL = wslCommand
     if (shellStatus.wsl.defaultDistro) {
-      env.PROMA_WSL_DISTRO = shellStatus.wsl.defaultDistro
+      env.SHADIAO_WSL_DISTRO = shellStatus.wsl.defaultDistro
     }
     return {
       env,
@@ -187,7 +187,7 @@ export function buildAgentRuntimeEnv(options: BuildAgentRuntimeEnvOptions = {}):
   const env: Record<string, string> = {}
 
   if (bundledCliPath) {
-    env.PROMA_CLI = bundledCliPath
+    env.SHADIAO_CLI = bundledCliPath
   }
 
   const pathKey = getPathKey(processEnv)

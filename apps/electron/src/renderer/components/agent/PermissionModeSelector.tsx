@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Button } from '@/components/ui/button'
 import { agentPermissionModeMapAtom, agentDefaultPermissionModeAtom, sessionPersistedPermissionModeAtom, sessionExistsAtom, agentPlanModeSessionsAtom } from '@/atoms/agent-atoms'
 import type { PromaPermissionMode } from '@shadiao/shared'
-import { PROMA_PERMISSION_MODE_CONFIG, PROMA_PERMISSION_MODE_ORDER } from '@shadiao/shared'
+import { SHADIAO_PERMISSION_MODE_CONFIG, SHADIAO_PERMISSION_MODE_ORDER } from '@shadiao/shared'
 import { getDisplayedPermissionMode, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
 import { inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
 
@@ -54,9 +54,9 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
 
   /** 循环切换模式 */
   const cycleMode = React.useCallback(async () => {
-    const currentIndex = PROMA_PERMISSION_MODE_ORDER.indexOf(displayMode)
-    const nextIndex = (currentIndex + 1) % PROMA_PERMISSION_MODE_ORDER.length
-    const nextMode = PROMA_PERMISSION_MODE_ORDER[nextIndex]!
+    const currentIndex = SHADIAO_PERMISSION_MODE_ORDER.indexOf(displayMode)
+    const nextIndex = (currentIndex + 1) % SHADIAO_PERMISSION_MODE_ORDER.length
+    const nextMode = SHADIAO_PERMISSION_MODE_ORDER[nextIndex]!
     const prevMode = mode
     const prevPlanModeActive = planModeActive
 
@@ -86,7 +86,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
     }
   }, [displayMode, mode, planModeActive, sessionId, setModeMap, setPlanModeSessions])
 
-  const config = PROMA_PERMISSION_MODE_CONFIG[displayMode]
+  const config = SHADIAO_PERMISSION_MODE_CONFIG[displayMode]
   const Icon = MODE_ICONS[displayMode]
 
   return (

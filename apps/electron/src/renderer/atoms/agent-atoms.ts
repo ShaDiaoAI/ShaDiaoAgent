@@ -8,7 +8,7 @@
 import { atom } from 'jotai'
 import { atomFamily, atomWithStorage } from 'jotai/utils'
 import type { AgentSessionMeta, AgentEvent, AgentWorkspace, AgentPendingFile, RetryAttempt, PromaPermissionMode, PermissionRequest, AskUserRequest, ExitPlanModeRequest, ThinkingConfig, AgentEffort, SDKMessage, UnstagedChangesResult } from '@shadiao/shared'
-import { PROMA_DEFAULT_PERMISSION_MODE } from '@shadiao/shared'
+import { SHADIAO_DEFAULT_PERMISSION_MODE } from '@shadiao/shared'
 import { calculateDockBadgeCount, countPendingRequests } from '@/lib/dock-badge-count'
 import type { AgentQueuedMessage } from '@/lib/agent-message-queue'
 
@@ -228,7 +228,7 @@ export const agentStreamingStatesAtom = atom<Map<string, AgentStreamState>>(new 
 
 /** Agent 流式结束后是否保持过程组展开，默认收起以降低结果阅读干扰 */
 export const agentProcessGroupsKeepExpandedAtom = atomWithStorage<boolean>(
-  'proma-agent-process-groups-keep-expanded',
+  'shadiao-agent-process-groups-keep-expanded',
   false,
 )
 
@@ -322,10 +322,10 @@ export const workspaceFilesVersionAtom = atom(0)
 // ===== 侧面板 Atoms =====
 
 /** 侧面板是否打开（全局共享，所有会话共用一个状态） */
-export const agentSidePanelOpenAtom = atomWithStorage<boolean>('proma-agent-sidepanel-open', false)
+export const agentSidePanelOpenAtom = atomWithStorage<boolean>('shadiao-agent-sidepanel-open', false)
 
 /** 侧面板宽度（全局共享，用户拖拽后持久化） */
-export const agentSidePanelWidthAtom = atomWithStorage<number>('proma-agent-sidepanel-width', 280)
+export const agentSidePanelWidthAtom = atomWithStorage<number>('shadiao-agent-sidepanel-width', 280)
 
 /** @deprecated 保留以兼容旧代码，但实际所有 session 都读全局 atom */
 export const agentSidePanelOpenMapAtom = atom<Map<string, boolean>>(new Map())
@@ -396,7 +396,7 @@ export const RECENTLY_MODIFIED_TTL_MS = 60_000
 // ===== 权限系统 Atoms =====
 
 /** 新会话默认权限模式 */
-export const agentDefaultPermissionModeAtom = atom<PromaPermissionMode>(PROMA_DEFAULT_PERMISSION_MODE)
+export const agentDefaultPermissionModeAtom = atom<PromaPermissionMode>(SHADIAO_DEFAULT_PERMISSION_MODE)
 
 /** Per-session 权限模式 Map — sessionId → PromaPermissionMode */
 export const agentPermissionModeMapAtom = atom<Map<string, PromaPermissionMode>>(new Map())

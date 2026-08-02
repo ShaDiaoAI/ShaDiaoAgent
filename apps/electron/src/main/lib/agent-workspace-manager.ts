@@ -2,8 +2,8 @@
  * Agent 工作区管理器
  *
  * 负责 Agent 工作区的 CRUD 操作。
- * - 工作区索引：~/.proma/agent-workspaces.json（轻量元数据）
- * - 工作区目录：~/.proma/agent-workspaces/{slug}/（Agent 的 cwd）
+ * - 工作区索引：~/.shadiao-agent/agent-workspaces.json（轻量元数据）
+ * - 工作区目录：~/.shadiao-agent/agent-workspaces/{slug}/（Agent 的 cwd）
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, cpSync, mkdirSync, statSync, openSync, readSync, closeSync, realpathSync } from 'node:fs'
@@ -182,7 +182,7 @@ export function getAgentWorkspace(id: string): AgentWorkspace | undefined {
   return index.workspaces.find((w) => w.id === id)
 }
 
-/** 将 ~/.proma/default-skills/ 的内容逐个复制到工作区 skills/ 目录 */
+/** 将 ~/.shadiao-agent/default-skills/ 的内容逐个复制到工作区 skills/ 目录 */
 function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: boolean } = {}): void {
   const defaultDir = getDefaultSkillsDir()
   const targetDir = getWorkspaceSkillsDir(workspaceSlug)
@@ -515,7 +515,7 @@ export function ensurePluginManifest(workspaceSlug: string, workspaceName: strin
   }
 
   const manifest = {
-    name: `proma-workspace-${workspaceSlug}`,
+    name: `shadiao-workspace-${workspaceSlug}`,
     version: '1.0.0',
   }
 
@@ -729,7 +729,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
   return skills
 }
 
-/** 获取默认 Skills 的 slug 列表（来自 ~/.proma/default-skills/） */
+/** 获取默认 Skills 的 slug 列表（来自 ~/.shadiao-agent/default-skills/） */
 export function getDefaultSkillSlugs(): string[] {
   const dir = getDefaultSkillsDir()
   if (!existsSync(dir)) return []

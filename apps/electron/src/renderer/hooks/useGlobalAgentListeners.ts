@@ -112,7 +112,7 @@ function uniqueTruthyPaths(paths: Array<string | null | undefined>): string[] {
 // ============================================================================
 
 function payloadToLegacyEvents(payload: AgentStreamPayload): AgentEvent[] {
-  if (payload.kind === 'proma_event') {
+  if (payload.kind === 'shadiao_event') {
     const evt = payload.event
     switch (evt.type) {
       case 'permission_request':
@@ -616,12 +616,12 @@ export function useGlobalAgentListeners(): void {
         unstable_batchedUpdates(() => {
         const { sessionId, payload } = streamEvent
 
-        if (payload.kind === 'proma_event' && payload.event.type === 'external_run_started') {
+        if (payload.kind === 'shadiao_event' && payload.event.type === 'external_run_started') {
           activateExternalAgentRun(payload.event)
         }
 
         // 自动任务会话被用户接管（毕业）：向用户提示，后续定时运行将新建独立会话
-        if (payload.kind === 'proma_event' && payload.event.type === 'automation_graduated') {
+        if (payload.kind === 'shadiao_event' && payload.event.type === 'automation_graduated') {
           toast('已接管自动任务会话，后续定时运行将创建新会话。', { duration: 3000 })
           window.electronAPI.listAgentSessions()
             .then((sessions) => store.set(agentSessionsAtom, (prev) => mergeFetchedAgentSessions(prev, sessions)))
@@ -1137,7 +1137,7 @@ export function useGlobalAgentListeners(): void {
               if (completedSession?.characterId != null &&
                   selectedChar != null &&
                   completedSession.characterId === selectedChar.id &&
-                  !data.stoppedByUser) {
+                  isSuccessfulCompletion) {
                 window.electronAPI.getWallet?.().then((wr: any) => {
                   if (wr?.success && wr.data) {
                     store.set(walletAtom, wr.data)

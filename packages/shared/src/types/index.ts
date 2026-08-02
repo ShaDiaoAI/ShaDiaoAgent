@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for proma
+ * Shared type definitions for shadiao-agent
  */
 
 // Placeholder types - will be expanded as needed

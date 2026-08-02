@@ -231,7 +231,7 @@ export function buildFileTree(rootDir: string, options: FileTreeOptions = {}): s
 /**
  * 构建会话目录的文件树文本行
  *
- * 递归遍历 ~/.proma/agent-workspaces/{slug}/{sessionId}/（只读，不创建目录）。
+ * 递归遍历 ~/.shadiao-agent/agent-workspaces/{slug}/{sessionId}/（只读，不创建目录）。
  *
  * @returns 文本行数组；目录不存在/无可见文件时返回空数组
  */

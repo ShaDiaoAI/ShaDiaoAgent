@@ -563,14 +563,14 @@ export type AgentExternalRunSource = 'feishu' | 'dingtalk' | 'wechat' | 'bridge'
 /** IPC 传输的统一 payload（替代 AgentEvent） */
 export type AgentStreamPayload =
   | { kind: 'sdk_message'; message: SDKMessage }
-  | { kind: 'proma_event'; event: PromaEvent }
+  | { kind: 'shadiao_event'; event: PromaEvent }
 
 // ===== Agent 会话管理 =====
 
 /**
  * Agent 会话轻量索引项
  *
- * 存储在 ~/.proma/agent-sessions.json 中，
+ * 存储在 ~/.shadiao-agent/agent-sessions.json 中，
  * 类似 ConversationMeta，独立存储。
  */
 export interface AgentSessionMeta {
@@ -648,7 +648,7 @@ export type AgentDelegationStatus = 'running' | 'completed' | 'failed' | 'cancel
 /**
  * Agent 持久化消息
  *
- * 存储在 ~/.proma/agent-sessions/{id}.jsonl 中。
+ * 存储在 ~/.shadiao-agent/agent-sessions/{id}.jsonl 中。
  */
 export interface AgentMessage {
   /** 消息唯一标识 */
@@ -1291,11 +1291,11 @@ export interface ExitPlanModeResponse {
 // ===== 权限系统类型 =====
 
 /** 当前 Proma 支持的权限模式，值直接映射 SDK 原生 permissionMode */
-export const PROMA_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
+export const SHADIAO_PERMISSION_MODES = ['bypassPermissions', 'plan'] as const
 
-export type PromaPermissionMode = typeof PROMA_PERMISSION_MODES[number]
+export type PromaPermissionMode = typeof SHADIAO_PERMISSION_MODES[number]
 
-export const PROMA_DEFAULT_PERMISSION_MODE: PromaPermissionMode = 'bypassPermissions'
+export const SHADIAO_DEFAULT_PERMISSION_MODE: PromaPermissionMode = 'bypassPermissions'
 
 export interface PromaPermissionModeConfig {
   /** 对应 Claude Agent SDK 的 permissionMode */
@@ -1305,7 +1305,7 @@ export interface PromaPermissionModeConfig {
 }
 
 /** Proma 权限模式的单一配置来源 */
-export const PROMA_PERMISSION_MODE_CONFIG = {
+export const SHADIAO_PERMISSION_MODE_CONFIG = {
   bypassPermissions: {
     sdkMode: 'bypassPermissions',
     label: '完全自动',
@@ -1319,16 +1319,16 @@ export const PROMA_PERMISSION_MODE_CONFIG = {
 } as const satisfies Record<PromaPermissionMode, PromaPermissionModeConfig>
 
 /** 权限模式定义顺序（用于循环切换） */
-export const PROMA_PERMISSION_MODE_ORDER: readonly PromaPermissionMode[] = PROMA_PERMISSION_MODES
+export const SHADIAO_PERMISSION_MODE_ORDER: readonly PromaPermissionMode[] = SHADIAO_PERMISSION_MODES
 
 export function isPromaPermissionMode(mode: string): mode is PromaPermissionMode {
-  return (PROMA_PERMISSION_MODES as readonly string[]).includes(mode)
+  return (SHADIAO_PERMISSION_MODES as readonly string[]).includes(mode)
 }
 
 /** 规范化权限模式：历史 auto 或其它非法值统一回到默认完全自动模式 */
 export function migratePermissionMode(mode: string): PromaPermissionMode {
   if (isPromaPermissionMode(mode)) return mode
-  return PROMA_DEFAULT_PERMISSION_MODE
+  return SHADIAO_DEFAULT_PERMISSION_MODE
 }
 
 /** 危险等级 */
@@ -1459,7 +1459,7 @@ export const AGENT_IPC_CHANNELS = {
   TOGGLE_SKILL: 'agent:toggle-skill',
   /** 获取其他工作区的 Skill 列表 */
   GET_OTHER_WORKSPACE_SKILLS: 'agent:get-other-workspace-skills',
-  /** 获取默认 Skills 的 slug 列表（来自 ~/.proma/default-skills/） */
+  /** 获取默认 Skills 的 slug 列表（来自 ~/.shadiao-agent/default-skills/） */
   GET_DEFAULT_SKILL_SLUGS: 'agent:get-default-skill-slugs',
   /** 从其他工作区导入 Skill 到当前工作区 */
   IMPORT_SKILL_FROM_WORKSPACE: 'agent:import-skill-from-workspace',

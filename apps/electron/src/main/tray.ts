@@ -23,9 +23,18 @@ function getTrayIconPath(): string {
   // dev: __dirname/resources（build:resources 拷贝产物）
   // prod: process.resourcesPath（electron-builder extraResources 产物）
   const resourcesDir = app.isPackaged
-    ? join(process.resourcesPath, 'proma-logos')
-    : join(__dirname, 'resources/proma-logos')
-  return join(resourcesDir, 'iconTemplate.png')
+    ? process.resourcesPath
+    : join(__dirname, 'resources')
+
+  // 优先使用 shadiao-logos，回退到 proma-logos（临时，等新的 tray icon 准备好后移除回退）
+  const shadiaoPath = join(resourcesDir, 'shadiao-logos', 'iconTemplate.png')
+  if (existsSync(shadiaoPath)) return shadiaoPath
+
+  const promaPath = join(resourcesDir, 'proma-logos', 'iconTemplate.png')
+  if (existsSync(promaPath)) return promaPath
+
+  // 最后回退到 app 图标
+  return join(resourcesDir, 'icon.png')
 }
 
 /** 显示主窗口 */

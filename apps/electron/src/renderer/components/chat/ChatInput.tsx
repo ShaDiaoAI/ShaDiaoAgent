@@ -8,7 +8,7 @@
  *   左侧：Paperclip 附件按钮、ModelSelector、ThinkingButton、ContextSettingsPopover、ClearContextButton
  *   右侧：Send/Stop 按钮
  * - 拖放文件支持（onDragOver/onDragLeave/onDrop）
- * - 监听 proma:clear-context 和 proma:focus-input 自定义事件
+ * - 监听 shadiao:clear-context 和 shadiao:focus-input 自定义事件
  * - 卡片式容器样式
  */
 
@@ -301,8 +301,8 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
     const handler = (): void => {
       onClearContext?.()
     }
-    window.addEventListener('proma:clear-context', handler)
-    return () => window.removeEventListener('proma:clear-context', handler)
+    window.addEventListener('shadiao:clear-context', handler)
+    return () => window.removeEventListener('shadiao:clear-context', handler)
   }, [onClearContext])
 
   // 监听快捷键系统分发的 focus-input 事件（Cmd+L）
@@ -312,8 +312,8 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
       const proseMirror = document.querySelector('[data-input-mode="chat"] .ProseMirror') as HTMLElement | null
       proseMirror?.focus()
     }
-    window.addEventListener('proma:focus-input', handler)
-    return () => window.removeEventListener('proma:focus-input', handler)
+    window.addEventListener('shadiao:focus-input', handler)
+    return () => window.removeEventListener('shadiao:focus-input', handler)
   }, [])
 
   const toolbarItems = React.useMemo<ToolbarItem[]>(() => [

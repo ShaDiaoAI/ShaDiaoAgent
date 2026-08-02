@@ -159,7 +159,7 @@ function main(): void {
   const results: StepResult[] = []
 
   // 打印配置信息
-  console.log(`\n${color.bgBlue}${color.bold} Proma 打包工具 ${color.reset}\n`)
+  console.log(`\n${color.bgBlue}${color.bold} ShaDiaoAgent 打包工具 ${color.reset}\n`)
   console.log(`  ${color.bold}平台${color.reset}:     ${opts.platform}`)
   console.log(`  ${color.bold}架构${color.reset}:     ${opts.currentArch ? arch + ' (仅当前)' : 'arm64 + x64'}`)
   console.log(`  ${color.bold}格式${color.reset}:     ${opts.targetFormat}`)
@@ -197,11 +197,11 @@ function main(): void {
   printStepResult(results[results.length - 1])
   if (!results[results.length - 1].success) return printSummary(results)
 
-  // ── 步骤 4: 编译 proma CLI 二进制 ──
+  // ── 步骤 4: 编译 shadiao-agent CLI 二进制 ──
   step++
-  printStepStart(step, totalSteps, '编译 proma CLI (bun --compile)')
+  printStepStart(step, totalSteps, '编译 shadiao-agent CLI (bun --compile)')
   results.push(
-    runStep('编译 proma CLI', 'bun', ['run', 'build:cli'], { verbose: opts.verbose })
+    runStep('编译 shadiao-agent CLI', 'bun', ['run', 'build:cli'], { verbose: opts.verbose })
   )
   printStepResult(results[results.length - 1])
   if (!results[results.length - 1].success) return printSummary(results)

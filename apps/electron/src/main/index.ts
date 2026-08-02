@@ -375,7 +375,7 @@ async function bootstrap(): Promise<void> {
   // 必须在其他初始化之前执行，确保环境变量正确加载
   await safeAwait('initializeRuntime', () => initializeRuntime())
 
-  // 同步默认 Skills 模板到 ~/.proma/default-skills/
+  // 同步默认 Skills 模板到 ~/.shadiao-agent/default-skills/
   safeRun('seedDefaultSkills', seedDefaultSkills)
 
   // 升级所有工作区中版本过旧的默认 Skills
@@ -487,8 +487,8 @@ function handleBootstrapFailure(err: unknown): void {
         `日志位置：${app.getPath('logs')}\n\n` +
         `常见原因与排查：\n` +
         `1. 旧版 ShaDiaoAgent 进程未退出（终端运行 killall ShaDiaoAgent 后重试）\n` +
-        `2. ~/.proma/ 配置损坏（重命名 ~/.proma 后重启）\n` +
-        `3. 系统 Keychain 无法解密保存的凭证（删除 ~/.proma/feishu.json 等后重新登录）\n\n` +
+        `2. ~/.shadiao-agent/ 配置损坏（重命名 ~/.proma 后重启）\n` +
+        `3. 系统 Keychain 无法解密保存的凭证（删除 ~/.shadiao-agent/feishu.json 等后重新登录）\n\n` +
         `如需协助请到 GitHub Issues 反馈。`,
     )
   } catch {

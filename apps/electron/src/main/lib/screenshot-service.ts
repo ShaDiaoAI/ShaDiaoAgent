@@ -182,7 +182,7 @@ function buildScreenshotHtml(htmlContent: string, isDark: boolean, css: string, 
   return `<!DOCTYPE html>
 <html class="${safeThemeClass}"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob: proma-file: https: http:; media-src 'self' data: blob: proma-file: https: http:; font-src 'self' data: https: http:; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob: shadiao-file: https: http:; media-src 'self' data: blob: shadiao-file: https: http:; font-src 'self' data: https: http:; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <style>${safeCss}</style>
 <style>
 *{box-sizing:border-box}
@@ -190,15 +190,15 @@ html,body{margin:0;background:${bg};scrollbar-width:none;-ms-overflow-style:none
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 body{-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
 img,video,canvas,svg{max-width:100%}
-.proma-screenshot-wrapper{padding:${SCREENSHOT_PADDING_TOP}px ${SCREENSHOT_PADDING_X}px;background:${bg};width:max-content;max-width:100%;margin:0 auto}
-.proma-screenshot-sheet{width:max-content;max-width:100%;margin:0 auto;background:${bg}}
-.proma-screenshot-sheet [contenteditable],
-.proma-screenshot-sheet [contenteditable="false"]{outline:none}
-.proma-screenshot-sheet .ProseMirror-selectednode,
-.proma-screenshot-sheet .selectedCell::after{display:none!important}
+.shadiao-screenshot-wrapper{padding:${SCREENSHOT_PADDING_TOP}px ${SCREENSHOT_PADDING_X}px;background:${bg};width:max-content;max-width:100%;margin:0 auto}
+.shadiao-screenshot-sheet{width:max-content;max-width:100%;margin:0 auto;background:${bg}}
+.shadiao-screenshot-sheet [contenteditable],
+.shadiao-screenshot-sheet [contenteditable="false"]{outline:none}
+.shadiao-screenshot-sheet .ProseMirror-selectednode,
+.shadiao-screenshot-sheet .selectedCell::after{display:none!important}
 </style></head><body class="${safeThemeClass}">
-<div class="proma-screenshot-wrapper">
-<main class="proma-screenshot-sheet">${safeHtml}</main>
+<div class="shadiao-screenshot-wrapper">
+<main class="shadiao-screenshot-sheet">${safeHtml}</main>
 </div>
 </body></html>`
 }
@@ -270,7 +270,7 @@ async function captureLoadedDocument(win: BrowserWindow, width: number, totalHei
 }
 
 async function screenshotCapture(htmlContent: string, width: number): Promise<Buffer> {
-  const tmpPath = join(tmpdir(), `proma-ss-${Date.now()}.html`)
+  const tmpPath = join(tmpdir(), `shadiao-ss-${Date.now()}.html`)
   writeFileSync(tmpPath, htmlContent, 'utf-8')
 
   try {
@@ -349,7 +349,7 @@ export function captureScreenshot(input: ScreenshotInput): Promise<ScreenshotRes
 
       const { canceled, filePath } = await dialog.showSaveDialog({
         title: '保存截图',
-        defaultPath: join(homedir(), 'Desktop', `proma-${ts}.png`),
+        defaultPath: join(homedir(), 'Desktop', `shadiao-agent-${ts}.png`),
         filters: [{ name: 'PNG 图片', extensions: ['png'] }],
       })
 

@@ -2,7 +2,7 @@
   "name": "@shadiao/core",
   "version": "0.2.15",
   "license": "AGPL-3.0-only",
-  "description": "proma core types,storage and core logic with agents",
+  "description": "ShaDiao Agent core types, storage and core logic with agents",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

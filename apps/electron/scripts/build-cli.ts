@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 /**
- * 编译 proma CLI 为自包含二进制，打进桌面构建。
+ * 编译 shadiao-agent CLI 为自包含二进制，打进桌面构建。
  *
  * 设计：
  * - 用 `bun build --compile` 把 apps/cli 连同其 workspace 依赖
  *   （@shadiao/session-core / @shadiao/shared）打成单个自包含可执行档，
  *   用户机器无需安装 bun/node 即可运行。
  * - 输出到 apps/electron/resources/bin/，由 electron-builder 经 extraResources
- *   打进 process.resourcesPath/bin/，运行时由主进程注入 PROMA_CLI 暴露给 skill。
+ *   打进 process.resourcesPath/bin/，运行时由主进程注入 SHADIAO_CLI 暴露给 skill。
  * - 本机架构编译：CI 每个 runner 即目标平台（mac arm64/x64、win x64、linux），
  *   各自产出宿主架构二进制，与 @anthropic-ai SDK native binary 的分发策略一致，
  *   无需交叉编译。
@@ -34,7 +34,7 @@ const repoRoot = resolve(electronDir, '../..')
 const cliEntry = join(repoRoot, 'apps/cli/src/index.ts')
 
 const isWindows = process.platform === 'win32'
-const binName = isWindows ? 'proma.exe' : 'proma'
+const binName = isWindows ? 'shadiao-agent.exe' : 'shadiao-agent'
 const outDir = join(electronDir, 'resources/bin')
 const outFile = join(outDir, binName)
 
@@ -49,7 +49,7 @@ if (!existsSync(cliEntry)) {
 
 mkdirSync(outDir, { recursive: true })
 
-console.log(`${color.cyan}[build:cli]${color.reset} 编译 proma CLI → ${color.dim}${outFile}${color.reset}`)
+console.log(`${color.cyan}[build:cli]${color.reset} 编译 shadiao-agent CLI → ${color.dim}${outFile}${color.reset}`)
 
 // ── Windows 短路径 workaround ──
 // bun build --compile 在 Windows 上尝试复制自身到临时目录时，

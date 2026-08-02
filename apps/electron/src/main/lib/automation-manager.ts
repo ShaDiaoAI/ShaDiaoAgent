@@ -2,7 +2,7 @@
  * 定时任务（Automation）管理器
  *
  * 负责定时任务的 CRUD 与运行历史持久化。
- * - 索引文件：~/.proma/automations.json
+ * - 索引文件：~/.shadiao-agent/automations.json
  *
  * 照搬 agent-session-manager.ts 的原子写模式（safe-file）。
  * 调度逻辑见 automation-scheduler.ts，本文件只管数据。

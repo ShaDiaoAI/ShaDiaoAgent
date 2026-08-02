@@ -2,8 +2,8 @@
  * 对话管理器
  *
  * 负责对话的 CRUD 操作和消息持久化。
- * - 对话索引：~/.proma/conversations.json（轻量元数据）
- * - 消息存储：~/.proma/conversations/{id}.jsonl（JSONL 格式，逐行追加）
+ * - 对话索引：~/.shadiao-agent/conversations.json（轻量元数据）
+ * - 消息存储：~/.shadiao-agent/conversations/{id}.jsonl（JSONL 格式，逐行追加）
  */
 
 import { readFileSync, writeFileSync, appendFileSync, existsSync, unlinkSync, createReadStream } from 'node:fs'
@@ -37,7 +37,14 @@ const INDEX_VERSION = 1
 function readIndex(): ConversationsIndex {
   const indexPath = getConversationsIndexPath()
   const data = readJsonFileSafe<ConversationsIndex>(indexPath)
-  if (data) return data
+  if (data) {
+    // 防御：旧格式可能是纯数组（无 version/conversations 包裹），当作损坏文件重建
+    if (!Array.isArray((data as ConversationsIndex).conversations)) {
+      console.warn('[对话管理] conversations.json 格式异常（缺少 conversations 数组），已重建空索引')
+      return { version: INDEX_VERSION, conversations: [] }
+    }
+    return data
+  }
   return { version: INDEX_VERSION, conversations: [] }
 }
 

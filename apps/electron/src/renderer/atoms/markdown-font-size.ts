@@ -3,7 +3,7 @@
  *
  * 三档字号偏好（小/中/大），通过 CSS 变量 --md-preview-font-size 驱动
  * AI 回复（react-markdown）和文件预览（TipTap）的根字号。
- * 持久化到 ~/.proma/settings.json。
+ * 持久化到 ~/.shadiao-agent/settings.json。
  */
 
 import { atom } from 'jotai'

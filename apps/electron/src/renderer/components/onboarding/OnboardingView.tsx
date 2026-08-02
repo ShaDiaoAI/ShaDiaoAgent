@@ -90,7 +90,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                       导入自己其他设备上的配置
                       <br/>
                       <br/>
-                      需要先在原设备上导出 .proma-backup 文件，再双击导入即可
+                      需要先在原设备上导出 .shadiao-backup 文件，再双击导入即可
                     </p>
                   </div>
                 </button>
@@ -107,7 +107,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                       从同事或团队成员处导入环境
                       <br/>
                       <br/>
-                      需要先导出 .proma-share 文件，再双击导入即可
+                      需要先导出 .shadiao-share 文件，再双击导入即可
                     </p>
                   </div>
                 </button>

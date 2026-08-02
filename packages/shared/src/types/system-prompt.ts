@@ -21,7 +21,7 @@ export interface SystemPrompt {
   updatedAt: number
 }
 
-/** 系统提示词配置（存储在 ~/.proma/system-prompts.json） */
+/** 系统提示词配置（存储在 ~/.shadiao-agent/system-prompts.json） */
 export interface SystemPromptConfig {
   /** 提示词列表 */
   prompts: SystemPrompt[]

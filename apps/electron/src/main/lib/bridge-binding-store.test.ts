@@ -13,7 +13,7 @@ let tempDir: string | null = null
 
 function tempFile(name: string): string {
   if (!tempDir) {
-    tempDir = mkdtempSync(join(tmpdir(), 'proma-bridge-bindings-'))
+    tempDir = mkdtempSync(join(tmpdir(), 'shadiao-bridge-bindings-'))
   }
   return join(tempDir, name)
 }

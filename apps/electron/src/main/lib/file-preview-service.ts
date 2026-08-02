@@ -27,7 +27,7 @@ const MAX_PPTX_SLIDES = 80
 // ─── 临时文件 ───
 
 function getPreviewTmpDir(): string {
-  const dir = join(tmpdir(), 'proma-preview')
+  const dir = join(tmpdir(), 'shadiao-preview')
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }
@@ -46,7 +46,7 @@ function writeTempHtml(html: string): string {
 
 /** 清理所有临时预览文件 */
 export function cleanPreviewTmpDir(): number {
-  const dir = join(tmpdir(), 'proma-preview')
+  const dir = join(tmpdir(), 'shadiao-preview')
   if (!existsSync(dir)) return 0
   let count = 0
   try {
@@ -544,13 +544,13 @@ export function resolveAndReadFile(filePath: string, basePaths?: string[]): { re
   }
 }
 
-/** 仅解析文件路径（不读取内容），供图片等用 proma-file:// 协议加载的场景使用 */
+/** 仅解析文件路径（不读取内容），供图片等用 shadiao-file:// 协议加载的场景使用 */
 export function resolveFilePath(filePath: string, basePaths?: string[]): string | null {
   const safePath = resolveTargetPath(filePath, basePaths)
   return existsSync(safePath) ? safePath : null
 }
 
-/** 为内联 PDF 预览生成临时 HTML 文件（使用 proma-file:// 加载 PDF，无体积膨胀） */
+/** 为内联 PDF 预览生成临时 HTML 文件（使用 shadiao-file:// 加载 PDF，无体积膨胀） */
 export async function preparePdfPreview(filePath: string, basePaths?: string[]): Promise<{ resolvedPath: string; tmpHtmlUrl: string } | null> {
   const safePath = resolveTargetPath(filePath, basePaths)
   if (!existsSync(safePath)) return null

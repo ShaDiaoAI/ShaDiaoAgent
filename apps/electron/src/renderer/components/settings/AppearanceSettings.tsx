@@ -2,7 +2,7 @@
  * AppearanceSettings - 外观设置页
  *
  * 特殊风格选择 + 主题模式切换（浅色/深色/跟随系统/特殊风格）。
- * 通过 Jotai atom 管理状态，持久化到 ~/.proma/settings.json。
+ * 通过 Jotai atom 管理状态，持久化到 ~/.shadiao-agent/settings.json。
  */
 
 import * as React from 'react'
@@ -36,19 +36,8 @@ import { detectIsWindows } from '@/lib/platform'
 import type { InterfaceVariant, ThemeMode, ThemeStyle, MarkdownFontSize } from '../../../types'
 
 // ===== Logo 资源导入（用于图标选择器） =====
-import promaBlackLogo from '@/assets/bots/proma-logos/proma-black.png'
-import promaWhiteLogo from '@/assets/bots/proma-logos/proma-white.png'
-import promaBlueLogo from '@/assets/bots/proma-logos/proma-blue.png'
-import promaPurpleLogo from '@/assets/bots/proma-logos/proma-purple.png'
-import promaGradientLogo from '@/assets/bots/proma-logos/proma-gradient.png'
-import promaCoralLogo from '@/assets/bots/proma-logos/proma-coral.png'
-import promaVeriPeriLogo from '@/assets/bots/proma-logos/proma-veri-peri.png'
-import promaVivaMagentaLogo from '@/assets/bots/proma-logos/proma-viva-magenta.png'
-import promaMochaMousseLogo from '@/assets/bots/proma-logos/proma-mocha-mousse.png'
-import promaEmeraldLogo from '@/assets/bots/proma-logos/proma-emerald.png'
-import proma8bitLogo from '@/assets/bots/proma-logos/proma-8bit.png'
-import promaCyberpunkLogo from '@/assets/bots/proma-logos/proma-cyberpunk.png'
-import promaFuturisticLogo from '@/assets/bots/proma-logos/proma-futuristic.png'
+// TODO: 为每种颜色变体创建对应的 shadiao logo 资源
+import shadiaoLogo from '@/assets/bots/shadiao-logos/shadiao-logo.png'
 
 // ===== 主题预览图片导入 =====
 import themeCloudDancer from '@/assets/theme-previews/theme-cloud-dancer.webp'
@@ -164,19 +153,20 @@ interface IconVariant {
 
 const ICON_VARIANTS: readonly IconVariant[] = [
   { id: 'default', name: '默认', src: '', previewBg: 'bg-neutral-900' },
-  { id: 'black', name: '经典黑', src: promaBlackLogo, previewBg: 'bg-neutral-900' },
-  { id: 'white', name: '纯白版', src: promaWhiteLogo, previewBg: 'bg-white' },
-  { id: 'blue', name: '品牌蓝', src: promaBlueLogo, previewBg: 'bg-blue-900' },
-  { id: 'purple', name: '紫色版', src: promaPurpleLogo, previewBg: 'bg-purple-900' },
-  { id: 'gradient', name: '渐变版', src: promaGradientLogo, previewBg: 'bg-gradient-to-br from-blue-600 to-purple-600' },
-  { id: 'coral', name: '珊瑚橘', src: promaCoralLogo, previewBg: 'bg-[#FF6F61]' },
-  { id: 'veri-peri', name: '长春花蓝', src: promaVeriPeriLogo, previewBg: 'bg-[#6667AB]' },
-  { id: 'viva-magenta', name: '非凡洋红', src: promaVivaMagentaLogo, previewBg: 'bg-[#BB2649]' },
-  { id: 'mocha-mousse', name: '摩卡慕斯', src: promaMochaMousseLogo, previewBg: 'bg-[#A47764]' },
-  { id: 'emerald', name: '翡翠绿', src: promaEmeraldLogo, previewBg: 'bg-[#009473]' },
-  { id: '8bit', name: '8bit 像素', src: proma8bitLogo, previewBg: 'bg-[#1a1a2e]' },
-  { id: 'cyberpunk', name: '赛博朋克', src: promaCyberpunkLogo, previewBg: 'bg-[#0d0221]' },
-  { id: 'futuristic', name: '未来质感', src: promaFuturisticLogo, previewBg: 'bg-[#4a4a4a]' },
+  // TODO: 后续为每种颜色变体创建独立的 shadiao logo
+  { id: 'black', name: '经典黑', src: shadiaoLogo, previewBg: 'bg-neutral-900' },
+  { id: 'white', name: '纯白版', src: shadiaoLogo, previewBg: 'bg-white' },
+  { id: 'blue', name: '品牌蓝', src: shadiaoLogo, previewBg: 'bg-blue-900' },
+  { id: 'purple', name: '紫色版', src: shadiaoLogo, previewBg: 'bg-purple-900' },
+  { id: 'gradient', name: '渐变版', src: shadiaoLogo, previewBg: 'bg-gradient-to-br from-blue-600 to-purple-600' },
+  { id: 'coral', name: '珊瑚橘', src: shadiaoLogo, previewBg: 'bg-[#FF6F61]' },
+  { id: 'veri-peri', name: '长春花蓝', src: shadiaoLogo, previewBg: 'bg-[#6667AB]' },
+  { id: 'viva-magenta', name: '非凡洋红', src: shadiaoLogo, previewBg: 'bg-[#BB2649]' },
+  { id: 'mocha-mousse', name: '摩卡慕斯', src: shadiaoLogo, previewBg: 'bg-[#A47764]' },
+  { id: 'emerald', name: '翡翠绿', src: shadiaoLogo, previewBg: 'bg-[#009473]' },
+  { id: '8bit', name: '8bit 像素', src: shadiaoLogo, previewBg: 'bg-[#1a1a2e]' },
+  { id: 'cyberpunk', name: '赛博朋克', src: shadiaoLogo, previewBg: 'bg-[#0d0221]' },
+  { id: 'futuristic', name: '未来质感', src: shadiaoLogo, previewBg: 'bg-[#4a4a4a]' },
 ] as const
 
 /** 根据平台返回缩放快捷键提示 */

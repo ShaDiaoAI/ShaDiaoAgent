@@ -1,14 +1,15 @@
 /**
  * Installer Manifest 客户端
  *
- * 从 proma-api 的 /api/v1/installers/manifest 接口拉取第三方安装包清单，
+ * 从后端 API 的 /api/v1/installers/manifest 接口拉取第三方安装包清单，
  * 带 5 分钟缓存和内置 fallback——断网或接口不可用时至少能拿到官方上游 URL。
  */
 
 import type { InstallerManifest, InstallerSource } from '@shadiao/shared'
 
-const PROMA_API_BASE = 'https://api.proma.cool'
-const MANIFEST_URL = `${PROMA_API_BASE}/api/v1/installers/manifest`
+// TODO: 替换为 ShaDiaoAgent 自己的 API 地址
+const SHADIAO_API_BASE = 'https://api.shadiao.cool'
+const MANIFEST_URL = `${SHADIAO_API_BASE}/api/v1/installers/manifest`
 const CACHE_TTL_MS = 5 * 60 * 1000
 
 interface ManifestCache {

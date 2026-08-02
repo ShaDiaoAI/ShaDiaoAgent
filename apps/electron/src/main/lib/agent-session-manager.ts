@@ -2,8 +2,8 @@
  * Agent 会话管理器
  *
  * 负责 Agent 会话的 CRUD 操作和消息持久化。
- * - 会话索引：~/.proma/agent-sessions.json（轻量元数据）
- * - 消息存储：~/.proma/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
+ * - 会话索引：~/.shadiao-agent/agent-sessions.json（轻量元数据）
+ * - 消息存储：~/.shadiao-agent/agent-sessions/{id}.jsonl（JSONL 格式，逐行追加）
  *
  * 照搬 conversation-manager.ts 的模式。
  */
@@ -143,6 +143,11 @@ function readIndex(): AgentSessionsIndex {
   const indexPath = getAgentSessionsIndexPath()
   const data = readJsonFileSafe<AgentSessionsIndex>(indexPath)
   if (data) {
+    // 防御：旧格式可能是纯数组（无 version/sessions 包裹），当作损坏文件重建
+    if (!Array.isArray((data as AgentSessionsIndex).sessions)) {
+      console.warn('[Agent 会话] agent-sessions.json 格式异常（缺少 sessions 数组），已重建空索引')
+      return { version: INDEX_VERSION, sessions: [] }
+    }
     if (migrateLegacyPermissionMode(data)) {
       writeIndex(data)
       console.log('[Agent 会话] 已迁移历史权限模式 auto → bypassPermissions')
@@ -1134,7 +1139,7 @@ export function truncateSDKMessages(id: string, upToUuidInclusive: string): SDKM
 /**
  * 从 SDK session JSONL 中查找指定 assistant message 之后最近的 user message UUID
  *
- * SDK session JSONL（~/.proma/sdk-config/projects/...）中的消息都带有 uuid，
+ * SDK session JSONL（~/.shadiao-agent/sdk-config/projects/...）中的消息都带有 uuid，
  * 但 Proma 自己构造的 user message 没有 uuid。此函数直接读取 SDK 的 JSONL
  * 来解析 rewindFiles 所需的 user message UUID。
  *

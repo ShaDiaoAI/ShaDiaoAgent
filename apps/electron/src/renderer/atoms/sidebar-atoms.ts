@@ -15,12 +15,12 @@ export const sidebarViewModeAtom = atom<SidebarViewMode>('active')
 
 /** 项目列表高度（px），用户可拖拽调整，持久化到 localStorage */
 export const projectListHeightAtom = atomWithStorage<number>(
-  'proma-workspace-list-height',
+  'shadiao-workspace-list-height',
   120,
 )
 
 /** 左侧边栏宽度（px），用户可拖拽调整，持久化到 localStorage */
 export const leftSidebarWidthAtom = atomWithStorage<number>(
-  'proma-left-sidebar-width',
+  'shadiao-left-sidebar-width',
   300,
 )

@@ -1,7 +1,7 @@
 /**
  * 全局代理配置相关类型定义
  *
- * 代理配置存储在 ~/.proma/proxy-settings.json 中，支持系统代理自动检测和手动配置。
+ * 代理配置存储在 ~/.shadiao-agent/proxy-settings.json 中，支持系统代理自动检测和手动配置。
  */
 
 /**

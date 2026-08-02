@@ -16,8 +16,8 @@ interface FindOptions {
   regex: boolean
 }
 
-const MATCH_SELECTOR = 'mark[data-proma-find-match]'
-const SHADOW_STYLE_ID = 'proma-find-highlight-style'
+const MATCH_SELECTOR = 'mark[data-shadiao-find-match]'
+const SHADOW_STYLE_ID = 'shadiao-find-highlight-style'
 const CONTROLLED_CONTENT_SELECTOR = [
   '.tiptap[contenteditable="true"]',
   '[data-tiptap-editor][contenteditable="true"]',
@@ -68,7 +68,7 @@ function injectShadowStyle(root: ParentNode): void {
       border-radius: 2px;
       padding: 0 1px;
     }
-    ${MATCH_SELECTOR}[data-proma-find-active="true"] {
+    ${MATCH_SELECTOR}[data-shadiao-find-active="true"] {
       background: rgba(249, 115, 22, 0.72);
       box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.55);
     }
@@ -80,7 +80,7 @@ function shouldSkipTextNode(node: Text): boolean {
   if (!node.nodeValue?.trim()) return true
   const parent = node.parentElement
   if (!parent) return true
-  if (parent.closest('[data-proma-find-ignore]')) return true
+  if (parent.closest('[data-shadiao-find-ignore]')) return true
   if (parent.closest(MATCH_SELECTOR)) return true
   if (parent.closest('script, style, input, textarea, select, button')) return true
   if (parent.closest(CONTROLLED_CONTENT_SELECTOR)) return true
@@ -136,7 +136,7 @@ function markMatchesInTextNode(node: Text, matcher: RegExp): HTMLElement[] {
       fragment.appendChild(document.createTextNode(text.slice(offset, item.index)))
     }
     const mark = document.createElement('mark')
-    mark.dataset.promaFindMatch = 'true'
+    mark.dataset.shadiaoFindMatch = 'true'
     mark.textContent = item.text
     applyMatchStyle(mark, false)
     fragment.appendChild(mark)
@@ -174,7 +174,7 @@ function applyHighlights(container: HTMLElement, query: string, options: FindOpt
   }
 
   marks.forEach((mark, index) => {
-    mark.dataset.promaFindIndex = String(index)
+    mark.dataset.shadiaoFindIndex = String(index)
   })
   return marks
 }
@@ -182,11 +182,11 @@ function applyHighlights(container: HTMLElement, query: string, options: FindOpt
 function setActiveMatch(marks: HTMLElement[], activeIndex: number): void {
   marks.forEach((mark, index) => {
     if (index === activeIndex) {
-      mark.dataset.promaFindActive = 'true'
+      mark.dataset.shadiaoFindActive = 'true'
       applyMatchStyle(mark, true)
       mark.scrollIntoView({ block: 'center', inline: 'nearest' })
     } else {
-      delete mark.dataset.promaFindActive
+      delete mark.dataset.shadiaoFindActive
       applyMatchStyle(mark, false)
     }
   })
@@ -371,7 +371,7 @@ export function PreviewFindBar({ open, rootRef, contentKey, unsupportedReason, o
 
   return (
     <div
-      data-proma-find-ignore
+      data-shadiao-find-ignore
       role="search"
       aria-label="文件内查找"
       className="absolute right-3 top-2 z-30 flex max-w-[min(390px,calc(100%-24px))] items-center gap-0.5 rounded-lg bg-popover/95 px-1.5 py-1 text-popover-foreground shadow-lg ring-1 ring-border/40 backdrop-blur"

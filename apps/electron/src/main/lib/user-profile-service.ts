@@ -2,7 +2,7 @@
  * 用户档案服务
  *
  * 管理用户档案（用户名 + 头像）的读写。
- * 存储在 ~/.proma/user-profile.json
+ * 存储在 ~/.shadiao-agent/user-profile.json
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'

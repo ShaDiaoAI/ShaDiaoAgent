@@ -5,7 +5,7 @@
  * 同一自然日内即便上次运行成功，如果上下文已经接近窗口上限，
  * 继续往里塞会导致本次运行刚开始就触发 SDK 自动压缩，得不偿失。
  *
- * 数据来源：~/.proma/agent-sessions/{id}.jsonl 里最后一条带 usage 的消息。
+ * 数据来源：~/.shadiao-agent/agent-sessions/{id}.jsonl 里最后一条带 usage 的消息。
  * 优先级：
  * 1. SDK result 消息（subtype=success/error_*）：usage + modelUsage[?].contextWindow
  * 2. SDK assistant 消息：message.usage + 按 message.model 推断 contextWindow

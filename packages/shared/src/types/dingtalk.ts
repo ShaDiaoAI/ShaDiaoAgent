@@ -7,7 +7,7 @@
 
 // ===== 钉钉 Bot 配置 =====
 
-/** 钉钉 Bot 应用配置（持久化到 ~/.proma/dingtalk.json）— 旧格式，向后兼容 */
+/** 钉钉 Bot 应用配置（持久化到 ~/.shadiao-agent/dingtalk.json）— 旧格式，向后兼容 */
 export interface DingTalkConfig {
   /** 是否启用钉钉集成 */
   enabled: boolean
@@ -50,7 +50,7 @@ export interface DingTalkBotConfig {
   defaultModelId?: string
 }
 
-/** 多 Bot 配置文件（~/.proma/dingtalk.json 新格式） */
+/** 多 Bot 配置文件（~/.shadiao-agent/dingtalk.json 新格式） */
 export interface DingTalkMultiBotConfig {
   version: 2
   bots: DingTalkBotConfig[]

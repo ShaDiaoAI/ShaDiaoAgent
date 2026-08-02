@@ -10,14 +10,15 @@ import { atom } from 'jotai'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
 
 // ===== 音频资源导入 =====
-import soundDing from '@/assets/sound/ding.mp3'
-import soundDingDong from '@/assets/sound/ding-dong.mp3'
-import soundDiscord from '@/assets/sound/discord.mp3'
-import soundDone from '@/assets/sound/done.mp3'
-import soundDownPower from '@/assets/sound/down-power.mp3'
-import soundFood from '@/assets/sound/food.mp3'
-import soundLite from '@/assets/sound/lite.mp3'
-import soundQuiet from '@/assets/sound/quiet.mp3'
+import soundWaOhFemale from '@/assets/sound/wa-oh-female.mp3'
+import soundOh from '@/assets/sound/oh.wav'
+import soundScream from '@/assets/sound/scream.mp3'
+import soundWaOh from '@/assets/sound/wa-oh.mp3'
+import soundCiYin from '@/assets/sound/ci-yin.mp3'
+import soundSillyLaugh from '@/assets/sound/silly-laugh.mp3'
+import soundHeng from '@/assets/sound/heng.mp3'
+import soundLightInjuryFemale from '@/assets/sound/light-injury-female.mp3'
+import soundFart from '@/assets/sound/fart.mp3'
 
 // ===== 音频资源注册表 =====
 
@@ -30,21 +31,22 @@ export interface NotificationSoundMeta {
 
 /** 所有可用通知音（不含 none） */
 export const NOTIFICATION_SOUNDS: NotificationSoundMeta[] = [
-  { id: 'ding', label: 'Ding', url: soundDing },
-  { id: 'ding-dong', label: 'Ding Dong', url: soundDingDong },
-  { id: 'discord', label: 'Discord', url: soundDiscord },
-  { id: 'done', label: 'Done', url: soundDone },
-  { id: 'down-power', label: 'Down Power', url: soundDownPower },
-  { id: 'food', label: 'Food', url: soundFood },
-  { id: 'lite', label: 'Lite', url: soundLite },
-  { id: 'quiet', label: 'Quiet', url: soundQuiet },
+  { id: 'wa-oh-female', label: '哇哦-女', url: soundWaOhFemale },
+  { id: 'oh', label: '哦！', url: soundOh },
+  { id: 'scream', label: '惨叫', url: soundScream },
+  { id: 'wa-oh', label: '哇哦', url: soundWaOh },
+  { id: 'ci-yin', label: '次阴', url: soundCiYin },
+  { id: 'silly-laugh', label: '傻笑', url: soundSillyLaugh },
+  { id: 'heng', label: '哼', url: soundHeng },
+  { id: 'light-injury-female', label: '轻伤-女', url: soundLightInjuryFemale },
+  { id: 'fart', label: '放屁', url: soundFart },
 ]
 
 /** 各场景的默认通知音 */
 export const DEFAULT_NOTIFICATION_SOUNDS: Required<NotificationSoundSettings> = {
-  taskComplete: 'ding',
-  permissionRequest: 'ding-dong',
-  exitPlanMode: 'ding-dong',
+  taskComplete: 'oh',
+  permissionRequest: 'oh',
+  exitPlanMode: 'oh',
 }
 
 // ===== Jotai Atoms =====

@@ -104,7 +104,7 @@ export async function runAgent(
       if (meta?.sourceAutomationId && !meta.automationGraduated) {
         updateAgentSessionMeta(input.sessionId, { automationGraduated: true })
         eventBus.emit(input.sessionId, {
-          kind: 'proma_event',
+          kind: 'shadiao_event',
           event: { type: 'automation_graduated' },
         })
       }
@@ -131,7 +131,7 @@ export async function runAgent(
         }
       },
       onTitleUpdated: (title) => {
-        eventBus.emit(input.sessionId, { kind: 'proma_event', event: { type: 'title_updated', title } })
+        eventBus.emit(input.sessionId, { kind: 'shadiao_event', event: { type: 'title_updated', title } })
         if (!webContents.isDestroyed()) {
           webContents.send(AGENT_IPC_CHANNELS.TITLE_UPDATED, { sessionId: input.sessionId, title })
         }
@@ -184,13 +184,13 @@ export async function runAgentHeadless(
       },
       onTitleUpdated: (title) => {
         callbacks.onTitleUpdated(title)
-        eventBus.emit(runInput.sessionId, { kind: 'proma_event', event: { type: 'title_updated', title } })
+        eventBus.emit(runInput.sessionId, { kind: 'shadiao_event', event: { type: 'title_updated', title } })
         if (wc && !wc.isDestroyed()) wc.send(AGENT_IPC_CHANNELS.TITLE_UPDATED, { sessionId: runInput.sessionId, title })
       },
       onRunStarted: ({ startedAt: persistedStartedAt }) => {
         const session = getAgentSessionMeta(runInput.sessionId)
         eventBus.emit(runInput.sessionId, {
-          kind: 'proma_event', event: {
+          kind: 'shadiao_event', event: {
             type: 'external_run_started', source: callbacks.source ?? 'bridge',
             sessionId: runInput.sessionId, title: session?.title,
             workspaceId: runInput.workspaceId ?? session?.workspaceId, modelId: runInput.modelId,

@@ -10,7 +10,7 @@ import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort,
 export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
 
 /** 可选通知音 ID */
-export type NotificationSoundId = 'ding' | 'ding-dong' | 'discord' | 'done' | 'down-power' | 'food' | 'lite' | 'quiet' | 'none'
+export type NotificationSoundId = 'wa-oh-female' | 'oh' | 'scream' | 'wa-oh' | 'ci-yin' | 'silly-laugh' | 'heng' | 'light-injury-female' | 'fart' | 'none'
 
 /** 各场景通知音配置 */
 export interface NotificationSoundSettings {
@@ -29,7 +29,7 @@ export type VoiceDictationProvider = 'doubao'
 export type VoiceDictationEndpointMode = 'async' | 'duplex'
 
 /** 语音输入输出方式 */
-export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'proma-input'
+export type VoiceDictationOutputMode = 'auto' | 'clipboard' | 'shadiao-input'
 
 /** 语音输入浮窗位置 */
 export interface VoiceDictationWindowPosition {
@@ -118,7 +118,7 @@ export interface VoiceDictationResizeInput {
 
 /** 输出语音输入文本结果 */
 export interface VoiceDictationCommitResult {
-  mode: 'proma-input' | 'cursor' | 'clipboard'
+  mode: 'shadiao-input' | 'cursor' | 'clipboard'
   success: boolean
   message: string
 }
@@ -261,7 +261,7 @@ export interface AppSettings {
   builtinMcpDisabledIds?: string[]
   /** 用户手动开启的 Proma 内置 MCP ID 列表（针对默认关闭的内置 MCP，如 nano-banana、mem） */
   builtinMcpEnabledIds?: string[]
-  /** 启动时自动清理临时文件（proma-preview、proma-installers），默认 true */
+  /** 启动时自动清理临时文件（shadiao-preview、shadiao-installers），默认 true */
   autoCleanupTempOnStart?: boolean
   /** 自动清理 N 天前已归档会话的 SDK 数据（0 = 禁用，默认 0） */
   autoCleanupArchivedDays?: number

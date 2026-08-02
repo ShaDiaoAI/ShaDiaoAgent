@@ -1,7 +1,7 @@
 {
   "name": "@shadiao/electron",
   "version": "0.14.26",
-  "description": "Proma next gen ai software with general agents - Electron App",
+  "description": "ShaDiao Agent — a character-driven AI desktop client with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
     "name": "ErlichLiu",

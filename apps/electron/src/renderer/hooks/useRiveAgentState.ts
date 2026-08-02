@@ -12,8 +12,8 @@ import { rewardQueueAtom } from '@/atoms/character-atoms'
  * useRiveAgentState — 从 Agent 流式事件派生 Rive 动画状态
  *
  * 状态优先级（高→低）：
- *   1. reward_drop  — 收到奖励事件（持续 REWARD_DROP_DURATION_MS 后回 idle）
- *   2. error         — 当前会话有 stream error
+ *   1. error         — 当前会话有 stream error（最高优先级）
+ *   2. reward_drop  — 收到奖励事件（持续 REWARD_DROP_DURATION_MS 后回 idle）
  *   3. tool_calling  — 当前会话有活跃的 tool activities
  *   4. streaming     — 当前会话正在流式输出
  *   5. thinking      — 当前会话 running 但无 content 也无 tool（正在思考）
@@ -32,6 +32,13 @@ export function useRiveAgentState(): RiveAgentState {
   const lastRewardIdRef = React.useRef<string | null>(null)
 
   React.useEffect(() => {
+    // 0. 优先检查 error — 最高优先级，有错即展示
+    const streamError = streamErrors.get(currentSessionId ?? '')
+    if (currentSessionId && streamError) {
+      setRiveState('error')
+      return
+    }
+
     // 1. 检查是否有新的未 dismiss 奖励
     const activeReward = rewardQueue.find((r) => !r.dismissed)
     if (activeReward && activeReward.id !== lastRewardIdRef.current) {
@@ -67,14 +74,7 @@ export function useRiveAgentState(): RiveAgentState {
       return
     }
 
-    // 4. 推演状态
-    // 优先检查 error
-    const streamError = streamErrors.get(currentSessionId)
-    if (streamError) {
-      setRiveState('error')
-      return
-    }
-
+    // 3. 推演状态
     const hasActiveTools = stream.toolActivities.some((ta) => !ta.done)
     const hasContent = stream.content.length > 0
 

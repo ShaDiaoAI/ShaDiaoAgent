@@ -9,7 +9,7 @@ type ChannelManagerModule = typeof import('./channel-manager')
 let channelManager: ChannelManagerModule
 let tempHome: string
 const originalHome = process.env.HOME
-const originalPromaDev = process.env.PROMA_DEV
+const originalShadiaoDev = process.env.PROMA_DEV
 
 mock.module('electron', () => ({
   app: {
@@ -32,7 +32,7 @@ mock.module('node:os', () => ({
 }))
 
 function writeChannels(channels: unknown[]): void {
-  const configDir = join(tempHome, '.proma')
+  const configDir = join(tempHome, '.shadiao-agent')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, 'channels.json'),
@@ -42,14 +42,14 @@ function writeChannels(channels: unknown[]): void {
 }
 
 beforeAll(async () => {
-  tempHome = mkdtempSync(join(os.tmpdir(), 'proma-channel-runtime-key-'))
+  tempHome = mkdtempSync(join(os.tmpdir(), 'shadiao-channel-runtime-key-'))
   process.env.HOME = tempHome
   process.env.PROMA_DEV = '0'
   channelManager = await import('./channel-manager')
 })
 
 beforeEach(() => {
-  rmSync(join(tempHome, '.proma'), { recursive: true, force: true })
+  rmSync(join(tempHome, '.shadiao-agent'), { recursive: true, force: true })
 })
 
 afterAll(() => {
@@ -58,10 +58,10 @@ afterAll(() => {
   } else {
     process.env.HOME = originalHome
   }
-  if (originalPromaDev === undefined) {
+  if (originalShadiaoDev === undefined) {
     delete process.env.PROMA_DEV
   } else {
-    process.env.PROMA_DEV = originalPromaDev
+    process.env.PROMA_DEV = originalShadiaoDev
   }
   rmSync(tempHome, { recursive: true, force: true })
 })

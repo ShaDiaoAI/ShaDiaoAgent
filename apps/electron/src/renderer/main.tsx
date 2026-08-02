@@ -71,7 +71,7 @@ import { currentConversationIdAtom, channelsAtom, channelsLoadedAtom, selectedMo
 import { appModeAtom } from './atoms/app-mode'
 import { Toaster } from './components/ui/sonner'
 import { toast } from 'sonner'
-import { diffCapabilities } from '@shadiao/shared'
+import { diffCapabilities, isAgentCompatibleProvider } from '@shadiao/shared'
 import type { WorkspaceCapabilities } from '@shadiao/shared'
 import { showCapabilityChangeToasts } from './lib/capabilities-toast'
 import { GlobalShortcuts } from './components/shortcuts/GlobalShortcuts'
@@ -205,6 +205,24 @@ function AgentSettingsInitializer(): null {
         // 渠道已删除，清除无效设置
         console.warn('[AgentSettings] agentChannelId 指向已删除的渠道，清除')
         window.electronAPI.updateSettings({ agentChannelId: undefined, agentModelId: undefined }).catch(console.error)
+      }
+
+      // 兜底：没有保存的 agentChannelId → 自动选第一个启用的兼容渠道（Django 代理渠道）
+      if (!settings.agentChannelId || !channelIds.has(settings.agentChannelId)) {
+        const autoChannel = channels.find(c => c.enabled && isAgentCompatibleProvider(c.provider))
+        if (autoChannel) {
+          const firstModel = autoChannel.models.find(m => m.enabled)
+          const autoModelId = firstModel?.id ?? autoChannel.models[0]?.id
+          setAgentChannelId(autoChannel.id)
+          if (autoModelId) setAgentModelId(autoModelId)
+          setAgentChannelIds([autoChannel.id])
+          window.electronAPI.updateSettings({
+            agentChannelId: autoChannel.id,
+            agentModelId: autoModelId,
+            agentChannelIds: [autoChannel.id],
+          }).catch(console.error)
+          console.log('[AgentSettings] 自动选择默认渠道:', autoChannel.name, '模型:', autoModelId)
+        }
       }
       if (settings.agentModelId && (!settings.agentChannelId || channelIds.has(settings.agentChannelId))) {
         setAgentModelId(settings.agentModelId)

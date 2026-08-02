@@ -21,7 +21,7 @@ export interface WeChatCredentials {
 
 // ===== 配置 =====
 
-/** 微信配置（持久化到 ~/.proma/wechat.json） */
+/** 微信配置（持久化到 ~/.shadiao-agent/wechat.json） */
 export interface WeChatConfig {
   /** 是否启用微信集成 */
   enabled: boolean

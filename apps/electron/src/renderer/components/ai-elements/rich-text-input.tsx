@@ -39,8 +39,8 @@ import {
 
 // ===== 行数计算 =====
 
-const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'proma:session-quick-switch-keydown'
-const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'proma:session-quick-switch-keyup'
+const SESSION_QUICK_SWITCH_KEYDOWN_EVENT = 'shadiao:session-quick-switch-keydown'
+const SESSION_QUICK_SWITCH_KEYUP_EVENT = 'shadiao:session-quick-switch-keyup'
 
 function isMacPlatform(): boolean {
   return typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')

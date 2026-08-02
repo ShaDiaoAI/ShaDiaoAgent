@@ -22,8 +22,8 @@ import { createRequire } from 'node:module'
 import { app } from 'electron'
 import type { AgentRuntime, AgentSendInput, AgentMessage, AgentGenerateTitleInput, AgentProviderAdapter, AgentSessionMeta, TypedError, RetryAttempt, SDKMessage, SDKAssistantMessage, AgentStreamPayload, RewindSessionResult, ProviderType, AgentThinkingLevel } from '@shadiao/shared'
 import {
-  PROMA_DEFAULT_PERMISSION_MODE,
-  PROMA_PERMISSION_MODE_CONFIG,
+  SHADIAO_DEFAULT_PERMISSION_MODE,
+  SHADIAO_PERMISSION_MODE_CONFIG,
   THINKING_SIGNATURE_ERROR_CODE,
   THINKING_SIGNATURE_ERROR_MESSAGE,
   THINKING_SIGNATURE_ERROR_TITLE,
@@ -91,7 +91,7 @@ type RecoverableAgentQueryOptions = {
 // ===== 工具函数 =====
 
 function sdkPermissionModeForPromaMode(mode: PromaPermissionMode): PromaPermissionMode {
-  return PROMA_PERMISSION_MODE_CONFIG[mode].sdkMode
+  return SHADIAO_PERMISSION_MODE_CONFIG[mode].sdkMode
 }
 
 function normalizeAgentRuntime(value: unknown): AgentRuntime {
@@ -420,12 +420,12 @@ export class AgentOrchestrator {
       ...cleanEnv,
       // 仅 Claude 模型显式提高输出上限；其它兼容模型不注入 max_tokens 覆盖。
       ...(maxOutputTokens ? { CLAUDE_CODE_MAX_OUTPUT_TOKENS: maxOutputTokens } : {}),
-      // 暴露打包进 App 的 proma CLI 路径，供 session-cleaner 等 skill / Agent 调用
+      // 暴露打包进 App 的 shadiao-agent CLI 路径，供 session-cleaner 等 skill / Agent 调用
       // （开发模式无编译二进制，getBundledCliPath 返回 undefined，此处不注入，
       //   skill 回退到源码运行 bun apps/cli/src/index.ts）。
       ...(getBundledCliPath()
         ? {
-            PROMA_CLI: getBundledCliPath(),
+            SHADIAO_CLI: getBundledCliPath(),
             PATH: `${dirname(getBundledCliPath()!)}${process.platform === 'win32' ? ';' : ':'}${cleanEnv.PATH ?? ''}`,
           }
         : {}),
@@ -1041,7 +1041,7 @@ export class AgentOrchestrator {
       console.log(`[Agent 编排] 检测到回退 resume: resumeSessionAt=${rewindResumeAt}`)
     }
 
-    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, proma sessionId=${sessionId}`)
+    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, shadiao-agent sessionId=${sessionId}`)
 
     // 5. 状态初始化
     const accumulatedMessages: SDKMessage[] = []
@@ -1080,7 +1080,7 @@ export class AgentOrchestrator {
               key: 'i',
               label: '报告问题',
               action: 'open_external',
-              payload: 'https://github.com/ErlichLiu/Proma/issues/new',
+              payload: 'https://github.com/ErlichLiu/ShaDiaoAgent/issues/new',
             },
           ],
           canRetry: false,
@@ -1156,7 +1156,7 @@ export class AgentOrchestrator {
 
       // 9.6 直接信任已保存的 sdkSessionId，跳过 listSessions 预验证
       // 原因：listSessions({ dir }) 基于 cwd 路径哈希查找，但 session 级别的 cwd
-      // （如 ~/.proma/agent-workspaces/workspace-xxx/sessionId）与 SDK 内部存储的路径哈希可能不匹配，
+      // （如 ~/.shadiao-agent/agent-workspaces/workspace-xxx/sessionId）与 SDK 内部存储的路径哈希可能不匹配，
       // 导致 listSessions 始终返回 0 个会话，误杀有效的 resume。
       // SDK 本身会优雅处理无效的 resume ID（回退为新会话），无需预验证。
       if (existingSdkSessionId) {
@@ -1175,7 +1175,7 @@ export class AgentOrchestrator {
           workspaceId,
           workspaceSlug,
           agentCwd,
-          permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? PROMA_DEFAULT_PERMISSION_MODE,
+          permissionMode: permissionModeOverride ?? sessionMeta?.permissionMode ?? SHADIAO_DEFAULT_PERMISSION_MODE,
           triggeredBy: input.triggeredBy,
           sessionMeta,
         })
@@ -1206,7 +1206,7 @@ export class AgentOrchestrator {
         const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
         for (const slug of mentionedSkills ?? []) {
           const qualifiedName = workspaceSlug
-            ? `proma-workspace-${workspaceSlug}:${slug}`
+            ? `shadiao-workspace-${workspaceSlug}:${slug}`
             : slug
           toolLines.push(`- Skill: ${qualifiedName}（请立即调用此 Skill）`)
         }
@@ -1235,21 +1235,21 @@ export class AgentOrchestrator {
       // 12. 读取应用设置并确定权限模式
       // 权限模式只属于当前 session；新会话默认完全自动模式。
       const initialPermissionMode: PromaPermissionMode = permissionModeOverride
-        ?? PROMA_DEFAULT_PERMISSION_MODE
+        ?? SHADIAO_DEFAULT_PERMISSION_MODE
       // 注册到 Map，支持运行中动态切换
       this.sessionPermissionModes.set(sessionId, initialPermissionMode)
       console.log(`[Agent 编排] 权限模式: ${initialPermissionMode}${permissionModeOverride ? '（外部覆盖）' : ''}`)
 
       const emitPlanModeChanged = (active: boolean, source: 'initial' | 'tool' | 'permission'): void => {
         this.eventBus.emit(sessionId, {
-          kind: 'proma_event',
+          kind: 'shadiao_event',
           event: { type: 'plan_mode_changed', sessionId, active, source },
         })
       }
 
       // 当初始模式为 plan 时，通知渲染进程展示计划模式 UI（如「Agent 正在规划」横幅）
       if (initialPermissionMode === 'plan') {
-        this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'enter_plan_mode', sessionId } })
+        this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'enter_plan_mode', sessionId } })
         emitPlanModeChanged(true, 'initial')
       }
 
@@ -1264,7 +1264,7 @@ export class AgentOrchestrator {
           toolInput,
           signal,
           (request: ExitPlanModeRequest) => {
-            this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'exit_plan_mode_request', request } })
+            this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'exit_plan_mode_request', request } })
           },
         )
       }
@@ -1385,7 +1385,7 @@ export class AgentOrchestrator {
         if (toolName === 'EnterPlanMode') {
           planModeEntered = true
           emitPlanModeChanged(true, 'tool')
-          this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'enter_plan_mode', sessionId } })
+          this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'enter_plan_mode', sessionId } })
           return { behavior: 'allow' as const, updatedInput: input }
         }
 
@@ -1394,7 +1394,7 @@ export class AgentOrchestrator {
           return askUserService.handleAskUserQuestion(
             sessionId, input, options.signal,
             (request: AskUserRequest) => {
-              this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'ask_user_request', request } })
+              this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'ask_user_request', request } })
             },
           )
         }
@@ -1482,7 +1482,7 @@ export class AgentOrchestrator {
         // `[1m]` 是 SDK 内部上下文变体，不应泄漏到标题生成或用户可见的模型名。
         resolvedModel = model.replace(/\[1m\]$/i, '')
         console.log(`[Agent 编排] SDK 确认模型: ${resolvedModel}`)
-        this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'model_resolved', model: resolvedModel } })
+        this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'model_resolved', model: resolvedModel } })
       }
       const handleContextWindow = (cw: number): void => {
         const inferredWindow = inferAgentSdkContextWindow(modelId, channel.provider)
@@ -1491,7 +1491,7 @@ export class AgentOrchestrator {
         // result 消息里的真实 contextWindow 透传到 renderer，
         // 覆盖流式过程中按模型名推断的 fallback 值（智谱等端点会把 [1m] 等后缀剥掉，导致 fallback 不准）
         this.eventBus.emit(sessionId, {
-          kind: 'proma_event',
+          kind: 'shadiao_event',
           event: { type: 'context_window', contextWindow },
         })
       }
@@ -1602,11 +1602,11 @@ export class AgentOrchestrator {
             // 前 RETRY_VISIBILITY_THRESHOLD 次重试静默进行，避免偶发瞬时波动频繁惊扰用户
             if (retryAttempt > RETRY_VISIBILITY_THRESHOLD) {
               this.eventBus.emit(sessionId, {
-                kind: 'proma_event',
+                kind: 'shadiao_event',
                 event: { type: 'retry', status: 'starting', attempt: retryAttempt, maxAttempts: MAX_AUTO_RETRIES, delaySeconds: delaySec, reason: lastRetryableError ?? '未知错误' },
               })
               this.eventBus.emit(sessionId, {
-                kind: 'proma_event',
+                kind: 'shadiao_event',
                 event: { type: 'retry', status: 'attempt', attemptData },
               })
             }
@@ -1693,7 +1693,7 @@ export class AgentOrchestrator {
               const sub = msg.type === 'system' ? (msg as { subtype?: string }).subtype : undefined
               if (msg.type === 'assistant' || msg.type === 'user' || sub === 'task_started' || sub === 'task_progress') {
                 awaitingBackgroundWake = false
-                this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'run_resumed', sessionId } })
+                this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'run_resumed', sessionId } })
               }
             }
 
@@ -1835,7 +1835,7 @@ export class AgentOrchestrator {
                 // 如果之前有可见重试记录，发送 retry_failed
                 if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD && lastRetryableError) {
                   this.eventBus.emit(sessionId, {
-                    kind: 'proma_event',
+                    kind: 'shadiao_event',
                     event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: typedError.message, delaySeconds: 0 } },
                   })
                 }
@@ -1990,7 +1990,7 @@ export class AgentOrchestrator {
 
           // 正常完成 — 如果之前有可见重试，发送 retry_cleared
           if (!wasStoppedByUser && retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD) {
-            this.eventBus.emit(sessionId, { kind: 'proma_event', event: { type: 'retry', status: 'cleared' } })
+            this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'retry', status: 'cleared' } })
             console.log(`[Agent 编排] 重试成功，已在第 ${attempt} 次尝试后恢复`)
           }
           retrySucceeded = true
@@ -2211,7 +2211,7 @@ export class AgentOrchestrator {
           // 如果之前有可见重试记录，发送 retry_failed
           if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD && lastRetryableError) {
             this.eventBus.emit(sessionId, {
-              kind: 'proma_event',
+              kind: 'shadiao_event',
               event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled, timestamp: Date.now(), reason: lastRetryableError, errorMessage: userFacingError, delaySeconds: 0 } },
             })
           }
@@ -2222,7 +2222,7 @@ export class AgentOrchestrator {
           // 此终止分支只会被「非 session-not-found」的错误命中（session 失效已在上文
           // isSessionNotFoundError 分支单独处理并切到恢复模式）。网络断连、服务端 5xx、
           // 未知错误都不代表 SDK 会话本身失效——其完整历史 JSONL 仍保存在
-          // ~/.proma/sdk-config/projects/.../{sdkSessionId}.jsonl 中，依旧可 resume。
+          // ~/.shadiao-agent/sdk-config/projects/.../{sdkSessionId}.jsonl 中，依旧可 resume。
           // 此前这里对 `!apiError`（如普通断连解析不出状态码）一律清除指针，导致下一轮
           // 退化为「仅回填最近 N 条」的冷启动，上下文从满载骤降（#903）。
           if (existingSdkSessionId) {
@@ -2242,7 +2242,7 @@ export class AgentOrchestrator {
         // 仅当重试曾经对用户可见时才发送 retry_failed 事件
         if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD) {
           this.eventBus.emit(sessionId, {
-            kind: 'proma_event',
+            kind: 'shadiao_event',
             event: { type: 'retry', status: 'failed', attemptData: { attempt: retryAttemptsScheduled || MAX_AUTO_RETRIES, timestamp: Date.now(), reason: lastRetryableError, errorMessage: retryFailureMessage, delaySeconds: 0 } },
           })
         }
@@ -2305,7 +2305,7 @@ export class AgentOrchestrator {
     if (!this.activeSessions.has(sessionId)) return
     this.sessionPermissionModes.set(sessionId, mode)
     this.eventBus.emit(sessionId, {
-      kind: 'proma_event',
+      kind: 'shadiao_event',
       event: { type: 'plan_mode_changed', sessionId, active: mode === 'plan', source: 'permission' },
     })
     // 同步通知 SDK 侧
@@ -2450,7 +2450,7 @@ export class AgentOrchestrator {
       const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
       for (const slug of mentionedSkills ?? []) {
         const qualifiedName = workspaceSlug
-          ? `proma-workspace-${workspaceSlug}:${slug}`
+          ? `shadiao-workspace-${workspaceSlug}:${slug}`
           : slug
         toolLines.push(`- Skill: ${qualifiedName}（请立即调用此 Skill）`)
       }

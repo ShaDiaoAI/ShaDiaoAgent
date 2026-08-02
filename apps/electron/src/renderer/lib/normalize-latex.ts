@@ -9,8 +9,8 @@
  * 的字面量要保护起来，避免把用户贴的代码段误改成数学公式。
  */
 
-const PLACEHOLDER = (i: number): string => `PROMA_LATEX_PROTECT_${i}`
-const PLACEHOLDER_PATTERN = /PROMA_LATEX_PROTECT_(\d+)/g
+const PLACEHOLDER = (i: number): string => `SHADIAO_LATEX_PROTECT_${i}`
+const PLACEHOLDER_PATTERN = /SHADIAO_LATEX_PROTECT_(\d+)/g
 
 export function normalizeLatexDelimiters(text: string): string {
   if (!text || (!text.includes('\\(') && !text.includes('\\['))) {
