@@ -71,7 +71,10 @@ function findHtml(directory, jsName) {
 // ====== 主构建流程 ======
 
 async function buildCharacter(targetDir, options = {}) {
-  const { projectName, outputPath } = options;
+  const { projectName, outputPath, looping } = options;
+  const loopingLabels = looping
+    ? looping.split(',').map(s => s.trim()).filter(Boolean)
+    : ['idle', 'thinking', 'streaming', 'tool_calling'];
 
   // ====== 步骤 0: 自动检测文件 ======
   let jsFile, htmlFile;
@@ -354,7 +357,7 @@ async function buildCharacter(targetDir, options = {}) {
       }
 
       // 循环态 vs 瞬态
-      const loopingSet = new Set(['idle', 'thinking', 'streaming', 'tool_calling']);
+      const loopingSet = new Set(loopingLabels);
 
       // 生成 JS 注入代码
       const labelsJson = JSON.stringify(labelMap);
@@ -411,6 +414,61 @@ if (lib.${mainClassName}) {
 
   // ====== 清理多余空行 ======
   newJs = newJs.replace(/\n{4,}/g, '\n\n\n');
+
+  // ====== 步骤 5.5: 移除 mc_symbol_clone 和 getMCSymbolPrototype ======
+  console.log(`\n🔧 步骤 5.5/7: 移除 mc_symbol_clone / getMCSymbolPrototype...`);
+
+  // AN 某些版本导出会使用 getMCSymbolPrototype(cjs.extend) 来创建符号原型，
+  // 但 cjs.extend 可能返回 undefined，导致 "Cannot set properties of undefined
+  // (setting 'nominalBounds')"。替换为直接 new cjs.MovieClip / new cjs.Sprite。
+
+  // 1. 删除 mc_symbol_clone 函数定义（多行，可能被 dead-code 清理过）
+  newJs = newJs.replace(
+    /function mc_symbol_clone\s*\(\)\s*\{[^}]*_cloneProps[^}]*\}[^}]*\}/gs,
+    ''
+  );
+
+  // 2. 删除 getMCSymbolPrototype 函数定义（多行，单个函数体）
+  newJs = newJs.replace(
+    /function getMCSymbolPrototype\s*\([^)]*\)\s*\{[^}]*cjs\.extend[^}]*\}\s*/gs,
+    ''
+  );
+
+  // 3. 替换 getMCSymbolPrototype 调用
+  // 模式: }).prototype = getMCSymbolPrototype(symbol, bounds, frameBounds);
+  // 符号名可能含中文，不能用 \w 匹配
+  // 替换: }).prototype = new cjs.MovieClip(); (nominalBounds 在这里不需要精确设置)
+  let mcFixed = 0;
+  newJs = newJs.replace(
+    /\.prototype\s*=\s*getMCSymbolPrototype\s*\(\s*([^,]+)\s*,\s*(new cjs\.Rectangle\([^)]+\))\s*,\s*([^)]+)\s*\)/g,
+    (match, symbol, bounds, frameBounds) => {
+      mcFixed++;
+      return `.prototype = new cjs.MovieClip()`;
+    }
+  );
+  // 如果上面没匹配到（可能 cjs 已被处理成其他名字），用更宽的模式
+  if (mcFixed === 0) {
+    newJs = newJs.replace(
+      /\.prototype\s*=\s*getMCSymbolPrototype\s*\([^)]+\)/g,
+      () => {
+        mcFixed++;
+        return `.prototype = new cjs.MovieClip()`;
+      }
+    );
+  }
+
+  // 4. 清理残留引用
+  newJs = newJs.replace(/prototype\.clone\s*=\s*mc_symbol_clone\s*;?\s*/g, '');
+  newJs = newJs.replace(/[,;]?\s*\w+\.clone\s*=\s*mc_symbol_clone\s*[,;]?\s*/g, '');
+
+  const mcRemaining = (newJs.match(/mc_symbol_clone/g) || []).length;
+  const mcspRemaining = (newJs.match(/getMCSymbolPrototype/g) || []).length;
+
+  if (mcFixed > 0 || mcRemaining === 0) {
+    console.log(`   替换 getMCSymbolPrototype 调用: ${mcFixed} 处`);
+  }
+  console.log(`   mc_symbol_clone 残留: ${mcRemaining}`);
+  console.log(`   getMCSymbolPrototype 残留: ${mcspRemaining}`);
 
   // ====== 步骤 6: JS 压缩 (terser) ======
   console.log(`\n🔧 步骤 6/7: JS 压缩...`);
@@ -490,20 +548,24 @@ function main() {
   let targetDir = null;
   let projectName = null;
   let outputPath = null;
+  let looping = null;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--name' || args[i] === '-n') {
       projectName = args[++i];
     } else if (args[i] === '--output' || args[i] === '-o') {
       outputPath = args[++i];
+    } else if (args[i] === '--looping' || args[i] === '-l') {
+      looping = args[++i];
     } else if (!targetDir) {
       targetDir = args[i];
     }
   }
 
   if (!targetDir) {
-    console.error('用法: node build-character.mjs <发布目录> [--name <项目名>] [--output <输出文件>]');
+    console.error('用法: node build-character.mjs <发布目录> [--name <项目名>] [--output <输出文件>] [--looping <标签列表>]');
     console.error('示例: node build-character.mjs workspace-files/v1王朝/虾仁1');
+    console.error('      node build-character.mjs workspace-files/沙雕人物/开盲盒/大魏王朝 --name 大魏王朝h5 --looping idle');
     process.exit(1);
   }
 
@@ -513,7 +575,7 @@ function main() {
     process.exit(1);
   }
 
-  buildCharacter(targetDir, { projectName, outputPath }).catch(e => {
+  buildCharacter(targetDir, { projectName, outputPath, looping }).catch(e => {
     console.error('构建失败:', e);
     process.exit(1);
   });

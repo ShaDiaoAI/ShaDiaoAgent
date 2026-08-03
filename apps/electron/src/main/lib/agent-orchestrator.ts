@@ -1029,6 +1029,23 @@ export class AgentOrchestrator {
     const proxyUrl = await getEffectiveProxyUrl()
     const sdkEnv = await this.buildSdkEnv(apiKey, channel.baseUrl, channel.provider, modelId || DEFAULT_MODEL_ID)
 
+    // 沙雕人物：Django 代理渠道需要在 Anthropic 请求头中携带 X-Character-Id，
+    // 以便后端结算时（_process_rewards）知道经验值和沙雕币归属哪个角色。
+    // ANTHROPIC_CUSTOM_HEADERS 是 SDK CLI 原生支持的 env var（换行分隔多个 header），
+    // SDK 会在每次 /v1/messages 请求中自动附加这些 header。
+    if (authState.token && channel.baseUrl && channel.baseUrl.startsWith(authState.baseUrl)) {
+      const charId = sessionMeta?.characterId
+      if (charId != null) {
+        const charHeader = `X-Character-Id: ${charId}`
+        sdkEnv.ANTHROPIC_CUSTOM_HEADERS = sdkEnv.ANTHROPIC_CUSTOM_HEADERS
+          ? `${sdkEnv.ANTHROPIC_CUSTOM_HEADERS}\n${charHeader}`
+          : charHeader
+        // 同步 process.env（SDK in-process 代码可能直接读 process.env）
+        process.env.ANTHROPIC_CUSTOM_HEADERS = sdkEnv.ANTHROPIC_CUSTOM_HEADERS
+        console.log(`[ShaDiao] [人物] 注入 X-Character-Id: ${charId} → ANTHROPIC_CUSTOM_HEADERS`)
+      }
+    }
+
     // 4. 读取已有的 SDK session ID（用于 resume）
     let existingSdkSessionId = sessionMeta?.sdkSessionId
 

@@ -1,13 +1,12 @@
 /**
  * GeneralSettings - 通用设置页
  *
- * 顶部：用户档案编辑（头像 + 用户名）
- * 下方：语言等通用设置
+ * 沙雕账户（头像 + 用户名 / 服务器 / 连接状态 / 登出）→ 通用设置（通知/音效/归档/输入偏好）
  */
 
 import * as React from 'react'
 import { useAtom } from 'jotai'
-import { Camera, ImagePlus, Volume2 } from 'lucide-react'
+import { Camera, ImagePlus, LogOut, Volume2 } from 'lucide-react'
 import Picker from '@emoji-mart/react'
 import data from '@emoji-mart/data'
 import {
@@ -67,10 +66,10 @@ export function GeneralSettings(): React.ReactElement {
   const [stickyUserMessageEnabled, setStickyUserMessageEnabled] = useAtom(stickyUserMessageEnabledAtom)
   const [longTextPasteAsAttachmentEnabled, setLongTextPasteAsAttachmentEnabled] = useAtom(longTextPasteAsAttachmentEnabledAtom)
   const [richTextRenderingEnabled, setRichTextRenderingEnabled] = useAtom(richTextRenderingEnabledAtom)
-  const [isEditingName, setIsEditingName] = React.useState(false)
-  const [nameInput, setNameInput] = React.useState(userProfile.userName)
   const [showEmojiPicker, setShowEmojiPicker] = React.useState(false)
   const [archiveAfterDays, setArchiveAfterDays] = React.useState<number>(7)
+  const [authStatus, setAuthStatus] = React.useState<{ username?: string; baseUrl?: string; isLoggedIn?: boolean } | null>(null)
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // 加载归档天数设置
@@ -79,6 +78,19 @@ export function GeneralSettings(): React.ReactElement {
       setArchiveAfterDays(settings.archiveAfterDays ?? 7)
     }).catch(console.error)
   }, [])
+
+  // 加载 Django 认证状态
+  React.useEffect(() => {
+    window.electronAPI.getAuthStatus()
+      .then((r: any) => setAuthStatus(r?.data ?? null))
+      .catch(() => setAuthStatus(null))
+  }, [])
+
+  /** 登出 Django 账户 */
+  const handleLogout = async (): Promise<void> => {
+    await window.electronAPI.djangoLogout()
+    window.location.reload()
+  }
 
   /** 更新归档天数 */
   const handleArchiveDaysChange = async (value: string): Promise<void> => {
@@ -116,37 +128,14 @@ export function GeneralSettings(): React.ReactElement {
     e.target.value = ''
   }
 
-  /** 保存用户名 */
-  const handleSaveName = async (): Promise<void> => {
-    const trimmed = nameInput.trim()
-    if (!trimmed) return
-
-    try {
-      const updated = await window.electronAPI.updateUserProfile({ userName: trimmed })
-      setUserProfile(updated)
-      setIsEditingName(false)
-    } catch (error) {
-      console.error('[通用设置] 更新用户名失败:', error)
-    }
-  }
-
-  /** 用户名编辑键盘事件 */
-  const handleNameKeyDown = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter') {
-      handleSaveName()
-    } else if (e.key === 'Escape') {
-      setNameInput(userProfile.userName)
-      setIsEditingName(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
-      {/* 用户档案区域 */}
+      {/* 沙雕账户 */}
       <SettingsSection
-        title="用户档案"
-        description="设置你的头像和显示名称"
+        title="沙雕账户"
+        description="管理你的账户信息和个性化设置"
       >
+        {/* 头像 + 名称 */}
         <SettingsCard>
           <div className="flex items-center gap-5 px-4 py-4">
             {/* 头像 + Popover emoji 选择器 */}
@@ -203,38 +192,71 @@ export function GeneralSettings(): React.ReactElement {
               </PopoverContent>
             </Popover>
 
-            {/* 用户名 */}
+            {/* 名称 */}
             <div className="flex-1 min-w-0">
-              {isEditingName ? (
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onBlur={handleSaveName}
-                  onKeyDown={handleNameKeyDown}
-                  maxLength={30}
-                  autoFocus
-                  className={cn(
-                    'text-lg font-semibold text-foreground bg-transparent border-b-2 border-primary',
-                    'outline-none w-full max-w-[200px] pb-0.5'
-                  )}
-                />
-              ) : (
-                <button
-                  onClick={() => {
-                    setNameInput(userProfile.userName)
-                    setIsEditingName(true)
-                  }}
-                  className="text-lg font-semibold text-foreground hover:text-primary transition-colors text-left"
-                >
-                  {userProfile.userName}
-                </button>
-              )}
+              <span className="text-lg font-semibold text-foreground">
+                {authStatus?.username || userProfile.userName}
+              </span>
               <p className="text-[12px] text-foreground/40 mt-0.5">
-                点击头像更换，点击名字编辑
+                点击头像更换
               </p>
             </div>
           </div>
+        </SettingsCard>
+
+        {/* 账户信息 */}
+        <SettingsCard>
+          <SettingsRow
+            label="服务器"
+          >
+            <span className="text-[13px] text-muted-foreground font-mono max-w-[220px] truncate">
+              {authStatus?.baseUrl || '—'}
+            </span>
+          </SettingsRow>
+          <SettingsRow
+            label="连接状态"
+          >
+            <span className="flex items-center gap-1.5 text-[13px]">
+              <span className={`size-2 rounded-full ${authStatus?.isLoggedIn ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-muted-foreground">
+                {authStatus?.isLoggedIn ? '已连接' : '未连接'}
+              </span>
+            </span>
+          </SettingsRow>
+          <SettingsRow
+            label="登出账户"
+            description="登出后将返回登录页面"
+          >
+            {showLogoutConfirm ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] text-muted-foreground">确定登出？</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleLogout}
+                >
+                  确认
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowLogoutConfirm(false)}
+                >
+                  取消
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                onClick={() => setShowLogoutConfirm(true)}
+              >
+                <LogOut size={14} />
+                登出
+              </Button>
+            )}
+          </SettingsRow>
         </SettingsCard>
       </SettingsSection>
 
@@ -244,12 +266,14 @@ export function GeneralSettings(): React.ReactElement {
         description="应用的基本配置"
       >
         <SettingsCard>
+          {/*
           <SettingsRow
             label="语言"
             description="更多语言支持即将推出"
           >
             <span className="text-[13px] text-foreground/40">简体中文</span>
           </SettingsRow>
+          */}
           <SettingsToggle
             label="桌面通知"
             description="Agent 完成任务或需要操作时发送通知"
@@ -279,6 +303,7 @@ export function GeneralSettings(): React.ReactElement {
               setNotificationSounds(newSounds)
             }}
           />
+          {/*
           <SoundPicker
             label="权限审批音效"
             type="permissionRequest"
@@ -289,6 +314,8 @@ export function GeneralSettings(): React.ReactElement {
               setNotificationSounds(newSounds)
             }}
           />
+          */}
+          {/*
           <SoundPicker
             label="计划审批音效"
             type="exitPlanMode"
@@ -299,6 +326,7 @@ export function GeneralSettings(): React.ReactElement {
               setNotificationSounds(newSounds)
             }}
           />
+          */}
           <SettingsRow
             label="自动归档"
             description="超过指定天数未更新的对话将自动归档（置顶对话除外）"
@@ -366,6 +394,16 @@ function SoundPicker({ label, type, sounds, disabled, onSoundChange }: SoundPick
   return (
     <SettingsRow label={label}>
       <div className="flex items-center gap-1.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          disabled={disabled || currentId === 'none'}
+          onClick={() => { void playNotificationSound(currentId) }}
+          title="试听"
+        >
+          <Volume2 size={14} />
+        </Button>
         <Select
           value={currentId}
           onValueChange={(value) => onSoundChange(type, value as NotificationSoundId)}
@@ -381,16 +419,6 @@ function SoundPicker({ label, type, sounds, disabled, onSoundChange }: SoundPick
             <SelectItem value="none">无</SelectItem>
           </SelectContent>
         </Select>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={disabled || currentId === 'none'}
-          onClick={() => { void playNotificationSound(currentId) }}
-          title="试听"
-        >
-          <Volume2 size={14} />
-        </Button>
       </div>
     </SettingsRow>
   )

@@ -14,14 +14,11 @@ import {
   Info,
   Globe,
   X,
-  Keyboard,
   HardDrive,
-  Server,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { settingsTabAtom, channelFormDirtyAtom, settingsCloseRequestedAtom, settingsOpenAtom } from "@/atoms/settings-tab";
 import type { SettingsTab } from "@/atoms/settings-tab";
-import { appModeAtom } from "@/atoms/app-mode";
 import { hasUpdateAtom } from "@/atoms/updater";
 import { tabsAtom, activeTabIdAtom } from "@/atoms/tab-atoms";
 import { hasEnvironmentIssuesAtom } from "@/atoms/environment";
@@ -42,10 +39,8 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { AboutSettings } from "./AboutSettings";
 import { PromptSettings } from "./PromptSettings";
 import { ToolSettings } from "./ToolSettings";
-import { ShortcutSettings } from "./ShortcutSettings";
 import { StorageSettings } from "./StorageSettings";
 import { ExperimentalSettings } from "./ExperimentalSettings";
-import { DjangoSettings } from "./DjangoSettings";
 
 /** 设置 Tab 定义 */
 interface TabItem {
@@ -61,15 +56,8 @@ const BASE_TABS: TabItem[] = [
   { id: "proxy", label: "代理设置", icon: <Globe size={16} /> },
 ];
 
-const SHORTCUTS_TAB: TabItem = {
-  id: "shortcuts",
-  label: "快捷键管理",
-  icon: <Keyboard size={16} />,
-};
-
 /** 尾部 Tabs */
 const TAIL_TABS: TabItem[] = [
-  { id: "django", label: "后端连接", icon: <Server size={16} /> },
   { id: "storage", label: "磁盘管理", icon: <HardDrive size={16} /> },
   { id: "about", label: "关于/更新", icon: <Info size={16} /> },
 ];
@@ -95,8 +83,6 @@ function renderTabContent(tab: SettingsTab): React.ReactElement {
       return <AboutSettings />;
     case "storage":
       return <StorageSettings />;
-    case "django":
-      return <DjangoSettings />;
     default:
       // tutorial 等特殊 tab 由 handleTabChange 拦截打开主区 Tab，不会在此渲染
       return <GeneralSettings />;
@@ -114,7 +100,6 @@ export function SettingsPanel({
   const channelFormDirty = useAtomValue(channelFormDirtyAtom);
   const [closeRequested, setCloseRequested] = useAtom(settingsCloseRequestedAtom);
   const setSettingsOpen = useSetAtom(settingsOpenAtom);
-  const appMode = useAtomValue(appModeAtom);
   const hasUpdate = useAtomValue(hasUpdateAtom);
   const hasEnvironmentIssues = useAtomValue(hasEnvironmentIssuesAtom);
   const [mainTabs, setMainTabs] = useAtom(tabsAtom);
@@ -170,19 +155,11 @@ export function SettingsPanel({
 
   // 工具 tab 两种模式都显示，Agent Skills / MCP 独立在侧边栏能力中心管理。
   const tabs = React.useMemo(() => {
-    if (appMode === "agent") {
-      return [
-        ...BASE_TABS,
-        SHORTCUTS_TAB,
-        ...TAIL_TABS,
-      ];
-    }
     return [
       ...BASE_TABS,
-      SHORTCUTS_TAB,
       ...TAIL_TABS,
     ];
-  }, [appMode]);
+  }, []);
 
   // 当前 tab 标题
   const activeTabLabel = tabs.find((t) => t.id === activeTab)?.label ?? "设置";

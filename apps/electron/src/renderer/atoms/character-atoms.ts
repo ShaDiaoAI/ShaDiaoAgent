@@ -109,7 +109,7 @@ export const walletAtom = atom<WalletInfo | null>(null)
 
 export interface RewardNotification {
   id: string
-  reward_type: 'coin' | 'skin' | 'item'
+  reward_type: 'coin' | 'skin' | 'item' | 'level_up'
   name: string
   amount?: number
   rarity?: string

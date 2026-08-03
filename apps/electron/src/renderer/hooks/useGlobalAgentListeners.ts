@@ -49,6 +49,7 @@ import {
   rewardQueueAtom,
   walletAtom,
   selectedCharacterAtom,
+  charactersAtom,
 } from '@/atoms/character-atoms'
 import {
   notificationsEnabledAtom,
@@ -1131,24 +1132,56 @@ export function useGlobalAgentListeners(): void {
                 sessions.filter((s) => s.stoppedByUser).map((s) => s.id)
               ))
 
-              // 🆕 沙雕人物：会话完成后刷新 wallet + 触发 reward_drop 动画
+              // 🆕 沙雕人物：会话完成后刷新 wallet + 人物数据 + 触发 reward_drop 动画
               const completedSession = sessions.find(s => s.id === data.sessionId)
               const selectedChar = store.get(selectedCharacterAtom)
               if (completedSession?.characterId != null &&
                   selectedChar != null &&
                   completedSession.characterId === selectedChar.id &&
                   isSuccessfulCompletion) {
-                window.electronAPI.getWallet?.().then((wr: any) => {
+
+                // 捕获刷新前的值，用于计算增量（diff 方式避免显示总余额而非增量）
+                const prevCoins = store.get(walletAtom)?.coins ?? 0
+                const prevLevel = selectedChar.level
+
+                // 并行刷新 wallet + 人物，减少等待时间
+                Promise.all([
+                  window.electronAPI.getWallet?.().catch(() => null),
+                  window.electronAPI.getCharacter?.(selectedChar.id).catch(() => null),
+                ]).then(([wr, cr]) => {
+                  // --- 钱包：计算沙雕币增量 ---
                   if (wr?.success && wr.data) {
+                    const coinsEarned = Math.max(0, (wr.data.coins ?? 0) - prevCoins)
                     store.set(walletAtom, wr.data)
-                    store.set(rewardQueueAtom, (prev) => [...prev, {
-                      id: crypto.randomUUID(),
-                      reward_type: 'coin' as const,
-                      name: '沙雕币',
-                      amount: wr.data.coins,
-                      timestamp: Date.now(),
-                      dismissed: false,
-                    }])
+                    if (coinsEarned > 0) {
+                      store.set(rewardQueueAtom, (prev) => [...prev, {
+                        id: crypto.randomUUID(),
+                        reward_type: 'coin' as const,
+                        name: '沙雕币',
+                        amount: coinsEarned,
+                        timestamp: Date.now(),
+                        dismissed: false,
+                      }])
+                    }
+                  }
+
+                  // --- 人物：刷新等级/经验 + 检测升级 ---
+                  if (cr?.success && cr.data) {
+                    const newChar = cr.data
+                    store.set(selectedCharacterAtom, newChar)
+                    store.set(charactersAtom, (prev) =>
+                      prev.map(c => c.id === newChar.id ? newChar : c)
+                    )
+                    if (newChar.level > prevLevel) {
+                      store.set(rewardQueueAtom, (prev) => [...prev, {
+                        id: crypto.randomUUID(),
+                        reward_type: 'level_up' as const,
+                        name: `${newChar.name} 升级!`,
+                        amount: newChar.level,
+                        timestamp: Date.now(),
+                        dismissed: false,
+                      }])
+                    }
                   }
                 }).catch(() => {})
               }

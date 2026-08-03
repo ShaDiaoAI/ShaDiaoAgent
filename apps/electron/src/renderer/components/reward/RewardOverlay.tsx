@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useAtom } from 'jotai'
-import { X, Coins, Shirt } from 'lucide-react'
+import { X, Coins, Shirt, TrendingUp } from 'lucide-react'
 import { rewardQueueAtom, type RewardNotification } from '@/atoms/character-atoms'
 import { cn } from '@/lib/utils'
 
@@ -38,6 +38,7 @@ export function RewardOverlay(): React.ReactElement | null {
 
   const isCoin = current.reward_type === 'coin'
   const isSkin = current.reward_type === 'skin'
+  const isLevelUp = current.reward_type === 'level_up'
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
@@ -64,21 +65,31 @@ export function RewardOverlay(): React.ReactElement | null {
         {/* 图标 */}
         <div className={cn(
           'flex size-10 shrink-0 items-center justify-center rounded-full',
-          isCoin ? 'bg-amber-400/20 text-amber-500' : 'bg-purple-400/20 text-purple-500',
+          isCoin ? 'bg-amber-400/20 text-amber-500' :
+          isLevelUp ? 'bg-blue-400/20 text-blue-500' :
+          'bg-purple-400/20 text-purple-500',
         )}>
-          {isCoin ? <Coins className="size-5" /> : <Shirt className="size-5" />}
+          {isCoin ? <Coins className="size-5" /> :
+           isLevelUp ? <TrendingUp className="size-5" /> :
+           <Shirt className="size-5" />}
         </div>
 
         {/* 内容 */}
         <div>
           <div className="text-sm font-semibold">
-            {isCoin ? `🎉 获得 ${current.amount} 沙雕币` : `🎁 获得皮肤: ${current.name}`}
+            {isCoin ? '🎉 获得 ' + current.amount + ' 沙雕币' :
+             isLevelUp ? '⬆ ' + current.name :
+             '🎁 获得皮肤: ' + current.name}
           </div>
-          {current.rarity && (
+          {isLevelUp && current.amount ? (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              已升至 Lv.{current.amount}
+            </div>
+          ) : current.rarity ? (
             <div className="text-xs text-muted-foreground mt-0.5">
               稀有度: {current.rarity}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

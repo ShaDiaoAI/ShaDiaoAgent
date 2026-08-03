@@ -42,6 +42,7 @@ const BUNDLE_REGISTRY: Record<string, { name: string; bundle: string }> = {
   '村花小翠': { name: '村花小翠', bundle: '村花小翠/村花小翠.bundle.js' },
   '村草小刘': { name: '村草小刘', bundle: '村草小刘/村草小刘.bundle.js' },
   '村里红衣青年': { name: '村里红衣青年', bundle: '村里红衣青年/村里红衣青年.bundle.js' },
+  '开盲盒': { name: '开盲盒', bundle: '开盲盒/开盲盒.bundle.js' },
 }
 
 export interface CharacterAnimAsset {
@@ -72,6 +73,11 @@ export function isAnimAssetAvailable(assetId: string): boolean {
 /** 获取默认人物动画资源 ID */
 export function getDefaultAnimAssetId(): string {
   return '乞丐虾仁'
+}
+
+/** 获取盲盒动画资源 ID */
+export function getGachaAnimAssetId(): string {
+  return '开盲盒'
 }
 
 /** 获取 createjs 运行时路径 */

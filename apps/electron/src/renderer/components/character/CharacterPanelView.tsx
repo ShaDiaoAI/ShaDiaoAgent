@@ -23,6 +23,8 @@ import {
 } from '@/atoms/character-atoms'
 import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
 import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@/atoms/active-view'
+import { GachaAnim, type GachaAnimHandle } from './GachaAnim'
+import { GachaResultModal, type DrawResultItem } from './GachaResultModal'
 
 /** 计算人物槽位贡献：floor(level / 5) */
 function calcSlotContribution(level: number): number {
@@ -47,8 +49,19 @@ export function CharacterPanelView(): React.ReactElement {
   const activeView = useAtomValue(activeViewAtom)
   const switchCharacter = useCharacterSwitch()
   const [tab, setTab] = useAtom(characterPanelTabAtom)
-  const [drawing, setDrawing] = React.useState(false)
+  // 盲盒状态机
+  type GachaPhase = 'idle' | 'animating' | 'showing_result'
+  const [gachaPhase, setGachaPhase] = React.useState<GachaPhase>('idle')
+  const [drawResults, setDrawResults] = React.useState<DrawResultItem[] | null>(null)
   const [drawError, setDrawError] = React.useState<string | null>(null)
+  const gachaAnimRef = React.useRef<GachaAnimHandle>(null)
+  const animEndResolveRef = React.useRef<(() => void) | null>(null)
+  const isMountedRef = React.useRef(true)
+  const [animReady, setAnimReady] = React.useState(false)
+  React.useEffect(() => {
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
   // 人物 tab 内状态
   const [deleteTarget, setDeleteTarget] = React.useState<ShadiaoCharacter | null>(null)
@@ -163,30 +176,72 @@ export function CharacterPanelView(): React.ReactElement {
   }
 
   // ===== 盲盒抽奖 =====
+  const BOX_LABELS = ['box1', 'box2', 'box3', 'box4', 'box5'] as const
+
+  function randomBox(): string {
+    return BOX_LABELS[Math.floor(Math.random() * BOX_LABELS.length)]
+  }
+
   const handleDraw = async (count: number) => {
-    setDrawing(true)
+    const label = count === 1 ? randomBox() : 'box12345'
+
+    // 1. 进入 animating 状态
+    setGachaPhase('animating')
     setDrawError(null)
-    try {
-      const r = await window.electronAPI.drawGacha?.(count)
-      if (r?.success && r.data) {
-        setGachaHistory(prev => [...r.data.results, ...prev])
-        window.electronAPI.getWallet?.().then((wr: any) => {
-          if (wr?.success && wr.data) setWallet(wr.data)
-        }).catch(() => {})
-        window.electronAPI.getGachaProgress?.().then((pr: any) => {
-          if (pr?.success && pr.data) setGachaProgress(pr.data)
-        }).catch(() => {})
-        window.electronAPI.mySkins?.().then((sr: any) => {
-          if (sr?.success && sr.data) setMySkins(sr.data)
-        }).catch(() => {})
-      } else {
-        setDrawError(r?.error || '抽奖失败')
-      }
-    } catch (e) {
-      setDrawError((e as Error).message)
-    } finally {
-      setDrawing(false)
+
+    // 2. 播放动画
+    gachaAnimRef.current?.play(label)
+
+    // 3. 创建动画结束 Promise
+    const animEndPromise = new Promise<void>(resolve => {
+      animEndResolveRef.current = resolve
+    })
+
+    // 4. 发送 API 请求
+    const apiPromise = window.electronAPI.drawGacha?.(count)
+
+    // 5. 等待动画结束 + API 返回
+    const [apiResult] = await Promise.all([
+      apiPromise,
+      animEndPromise,
+    ])
+
+    // 组件已卸载，不更新状态
+    if (!isMountedRef.current) return
+
+    // 6. 处理结果
+    if (apiResult?.success && apiResult.data) {
+      // 刷新数据（在后台进行）
+      setGachaHistory(prev => [...apiResult.data.results, ...prev])
+      window.electronAPI.getWallet?.().then((wr: any) => {
+        if (wr?.success && wr.data) setWallet(wr.data)
+      }).catch(() => {})
+      window.electronAPI.getGachaProgress?.().then((pr: any) => {
+        if (pr?.success && pr.data) setGachaProgress(pr.data)
+      }).catch(() => {})
+      window.electronAPI.mySkins?.().then((sr: any) => {
+        if (sr?.success && sr.data) setMySkins(sr.data)
+      }).catch(() => {})
+
+      // 展示结果
+      setDrawResults(apiResult.data.results)
+      setGachaPhase('showing_result')
+
+      // Toast
+      const names = apiResult.data.results.map((r: DrawResultItem) =>
+        `${r.skin.name}${r.is_new ? ' 🆕' : ''}`
+      ).join('、')
+      toast.success(`获得 ${names}`)
+    } else {
+      setDrawError(apiResult?.error || '抽奖失败')
+      toast.error(apiResult?.error || '抽奖失败')
+      setGachaPhase('idle')
     }
+  }
+
+  const handleCloseResult = () => {
+    setGachaPhase('idle')
+    setDrawResults(null)
   }
 
   // 稀有度
@@ -434,23 +489,39 @@ export function CharacterPanelView(): React.ReactElement {
                 )
               })()}
 
-              {/* 盲盒 Tab — 保持不变 */}
-              {tab === 'gacha' && (
-                <div className="max-w-md space-y-5">
+              {/* 盲盒 Tab */}
+              {tab === 'gacha' && (() => {
+                const isAnimating = gachaPhase === 'animating'
+                const isDisabled = isAnimating || !animReady
+                return (
+                <div className="w-1/2 space-y-5">
+                  {/* 盲盒动画 Canvas */}
+                  <GachaAnim
+                    ref={gachaAnimRef}
+                    className="w-full aspect-square"
+                    onReady={() => setAnimReady(true)}
+                    onAnimationEnd={() => {
+                      animEndResolveRef.current?.()
+                    }}
+                  />
+
+                  {/* 沙雕币余额 */}
                   <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
                     <span className="text-sm text-muted-foreground">沙雕币</span>
                     <span className="text-lg font-semibold tabular-nums text-amber-500">
                       💰 {wallet?.coins?.toLocaleString() ?? gachaProgress?.coins?.toLocaleString() ?? '—'}
                     </span>
                   </div>
+
+                  {/* 抽奖按钮 */}
                   <div className="flex gap-3">
                     <button
-                      disabled={drawing || !gachaProgress?.can_single_draw}
+                      disabled={isDisabled || !gachaProgress?.can_single_draw}
                       onClick={() => handleDraw(1)}
                       className={cn(
-                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-colors',
-                        gachaProgress?.can_single_draw && !drawing
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                        gachaProgress?.can_single_draw && !isDisabled
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                           : 'bg-muted text-muted-foreground cursor-not-allowed',
                       )}
                     >
@@ -458,12 +529,12 @@ export function CharacterPanelView(): React.ReactElement {
                       <span className="text-xs opacity-70">{gachaProgress?.single_draw_cost ?? '—'} 币</span>
                     </button>
                     <button
-                      disabled={drawing || !gachaProgress?.can_multi_draw}
+                      disabled={isDisabled || !gachaProgress?.can_multi_draw}
                       onClick={() => handleDraw(5)}
                       className={cn(
-                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-colors',
-                        gachaProgress?.can_multi_draw && !drawing
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                        gachaProgress?.can_multi_draw && !isDisabled
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                           : 'bg-muted text-muted-foreground cursor-not-allowed',
                       )}
                     >
@@ -471,50 +542,21 @@ export function CharacterPanelView(): React.ReactElement {
                       <span className="text-xs opacity-70">{gachaProgress?.multi_draw_cost ?? '—'} 币</span>
                     </button>
                   </div>
-                  {gachaProgress && (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>距下次单抽</span>
-                        <span className="tabular-nums">{gachaProgress.progress_to_single}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-400 transition-all duration-500"
-                          style={{ width: `${gachaProgress.progress_to_single}%` }}
-                        />
-                      </div>
-                    </div>
+
+                  {/* 错误提示 */}
+                  {drawError && (
+                    <div className="text-xs text-red-500 text-center bg-red-50 rounded-lg py-2">{drawError}</div>
                   )}
-                  {drawError && <div className="text-xs text-red-500 text-center">{drawError}</div>}
-                  {gachaHistory.length > 0 && (
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-2">获得记录</div>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {gachaHistory.slice(0, 15).map((r, i) => (
-                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg text-xs border border-border/60">
-                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted/50">
-                              {r.skin.preview_url ? (
-                                <img src={r.skin.preview_url} alt="" className="size-7 rounded-full object-cover" />
-                              ) : (
-                                <Shield className="size-3.5 text-muted-foreground" />
-                              )}
-                            </div>
-                            <span className="flex-1 truncate font-medium">{r.skin.name}</span>
-                            <span className={cn('text-[9px] px-1.5 py-px rounded-full border shrink-0', rarityStyles[r.skin.rarity] || 'border-slate-300 text-slate-600')}>
-                              {rarityLabels[r.skin.rarity] || r.skin.rarity}
-                            </span>
-                            {r.is_new ? (
-                              <span className="text-[11px] text-emerald-500 font-medium shrink-0">🆕</span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground shrink-0">×{r.quantity}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
+                  {/* 抽奖结果弹窗 */}
+                  <GachaResultModal
+                    results={drawResults ?? []}
+                    isOpen={gachaPhase === 'showing_result'}
+                    onClose={handleCloseResult}
+                  />
                 </div>
-              )}
+                )
+              })()}
             </>
           )}
 
