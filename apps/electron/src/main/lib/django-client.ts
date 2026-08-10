@@ -4,7 +4,7 @@ import { getConfigDir } from './config-paths.js'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file.js'
 
 const DEV_BASE_URL = 'http://localhost:8000'
-const PROD_BASE_URL = 'https://api.shadiao.online'
+const PROD_BASE_URL = 'https://api.shadiao.online:8443'
 
 const AUTH_FILE = 'django-auth.json'
 const CHARS_FILE = 'characters-cache.json'

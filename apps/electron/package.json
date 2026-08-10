@@ -1,6 +1,6 @@
 {
   "name": "@shadiao/electron",
-  "version": "0.1.1",
+  "version": "1.0.1",
   "description": "ShaDiao Agent — a character-driven AI desktop client with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
@@ -28,11 +28,11 @@
     "start": "bun run build && bunx electron .",
     "typecheck": "tsc --noEmit",
     "generate:icons": "cd resources && ./generate-icons.sh",
-    "pack": "bun run build && bun run sync:runtime-deps && electron-builder --dir",
-    "dist": "bun run build && bun run sync:runtime-deps && electron-builder",
-    "dist:mac": "bun run build && bun run sync:runtime-deps && electron-builder --mac",
-    "dist:win": "bun run build && bun run sync:runtime-deps && electron-builder --win",
-    "dist:linux": "bun run build && bun run sync:runtime-deps && electron-builder --linux",
+    "pack": "bun run build && bun run sync:runtime-deps && npx electron-builder --dir",
+    "dist": "bun run build && bun run sync:runtime-deps && npx electron-builder",
+    "dist:mac": "bun run build && bun run sync:runtime-deps && npx electron-builder --mac",
+    "dist:win": "bun run build && bun run sync:runtime-deps && npx electron-builder --win",
+    "dist:linux": "bun run build && bun run sync:runtime-deps && npx electron-builder --linux",
     "dist:visual": "bun run scripts/dist.ts",
     "dist:fast": "bun run scripts/dist.ts --current-arch --dmg",
     "dist:debug": "bun run scripts/dist.ts --current-arch --verbose"

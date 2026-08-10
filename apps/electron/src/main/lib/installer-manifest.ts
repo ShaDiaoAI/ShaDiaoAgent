@@ -8,7 +8,7 @@
 import type { InstallerManifest, InstallerSource } from '@shadiao/shared'
 
 // TODO: 替换为 ShaDiaoAgent 自己的 API 地址
-const SHADIAO_API_BASE = 'https://api.shadiao.online'
+const SHADIAO_API_BASE = 'https://api.shadiao.online:8443'
 const MANIFEST_URL = `${SHADIAO_API_BASE}/api/v1/installers/manifest`
 const CACHE_TTL_MS = 5 * 60 * 1000
 

@@ -41,6 +41,7 @@ import {
 } from '@shadiao/core'
 import { normalizeHttpResponse, normalizeRequestError } from './channel-test-error'
 import { getAuthState } from './django-client'
+import { getSettings, updateSettings } from './settings-service'
 import pkg from '../../../package.json' with { type: 'json' }
 
 /** 当前配置版本 */
@@ -342,6 +343,34 @@ export async function refreshDjangoChannelModels(): Promise<void> {
 export function listChannels(): Channel[] {
   const config = readConfig()
   const authState = getAuthState()
+
+  // 清理从旧 Proma 迁移来的不兼容渠道（ShaDiaoAgent 不支持 proma provider）
+  const allIdsBefore = new Set(config.channels.map(c => c.id))
+  config.channels = config.channels.filter(c => c.provider !== 'proma')
+  if (config.channels.length < allIdsBefore.size) {
+    const keptIds = new Set(config.channels.map(c => c.id))
+    writeConfig(config)
+    console.log(`[渠道管理] 已清理 ${allIdsBefore.size - config.channels.length} 个不兼容的 Proma 渠道`)
+
+    // 同步清理 settings.json 中指向已删除渠道的引用
+    const settings = getSettings()
+    let settingsChanged = false
+    if (settings.agentChannelId && !keptIds.has(settings.agentChannelId)) {
+      delete settings.agentChannelId
+      settingsChanged = true
+    }
+    if (settings.agentChannelIds) {
+      const filtered = settings.agentChannelIds.filter(id => keptIds.has(id))
+      if (filtered.length !== settings.agentChannelIds.length) {
+        settings.agentChannelIds = filtered
+        settingsChanged = true
+      }
+    }
+    if (settingsChanged) {
+      updateSettings(settings)
+      console.log('[渠道管理] 已清理 settings.json 中的无效渠道引用')
+    }
+  }
 
   // 首次使用：如果没有 Django 代理渠道，自动创建沙雕后端预设
   const hasDjangoChannel = config.channels.some(

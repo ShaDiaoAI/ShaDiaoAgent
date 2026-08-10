@@ -3,24 +3,15 @@
  *
  * 管理 ShaDiaoAgent 应用的本地配置文件路径。
  * 所有用户配置存储在 ~/.shadiao-agent/（正式版）或 ~/.shadiao-agent-dev/（开发版）目录下。
- *
- * 首次启动时自动从旧 Proma 目录（~/.shadiao-agent/、~/.shadiao-agent-dev/）迁移数据，
- * 旧目录保留不删除，以便出问题时回退。
  */
 
 import { join, basename } from 'node:path'
-import { mkdirSync, existsSync, cpSync, rmSync, readdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, existsSync, cpSync, rmSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 
-/** 新品牌配置目录名 */
+/** 配置目录名 */
 const PROD_DIR = '.shadiao-agent'
 const DEV_DIR = '.shadiao-agent-dev'
-
-/** 旧 Proma 目录 → 新目录的映射表（用于迁移） */
-const LEGACY_MIGRATION_MAP: Record<string, string> = {
-  '.proma': PROD_DIR,
-  '.proma-dev': DEV_DIR,
-}
 
 /**
  * 获取配置目录名称
@@ -54,49 +45,14 @@ export function getConfigDirName(): string {
 }
 
 /**
- * 从旧 Proma 目录迁移数据到新 ShaDiaoAgent 目录。
- *
- * 迁移条件：
- * - 新目录尚不存在
- * - 旧目录存在且非空
- *
- * 旧目录保留不删除，方便出问题时切回。
- */
-function tryMigrateFromLegacyDir(configDir: string): void {
-  if (existsSync(configDir)) return // 已有新目录，跳过
-
-  const configDirName = getConfigDirName()
-  // 查找对应的旧目录名
-  const legacyName = Object.keys(LEGACY_MIGRATION_MAP).find(
-    (k) => LEGACY_MIGRATION_MAP[k] === configDirName,
-  )
-  if (!legacyName) return
-
-  const legacyDir = join(homedir(), legacyName)
-  if (!existsSync(legacyDir)) return
-
-  try {
-    console.log(`[配置] 检测到旧配置目录 ~/${legacyName}/，正在迁移到 ~/${configDirName}/ ...`)
-    cpSync(legacyDir, configDir, { recursive: true })
-    console.log(`[配置] ✓ 迁移完成（旧目录 ~/${legacyName}/ 保留未删除，确认正常后可手动清理）`)
-  } catch (err) {
-    console.warn(`[配置] 从 ~/${legacyName}/ 迁移数据失败，将使用全新配置目录:`, err)
-    // 迁移失败不阻塞启动——后续 getConfigDir() 会创建空目录
-  }
-}
-
-/**
  * 获取配置目录路径
  *
  * 开发模式返回 ~/.shadiao-agent-dev/，正式版本返回 ~/.shadiao-agent/。
- * 首次调用时如果存在旧 Proma 目录，自动迁移数据。
  * 如果目录不存在则自动创建。
  */
 export function getConfigDir(): string {
   const configDirName = getConfigDirName()
   const configDir = join(homedir(), configDirName)
-
-  tryMigrateFromLegacyDir(configDir)
 
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
