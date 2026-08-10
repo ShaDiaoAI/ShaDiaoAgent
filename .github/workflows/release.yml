@@ -45,11 +45,14 @@ jobs:
 
       # macOS 代码签名准备（仅在配置了证书时执行）
       - name: 导入 macOS 签名证书
-        if: secrets.MAC_CERTS != ''
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
         run: |
+          if [ -z "$MAC_CERTS" ]; then
+            echo "MAC_CERTS 未配置，跳过签名证书导入"
+            exit 0
+          fi
           # 创建临时 keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -113,11 +116,14 @@ jobs:
 
       # macOS 代码签名准备（仅在配置了证书时执行）
       - name: 导入 macOS 签名证书
-        if: secrets.MAC_CERTS != ''
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
         run: |
+          if [ -z "$MAC_CERTS" ]; then
+            echo "MAC_CERTS 未配置，跳过签名证书导入"
+            exit 0
+          fi
           # 创建临时 keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
