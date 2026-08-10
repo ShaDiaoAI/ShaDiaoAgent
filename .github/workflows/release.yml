@@ -43,8 +43,9 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备
+      # macOS 代码签名准备（仅在配置了证书时执行）
       - name: 导入 macOS 签名证书
+        if: secrets.MAC_CERTS != ''
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
@@ -110,8 +111,9 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备
+      # macOS 代码签名准备（仅在配置了证书时执行）
       - name: 导入 macOS 签名证书
+        if: secrets.MAC_CERTS != ''
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
@@ -325,6 +327,7 @@ jobs:
       - name: 打包并发布 (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           for i in 1 2 3; do
             npx electron-builder --win --x64 --publish always && break
