@@ -1,6 +1,6 @@
 {
   "name": "shadiao-agent",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "The next gen ai software with general agents",
   "type": "module",
   "private": true,

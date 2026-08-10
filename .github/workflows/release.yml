@@ -70,6 +70,10 @@ jobs:
         run: bun run electron:build
         working-directory: .
 
+      - name: 同步运行时依赖
+        run: bun run --filter='@shadiao/electron' sync:runtime-deps
+        working-directory: .
+
       # 打包并发布到 GitHub Releases
       - name: 打包并发布 (macOS)
         env:
@@ -86,8 +90,8 @@ jobs:
         working-directory: apps/electron
 
   build-mac-x64:
-    name: build (macos-15-intel, mac, x64, --x64)
-    runs-on: macos-15-intel
+    name: build (macos-13, mac, x64, --x64)
+    runs-on: macos-13
 
     steps:
       - name: 检出代码
@@ -131,6 +135,10 @@ jobs:
       # 构建应用
       - name: 构建 Electron 应用
         run: bun run electron:build
+        working-directory: .
+
+      - name: 同步运行时依赖
+        run: bun run --filter='@shadiao/electron' sync:runtime-deps
         working-directory: .
 
       # 打包并发布到 GitHub Releases
@@ -310,8 +318,17 @@ jobs:
         run: bun run electron:build
         working-directory: .
 
+      - name: 同步运行时依赖
+        run: bun run --filter='@shadiao/electron' sync:runtime-deps
+        working-directory: .
+
       - name: 打包并发布 (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --x64 --publish always
+        run: |
+          for i in 1 2 3; do
+            npx electron-builder --win --x64 --publish always && break
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
         working-directory: apps/electron

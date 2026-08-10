@@ -106,5 +106,5 @@ nsis:
 # ============================================
 publish:
   provider: github
-  owner: shadiao-agent
-  repo: shadiao-agent
+  owner: ShaDiaoAI
+  repo: ShaDiaoAgent

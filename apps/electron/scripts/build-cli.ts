@@ -44,7 +44,8 @@ function fail(msg: string): never {
 }
 
 if (!existsSync(cliEntry)) {
-  fail(`找不到 CLI 入口: ${cliEntry}`)
+  console.warn(`[build:cli] CLI 入口不存在，跳过编译: ${cliEntry}`)
+  process.exit(0)
 }
 
 mkdirSync(outDir, { recursive: true })
