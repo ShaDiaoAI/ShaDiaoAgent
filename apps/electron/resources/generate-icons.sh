@@ -9,7 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "🎨 Generating Proma icons..."
+echo "🎨 Generating ShaDiaoAgent icons..."
 
 # Check required tools
 if ! command -v rsvg-convert &> /dev/null; then
@@ -30,29 +30,46 @@ fi
 echo "📦 Generating icon.png (1024x1024)..."
 rsvg-convert -w 1024 -h 1024 icon.svg -o icon.png
 
-# 2. Generate menubar/tray icons (multi-resolution for Retina displays)
-echo "📦 Generating tray icons..."
+# 2. Generate "沙" character tray icons (Template images for macOS menu bar)
+echo "📦 Generating 沙 character tray icons..."
 
-# macOS 托盘图标规范：
-# - 标准尺寸: 22x22pt（点）
-# - @2x Retina: 44x44px
-# - @3x 高分辨率: 66x66px
-# 使用 "Template" 命名让 macOS 自动适配深色/浅色菜单栏
-TRAY_SVG="proma-logos/icon.svg"
+# macOS Template 图标必须是黑色前景+透明背景，系统自动根据深浅模式着色
+mkdir -p shadiao-logos
 
-if [ ! -f "$TRAY_SVG" ]; then
-  echo "⚠️  Tray icon SVG not found at $TRAY_SVG, skipping tray icon generation"
-else
-  # 生成多分辨率 Template 图标（macOS 会自动选择合适的版本）
-  rsvg-convert -w 22 -h 22 "$TRAY_SVG" -o proma-logos/iconTemplate.png
-  rsvg-convert -w 44 -h 44 "$TRAY_SVG" -o "proma-logos/iconTemplate@2x.png"
-  rsvg-convert -w 66 -h 66 "$TRAY_SVG" -o "proma-logos/iconTemplate@3x.png"
+for SIZE in 22 44 66; do
+  SUFFIX=""
+  [ "$SIZE" = "44" ] && SUFFIX="@2x"
+  [ "$SIZE" = "66" ] && SUFFIX="@3x"
 
-  echo "✅ Tray icons generated:"
-  echo "   - proma-logos/iconTemplate.png (22x22 @1x)"
-  echo "   - proma-logos/iconTemplate@2x.png (44x44 @2x Retina)"
-  echo "   - proma-logos/iconTemplate@3x.png (66x66 @3x)"
-fi
+  # 尝试多种 macOS 中文字体路径
+  FONT_PATH=""
+  for FONT in "/System/Library/Fonts/PingFang.ttc" "/System/Library/Fonts/STHeiti Light.ttc" "/System/Library/Fonts/Hiragino Sans GB.ttc"; do
+    if [ -f "$FONT" ]; then
+      FONT_PATH="$FONT"
+      break
+    fi
+  done
+
+  if [ -n "$FONT_PATH" ]; then
+    magick -size "${SIZE}x${SIZE}" -background none \
+      -fill black -gravity center \
+      -font "$FONT_PATH" -pointsize "$((SIZE * 3 / 4))" \
+      label:"沙" \
+      "shadiao-logos/iconTemplate${SUFFIX}.png"
+  else
+    # 如果没有中文系统字体，用 magick 内置字体生成英文回退
+    echo "⚠️  No CJK font found, using fallback"
+    magick -size "${SIZE}x${SIZE}" -background none \
+      -fill black -gravity center \
+      label:"S" \
+      "shadiao-logos/iconTemplate${SUFFIX}.png"
+  fi
+done
+
+echo "✅ Tray icons generated:"
+echo "   - shadiao-logos/iconTemplate.png (22x22 @1x)"
+echo "   - shadiao-logos/iconTemplate@2x.png (44x44 @2x Retina)"
+echo "   - shadiao-logos/iconTemplate@3x.png (66x66 @3x)"
 
 # 3. Generate .icns (macOS app icon)
 if command -v iconutil &> /dev/null; then
@@ -94,9 +111,9 @@ echo ""
 echo "✅ All icons generated successfully!"
 echo ""
 echo "Generated files:"
-echo "  - icon.png (1024x1024) - Linux & macOS Dock"
+echo "  - icon.png (1024x1024) - Linux &amp; macOS Dock"
 echo "  - icon.icns - macOS app icon"
 echo "  - icon.ico - Windows app icon"
-echo "  - proma-logos/iconTemplate.png - macOS tray (22x22 @1x)"
-echo "  - proma-logos/iconTemplate@2x.png - macOS tray (44x44 @2x Retina)"
-echo "  - proma-logos/iconTemplate@3x.png - macOS tray (66x66 @3x)"
+echo "  - shadiao-logos/iconTemplate.png - macOS tray 沙字 (22x22 @1x)"
+echo "  - shadiao-logos/iconTemplate@2x.png - macOS tray 沙字 (44x44 @2x Retina)"
+echo "  - shadiao-logos/iconTemplate@3x.png - macOS tray 沙字 (66x66 @3x)"

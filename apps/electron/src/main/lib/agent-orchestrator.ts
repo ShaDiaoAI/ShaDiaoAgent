@@ -61,7 +61,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { sanitizeGeneratedTitle, TITLE_PROMPT } from './title-generation'
-import { getAuthState } from './django-client'
+import { getAuthState, getCachedCharacters } from './django-client'
 
 // ===== 类型定义 =====
 
@@ -1467,14 +1467,28 @@ export class AgentOrchestrator {
         sessionMeta,
         workspaceSlug,
       })
-      const systemPromptAppend = buildSystemPrompt({
-        agentRuntime,
-        workspaceName: workspace?.name,
-        workspaceSlug,
-        sessionId,
-        permissionMode: initialPermissionMode,
-        collaborationAvailable,
-      }) + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')
+      const systemPromptAppend = ((): string => {
+        const basePrompt = buildSystemPrompt({
+          agentRuntime,
+          workspaceName: workspace?.name,
+          workspaceSlug,
+          sessionId,
+          permissionMode: initialPermissionMode,
+          collaborationAvailable,
+        })
+        // 注入沙雕人物的自定义 system_prompt（如果有）
+        let charPrompt = ''
+        const charId = sessionMeta?.characterId
+        if (charId != null) {
+          const chars = getCachedCharacters()
+          const char = chars.find(c => c.id === charId)
+          if (char?.system_prompt?.trim()) {
+            charPrompt = `## 人物设定\n\n${char.system_prompt.trim()}\n\n`
+            console.log(`[ShaDiao] [人物] 已注入人物 ${char.name}（ID: ${charId}）的 system_prompt（${char.system_prompt.length} 字符）`)
+          }
+        }
+        return charPrompt + basePrompt + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')
+      })()
       const handleSessionId = (sdkSessionId: string): void => {
         // 仅在 session_id 真正变化时才持久化。SDK v2 几乎每条消息都会回调 onSessionId，
         // capturedSdkSessionId 已初始化为 existingSdkSessionId，并在 recovery 时同步重置。

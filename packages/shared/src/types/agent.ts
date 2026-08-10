@@ -365,6 +365,7 @@ export type ErrorCode =
   | 'claude_binary_not_found'
   | 'agent_runtime_not_found'
   | 'session_busy'
+  | 'balance_insufficient'
   | 'unknown_error'
 
 /** 恢复操作 */
@@ -383,6 +384,7 @@ export interface RecoveryAction {
     | 'open_channel_settings'
     | 'select_model'
     | 'open_external'
+    | 'open_recharge'
     | (string & {})
   /** 操作附带的载荷，例如 open_external 的 URL */
   payload?: string

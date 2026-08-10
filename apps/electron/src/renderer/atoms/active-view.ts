@@ -9,7 +9,7 @@
 
 import { atom } from 'jotai'
 
-export type ActiveView = 'conversations' | 'automations' | 'agent-skills' | 'character-panel'
+export type ActiveView = 'conversations' | 'automations' | 'agent-skills' | 'character-panel' | 'recharge'
 export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'memory'
 export type CharacterPanelTab = 'info' | 'skins' | 'gacha'
 

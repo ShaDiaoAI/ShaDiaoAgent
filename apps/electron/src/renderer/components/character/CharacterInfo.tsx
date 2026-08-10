@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { User, Blocks, Plug, AlarmClock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import {
   charactersAtom, selectedCharacterAtom,
   type ShadiaoCharacter,
@@ -47,20 +48,41 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenMcp, onOpenAuto
       .then((r: any) => {
         if (r?.success && r.data) {
           setCharacters(r.data)
-          if (!selected && r.data.length > 0) {
-            setSelected(r.data[0])
-            // 同步主进程 selectedCharacterId，确保新建会话时带上 characterId
-            window.electronAPI.selectCharacter(r.data[0]).catch(() => {})
-          }
+          // 🆕 恢复上次选中的人物（优先），fallback 到第一个
+          restoreLastSelectedCharacter(r.data)
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
+  // 🆕 如果人物列表已由 App.tsx 提前加载，但 selected 仍为空，也尝试恢复
+  React.useEffect(() => {
+    if (!selected && characters.length > 0) {
+      restoreLastSelectedCharacter(characters)
+    }
+  }, [characters.length > 0 && !selected])
+
+  /** 🆕 从 settings 恢复上次选中的人物，fallback 到第一个 */
+  const restoreLastSelectedCharacter = React.useCallback((chars: ShadiaoCharacter[]) => {
+    if (chars.length === 0) return
+    window.electronAPI.getSettings()
+      .then((settings: any) => {
+        const lastId: number | null | undefined = settings?.lastSelectedCharacterId
+        const target = (lastId != null ? chars.find((c: ShadiaoCharacter) => c.id === lastId) : null) ?? chars[0]!
+        setSelected(target)
+        window.electronAPI.selectCharacter(target).catch(() => {})
+      })
+      .catch(() => {
+        // settings 读取失败 → fallback 到第一个
+        setSelected(chars[0]!)
+        window.electronAPI.selectCharacter(chars[0]!).catch(() => {})
+      })
+  }, [setSelected])
+
   // ===== 所有 hooks 必须在早期 return 之前，保持调用顺序一致 =====
 
-  const expPercent = selected ? Math.round((selected.experience / (selected.exp_to_next || 1)) * 100) : 0
+  const expPercent = selected ? Math.min(100, Math.round(((selected.current_level_xp ?? selected.experience) / (selected.exp_to_next || 1)) * 100)) : 0
   const autoCount = automations.length
 
   // 构造 externalSelectedModel 给 ModelSelector，使其能正确展示当前选中模型
@@ -133,6 +155,28 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenMcp, onOpenAuto
             {selected.character_class && (
               <span className="text-[10px] text-muted-foreground/70"> · {selected.character_class.name}</span>
             )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="ml-1.5 inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-white hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none cursor-help shrink-0"
+                  aria-label="什么是人物等级？"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+                >
+                  ?
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                <p className="text-xs leading-relaxed">
+                  使用沙雕智能体为沙雕人物累积经验，经验满后自动升级
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  点击人物名称可打开人物面板，管理皮肤、道具与角色信息
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>

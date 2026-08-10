@@ -2394,3 +2394,137 @@
 .scratch-pad-editor .ProseMirror ul[data-type="taskList"] > li > label > input {
   cursor: pointer;
 }
+
+/* ===== 盲盒喜庆装饰面板动画 ===== */
+
+/* 灯笼摇摆 — 模拟悬挂灯笼在微风中轻轻晃动 */
+@keyframes gacha-lantern-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+
+.gacha-lantern {
+  animation: gacha-lantern-sway 3s ease-in-out infinite;
+  transform-origin: top center;
+  filter: drop-shadow(0 0 8px rgba(232, 180, 75, 0.5));
+}
+
+/* 金色粒子飘落 */
+@keyframes gacha-particle-fall {
+  0% {
+    transform: translateY(-10%) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.9;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(110%) translateX(var(--drift)) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+.gacha-particle {
+  --drift: 0px;
+  --spin: 0deg;
+  position: absolute;
+  top: -4px;
+  border-radius: 1px;
+  pointer-events: none;
+  animation: gacha-particle-fall var(--fall-duration, 9s) var(--fall-delay, 0s) linear infinite;
+  background: linear-gradient(
+    180deg,
+    hsl(42 85% 70% / 0.9),
+    hsl(38 75% 55% / 0.6)
+  );
+}
+
+/* 光晕脉动 */
+@keyframes gacha-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(232, 180, 75, 0.12),
+      0 0 40px rgba(200, 50, 40, 0.06),
+      inset 0 0 20px rgba(232, 180, 75, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(232, 180, 75, 0.22),
+      0 0 60px rgba(200, 50, 40, 0.12),
+      inset 0 0 30px rgba(232, 180, 75, 0.08);
+  }
+}
+
+.gacha-glow {
+  animation: gacha-glow-pulse 3s ease-in-out infinite;
+}
+
+/* 金色描边流光 */
+@keyframes gacha-border-shine {
+  0%   { border-color: hsl(42 78% 58% / 0.6); }
+  50%  { border-color: hsl(42 85% 72% / 0.95); }
+  100% { border-color: hsl(42 78% 58% / 0.6); }
+}
+
+.gacha-border-shine {
+  animation: gacha-border-shine 2.5s ease-in-out infinite;
+}
+
+/* 大字呼吸辉光 */
+@keyframes gacha-char-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(232, 180, 75, 0.5)) drop-shadow(0 0 16px rgba(200, 50, 40, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(232, 180, 75, 0.8)) drop-shadow(0 0 32px rgba(200, 50, 40, 0.4));
+  }
+}
+
+.gacha-char-glow {
+  animation: gacha-char-glow 2s ease-in-out infinite;
+}
+
+/* 暗色主题下红金面板适配：降低亮度避免刺眼 */
+.gacha-deco-dark {
+  --gacha-red-from: hsl(358 50% 18%);
+  --gacha-red-to: hsl(358 40% 10%);
+  --gacha-gold-from: hsl(40 35% 20%);
+  --gacha-gold-to: hsl(40 25% 12%);
+}
+
+/* 均衡器跳动 — 模拟音响音量柱 */
+@keyframes gacha-eq-bounce {
+  0%, 100% { transform: scaleY(0.15); }
+  20%      { transform: scaleY(0.7); }
+  40%      { transform: scaleY(0.25); }
+  60%      { transform: scaleY(1.0); }
+  80%      { transform: scaleY(0.4); }
+}
+
+.gacha-eq-bar {
+  transform-origin: bottom center;
+  animation: gacha-eq-bounce var(--eq-duration, 1.5s) var(--eq-delay, 0s) ease-in-out infinite;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(
+    180deg,
+    hsl(42 85% 72% / 0.9),
+    hsl(38 78% 55% / 0.7),
+    hsl(30 70% 45% / 0.4)
+  );
+  box-shadow: 0 0 6px rgba(232, 180, 75, 0.4);
+}
+
+/* CRT 终端：跳过装饰面板，只保留纯文字 */
+.theme-terminal-dark .gacha-deco-panel .gacha-particle,
+.theme-terminal-dark .gacha-deco-panel .gacha-lantern,
+.theme-terminal-dark .gacha-deco-panel .gacha-eq-bar {
+  display: none;
+}
+.theme-terminal-dark .gacha-deco-panel {
+  background: transparent !important;
+  border: 1px solid hsl(var(--border));
+  box-shadow: none;
+}

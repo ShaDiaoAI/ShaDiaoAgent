@@ -104,7 +104,10 @@ export function AutomationsListView(): React.ReactElement {
 
       {/* 标题栏 */}
       <div className="titlebar-drag-region flex items-center justify-between max-w-5xl w-full mx-auto px-8 pb-6 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-foreground">定时任务</h1>
+        <div className="flex items-center gap-2.5">
+          <Clock className="size-6 text-foreground/70" />
+          <h1 className="text-2xl font-semibold text-foreground">定时任务</h1>
+        </div>
         {automations.length > 0 && (
           <button
             type="button"
@@ -305,7 +308,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }): React.ReactElement 
         <div className="text-[16px] font-medium text-foreground/85">暂无定时任务</div>
         <div className="text-[13px] text-foreground/50 leading-relaxed max-w-md">
           定时任务可以让 AI 周期性地执行某项任务，如每天总结新邮件、每小时检查 GitHub 仓库等。
-          也可以在对话中用「以后每隔 X 分钟…」让 Proma 自动识别并创建。
+          也可以在对话中用「以后每隔 X 分钟…」让 沙雕智能体 自动识别并创建。
         </div>
       </div>
       <button

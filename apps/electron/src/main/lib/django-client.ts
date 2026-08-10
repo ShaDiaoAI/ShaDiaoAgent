@@ -1,10 +1,18 @@
 import { join } from 'node:path'
+import { app } from 'electron'
 import { getConfigDir } from './config-paths.js'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file.js'
 
-const BASE = 'http://localhost:8000'
+const DEV_BASE_URL = 'http://localhost:8000'
+const PROD_BASE_URL = 'https://api.shaodiao.ai'  // TODO: 生产环境 URL 待定
+
 const AUTH_FILE = 'django-auth.json'
 const CHARS_FILE = 'characters-cache.json'
+
+/** 根据打包环境返回默认后端 URL（dev/prod 写死，不暴露给用户） */
+export function getDefaultBaseUrl(): string {
+  return app.isPackaged ? PROD_BASE_URL : DEV_BASE_URL
+}
 
 // ===== Types =====
 
@@ -21,6 +29,7 @@ export interface ShadiaoCharacter {
   level: number
   experience: number
   exp_to_next: number
+  current_level_xp: number
   character_class: { id: number; name: string; description: string } | null
   bound_model: string
   system_prompt: string
@@ -38,6 +47,8 @@ export interface ShadiaoCharacter {
 export interface Skin {
   id: number; name: string; description: string
   rarity: string; rive_asset_id: string; preview_url: string
+  /** 持有数量（/api/characters/skins/mine 可能不返回此字段，前端自行聚合） */
+  quantity?: number
 }
 
 export interface Item {
@@ -107,25 +118,45 @@ export interface CreationLimit {
 
 export function getAuthState(): DjangoAuthState {
   return readJsonFileSafe<DjangoAuthState>(join(getConfigDir(), AUTH_FILE))
-    ?? { baseUrl: BASE, token: '', username: '', isLoggedIn: false }
+    ?? { baseUrl: getDefaultBaseUrl(), token: '', username: '', isLoggedIn: false }
 }
 
-export async function loginToDjango(baseUrl: string, username: string, password: string): Promise<DjangoAuthState> {
-  const r = await fetch(baseUrl + '/api/auth/login', {
+export async function loginToDjango(username: string, password: string, baseUrl?: string): Promise<DjangoAuthState> {
+  const url = baseUrl || getDefaultBaseUrl()
+  const r = await fetch(url + '/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   })
   if (!r.ok) throw new Error('Login failed: ' + r.status)
   const d = await r.json() as { id: number; username: string; token: string }
-  const s: DjangoAuthState = { baseUrl, token: d.token, username, isLoggedIn: true }
+  const s: DjangoAuthState = { baseUrl: url, token: d.token, username, isLoggedIn: true }
   writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE), s)
   return s
 }
 
 export function logoutFromDjango() {
   writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE),
-    { baseUrl: BASE, token: '', username: '', isLoggedIn: false })
+    { baseUrl: getDefaultBaseUrl(), token: '', username: '', isLoggedIn: false })
+}
+
+export async function registerToDjango(username: string, password: string, baseUrl?: string): Promise<DjangoAuthState> {
+  const url = baseUrl || getDefaultBaseUrl()
+  const r = await fetch(url + '/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!r.ok) {
+    const errorData = await r.json().catch(() => ({})) as Record<string, unknown>
+    const detail = typeof errorData.detail === 'string' ? errorData.detail : ''
+    if (detail) throw new Error(detail)
+    throw new Error('注册失败: ' + r.status)
+  }
+  const d = await r.json() as { id: number; username: string; token: string }
+  const s: DjangoAuthState = { baseUrl: url, token: d.token, username, isLoggedIn: true }
+  writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE), s)
+  return s
 }
 
 export async function validateToken(): Promise<boolean> {
@@ -245,6 +276,16 @@ export async function fetchRewards(): Promise<RewardLog[]> {
   return djangoApiRequest<RewardLog[]>('/api/rewards')
 }
 
+// ===== Call Quota (调用额度) =====
+
+export interface QuotaBalance {
+  balance: number  // CNY float，来自 /api/auth/me
+}
+
+export async function fetchQuotaBalance(): Promise<QuotaBalance> {
+  return djangoApiRequest<QuotaBalance>('/api/auth/me')
+}
+
 // ===== Gacha =====
 
 export async function drawGacha(count: number): Promise<DrawOutput> {
@@ -260,4 +301,55 @@ export async function fetchGachaProgress(): Promise<GachaProgress> {
 
 export async function fetchCreationLimit(): Promise<CreationLimit> {
   return djangoApiRequest<CreationLimit>('/api/characters/creation-limit')
+}
+
+// ===== Recharge (充值) =====
+
+export interface RechargeProduct {
+  id: number
+  name: string
+  price_rmb: string       // "95.00"
+  quota_amount: string    // "100.00" — 实充额度
+  badge: string
+  tagline: string
+  character_asset_id: string
+}
+
+export interface ProductList {
+  products: RechargeProduct[]
+}
+
+export interface RechargeOrder {
+  order_no: string
+  qr_code: string
+  expires_in: number
+  amount_rmb: string
+}
+
+export interface OrderStatus {
+  order_no: string
+  status: string   // "pending" | "paid" | "expired"
+  amount_rmb: string
+}
+
+/** 获取充值档位列表（无需认证） */
+export async function fetchRechargeProducts(): Promise<ProductList> {
+  // /recharge/products 是公开接口，直接调 baseUrl 不经过 djangoApiRequest（它要求已登录）
+  const s = getAuthState()
+  const r = await fetch(s.baseUrl + '/api/recharge/products')
+  if (!r.ok) throw new Error(`获取充值档位失败: ${r.status}`)
+  return r.json() as ProductList
+}
+
+/** 创建充值订单 */
+export async function createRechargeOrder(productId: number): Promise<RechargeOrder> {
+  return djangoApiRequest<RechargeOrder>('/api/recharge/orders/create', {
+    method: 'POST',
+    body: JSON.stringify({ product_id: productId }),
+  })
+}
+
+/** 查询订单支付状态 */
+export async function getRechargeOrderStatus(orderNo: string): Promise<OrderStatus> {
+  return djangoApiRequest<OrderStatus>(`/api/recharge/orders/status/${orderNo}`)
 }

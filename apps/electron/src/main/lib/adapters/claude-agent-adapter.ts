@@ -464,6 +464,20 @@ export function mapSDKErrorToTypedError(
     }
   }
 
+  // HTTP 402 余额不足 — 来自 Django 代理的额度不足响应
+  if (httpStatus === 402) {
+    return {
+      code: 'balance_insufficient',
+      title: '调用额度不足',
+      message: detailedMessage || '账户余额不足，请充值后继续使用',
+      actions: [
+        { key: 'r', label: '充值', action: 'open_recharge' },
+      ],
+      canRetry: false,
+      originalError,
+    }
+  }
+
   const mapped = errorMap[errorCode] || {
     code: 'unknown_error' as ErrorCode,
     title: '',

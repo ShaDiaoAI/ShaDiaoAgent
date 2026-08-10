@@ -95,6 +95,7 @@ import { startChatToolsWatcher, stopChatToolsWatcher } from './lib/chat-tools-wa
 import { getIsQuitting, setQuitting } from './lib/app-lifecycle'
 // bridge-registry imports removed
 import { startScheduler, stopScheduler } from './lib/automation-scheduler'
+import { refreshDjangoChannelModels } from './lib/channel-manager'
 import { getPersistableMainWindowState, hideMacMainWindowAfterClose } from './lib/main-window-lifecycle'
 import { setPromaVersion } from '@shadiao/core'
 import { TRAY_IPC_CHANNELS } from '../types'
@@ -437,6 +438,9 @@ async function bootstrap(): Promise<void> {
 
   // 启动定时任务调度器（恢复持久化的 active 任务）
   safeRun('startScheduler', startScheduler)
+
+  // 后台预热 Django 渠道模型列表（TTL 门控，不影响启动速度）
+  safeRun('refreshDjangoChannelModels', () => refreshDjangoChannelModels().catch(() => {}))
 
   app.on('activate', () => {
     if (shouldSuppressVoiceDictationActivate()) {

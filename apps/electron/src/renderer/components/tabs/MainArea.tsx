@@ -26,6 +26,7 @@ import { AutomationFormView } from '@/components/automation/AutomationFormView'
 import { AutomationsListView } from '@/components/automation/AutomationsListView'
 import { AgentSkillsView } from '@/components/agent-skills/AgentSkillsView'
 import { CharacterPanelView } from '@/components/character/CharacterPanelView'
+import { RechargeView } from '@/components/recharge/RechargeView'
 import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
@@ -233,6 +234,9 @@ export function MainArea(): React.ReactElement {
             ) : activeView === 'character-panel' ? (
               // 人物管理视图：全屏取代 TabBar + TabContent
               <CharacterPanelView />
+            ) : activeView === 'recharge' ? (
+              // 调用额度充值页：全屏取代 TabBar + TabContent
+              <RechargeView />
             ) : (
               <>
                 <TabBar />

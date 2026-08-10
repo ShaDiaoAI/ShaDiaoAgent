@@ -12,7 +12,7 @@
  */
 
 import * as React from 'react'
-import { Bot, Loader2, AlertTriangle, FileText, FileImage, Download, Split, Undo2, RotateCw, Plus, Minimize2, Wrench, Settings, Cpu, ExternalLink, Quote, Clock } from 'lucide-react'
+import { Bot, Loader2, AlertTriangle, FileText, FileImage, Download, Split, Undo2, RotateCw, Plus, Minimize2, Wrench, Settings, Cpu, ExternalLink, Quote, Clock, Zap } from 'lucide-react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import { cn } from '@/lib/utils'
 import { ImageLightbox, type LightboxImage } from '@/components/ui/image-lightbox'
@@ -1084,6 +1084,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
   const setSettingsOpen = useSetAtom(settingsOpenAtom)
   const setSettingsTab = useSetAtom(settingsTabAtom)
   const setModelSelectorOpen = useSetAtom(modelSelectorOpenAtom)
+  const setActiveView = useSetAtom(activeViewAtom)
   const [detailsOpen, setDetailsOpen] = React.useState(false)
 
   const contentText = message.message?.content
@@ -1121,6 +1122,9 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
           window.electronAPI.openExternal(action.payload)
         }
         break
+      case 'open_recharge':
+        setActiveView('recharge')
+        break
       case 'retry':
         onRetry?.()
         break
@@ -1146,6 +1150,8 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
         return <Cpu className="size-3.5 mr-1.5" />
       case 'open_external':
         return <ExternalLink className="size-3.5 mr-1.5" />
+      case 'open_recharge':
+        return <Zap className="size-3.5 mr-1.5" />
       case 'retry':
         return <RotateCw className="size-3.5 mr-1.5" />
       case 'compact':

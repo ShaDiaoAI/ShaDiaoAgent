@@ -228,6 +228,9 @@ export interface ElectronAPI {
   /** 取消进行中的 ChatGPT (Codex) OAuth 登录 */
   codexOAuthCancel: () => Promise<void>
 
+  /** 后台刷新 Django 代理渠道的模型列表（TTL 内自动跳过） */
+  refreshDjangoModels: () => Promise<{ success: boolean; error?: string }>
+
   // ===== 对话管理相关 =====
 
   /** 获取对话列表 */
@@ -1058,7 +1061,8 @@ export interface ElectronAPI {
   onAutomationChanged: (callback: () => void) => () => void
 
   // ===== ShaDiaoAgent: Django 认证 =====
-  djangoLogin: (params: { baseUrl: string; username: string; password: string }) => Promise<{ success: boolean; data?: any; error?: string }>
+  djangoLogin: (params: { baseUrl?: string; username: string; password: string }) => Promise<{ success: boolean; data?: any; error?: string }>
+  djangoRegister: (params: { username: string; password: string; baseUrl?: string }) => Promise<{ success: boolean; data?: any; error?: string }>
   djangoLogout: () => Promise<{ success: boolean }>
   getAuthStatus: () => Promise<{ success: boolean; data?: any }>
 
@@ -1083,6 +1087,19 @@ export interface ElectronAPI {
   // ===== ShaDiaoAgent: 钱包 =====
   getWallet: () => Promise<{ success: boolean; data?: any; error?: string }>
   getRewards: () => Promise<{ success: boolean; data?: any[]; error?: string }>
+  getQuotaBalance: () => Promise<{ success: boolean; data?: { balance: number }; error?: string }>
+
+  // ===== ShaDiaoAgent: 充值 =====
+  getRechargeProducts: () => Promise<{ success: boolean; data?: { products: Array<{
+    id: number; name: string; price_rmb: string; quota_amount: string
+    badge: string; tagline: string; character_asset_id: string
+  }> }; error?: string }>
+  createRechargeOrder: (productId: number) => Promise<{ success: boolean; data?: {
+    order_no: string; qr_code: string; expires_in: number; amount_rmb: string
+  }; error?: string }>
+  getRechargeOrderStatus: (orderNo: string) => Promise<{ success: boolean; data?: {
+    order_no: string; status: string; amount_rmb: string
+  }; error?: string }>
 
   // ===== ShaDiaoAgent: 盲盒 =====
   drawGacha: (count: number) => Promise<{ success: boolean; data?: any; error?: string }>
@@ -1220,6 +1237,10 @@ const electronAPI: ElectronAPI = {
 
   codexOAuthCancel: () => {
     return ipcRenderer.invoke(CHANNEL_IPC_CHANNELS.CODEX_OAUTH_CANCEL)
+  },
+
+  refreshDjangoModels: () => {
+    return ipcRenderer.invoke('django:refresh-models')
   },
 
   // 对话管理
@@ -2446,8 +2467,8 @@ const electronAPI: ElectronAPI = {
   },
 
   // ===== ShaDiaoAgent: Django 认证 =====
-  djangoLogin: (params: { baseUrl: string; username: string; password: string }) =>
-    ipcRenderer.invoke('django:login', params),
+  djangoLogin: (params: { baseUrl?: string; username: string; password: string }) => ipcRenderer.invoke('django:login', params),
+  djangoRegister: (params: { username: string; password: string; baseUrl?: string }) => ipcRenderer.invoke('django:register', params),
   djangoLogout: () =>
     ipcRenderer.invoke('django:logout'),
   getAuthStatus: () =>
@@ -2474,6 +2495,14 @@ const electronAPI: ElectronAPI = {
   // ===== ShaDiaoAgent: 钱包 =====
   getWallet: () => ipcRenderer.invoke('reward:wallet'),
   getRewards: () => ipcRenderer.invoke('reward:history'),
+
+  // ===== ShaDiaoAgent: 调用额度 =====
+  getQuotaBalance: () => ipcRenderer.invoke('quota:balance'),
+
+  // ===== ShaDiaoAgent: 充值 =====
+  getRechargeProducts: () => ipcRenderer.invoke('recharge:products'),
+  createRechargeOrder: (productId: number) => ipcRenderer.invoke('recharge:create-order', productId),
+  getRechargeOrderStatus: (orderNo: string) => ipcRenderer.invoke('recharge:order-status', orderNo),
 
   // ===== ShaDiaoAgent: 盲盒 =====
   drawGacha: (count: number) => ipcRenderer.invoke('gacha:draw', count),

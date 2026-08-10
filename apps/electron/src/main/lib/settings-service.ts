@@ -32,6 +32,7 @@ export function getSettings(): AppSettings {
       experimentalAgentRuntimeSwitchEnabled: false,
       agentRuntime: DEFAULT_AGENT_RUNTIME,
       perCharacterLastSession: {},
+      lastSelectedCharacterId: null,
     }
   }
 
@@ -54,6 +55,7 @@ export function getSettings(): AppSettings {
         ? data.agentRuntime ?? DEFAULT_AGENT_RUNTIME
         : DEFAULT_AGENT_RUNTIME,
       perCharacterLastSession: data.perCharacterLastSession ?? {},
+      lastSelectedCharacterId: data.lastSelectedCharacterId ?? null,
     }
   } catch (error) {
     console.error('[设置] 读取失败:', error)
@@ -70,6 +72,7 @@ export function getSettings(): AppSettings {
       experimentalAgentRuntimeSwitchEnabled: false,
       agentRuntime: DEFAULT_AGENT_RUNTIME,
       perCharacterLastSession: {},
+      lastSelectedCharacterId: null,
     }
   }
 }

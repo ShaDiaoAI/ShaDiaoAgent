@@ -263,6 +263,8 @@ export interface Channel {
   createdAt: number
   /** 更新时间戳 */
   updatedAt: number
+  /** 上次模型列表刷新时间戳 (ms)，0 或 undefined 表示从未刷新 */
+  modelsRefreshedAt?: number
 }
 
 /**

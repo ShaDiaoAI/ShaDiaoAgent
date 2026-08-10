@@ -101,21 +101,17 @@ function buildTrayMenu(actions: TrayActions): Menu {
       : []),
     { type: 'separator' },
     {
-      label: '新建对话',
-      click: () => actions.createChatSession(),
-    },
-    {
       label: '新建 Agent 会话',
       click: () => actions.createAgentSession(),
     },
     { type: 'separator' },
     {
-      label: '打开 Proma',
+      label: '打开 沙雕智能体',
       click: () => actions.showMainWindow(),
     },
     { type: 'separator' },
     {
-      label: '退出 Proma',
+      label: '退出 沙雕智能体',
       click: () => {
         app.quit()
       },
@@ -157,7 +153,7 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
     tray = new Tray(image)
 
     // 设置 tooltip
-    tray.setToolTip('Proma')
+    tray.setToolTip('沙雕智能体')
 
     updateTrayMenu(actions)
 

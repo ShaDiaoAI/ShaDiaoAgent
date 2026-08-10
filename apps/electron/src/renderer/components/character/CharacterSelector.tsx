@@ -33,7 +33,16 @@ export function CharacterSelector({ onOpenPanel }: CharacterSelectorProps): Reac
       .then((r: any) => {
         if (r?.success && r.data) {
           setCharacters(r.data)
-          if (!selected && r.data.length > 0) handleSelect(r.data[0])
+          if (!selected && r.data.length > 0) {
+            // 🆕 优先恢复上次选中的人物，fallback 到第一个
+            window.electronAPI.getSettings()
+              .then((settings: any) => {
+                const lastId: number | null | undefined = settings?.lastSelectedCharacterId
+                const target = (lastId != null ? r.data.find((c: any) => c.id === lastId) : null) ?? r.data[0]
+                handleSelect(target)
+              })
+              .catch(() => handleSelect(r.data[0]))
+          }
         }
       })
       .catch(() => {})
@@ -69,7 +78,7 @@ export function CharacterSelector({ onOpenPanel }: CharacterSelectorProps): Reac
     try { await window.electronAPI.selectCharacter(char) } catch {}
   }
 
-  const expPercent = selected ? Math.round((selected.experience / (selected.exp_to_next || 1)) * 100) : 0
+  const expPercent = selected ? Math.min(100, Math.round(((selected.current_level_xp ?? selected.experience) / (selected.exp_to_next || 1)) * 100)) : 0
 
   return (
     <div ref={ref} className="relative px-3 py-2">
@@ -114,7 +123,7 @@ export function CharacterSelector({ onOpenPanel }: CharacterSelectorProps): Reac
       {open && (
         <div className="absolute left-3 right-3 top-full z-50 mt-1 rounded-lg border bg-popover shadow-lg overflow-hidden">
           {characters.map((c) => {
-            const charExp = Math.round((c.experience / (c.exp_to_next || 1)) * 100)
+            const charExp = Math.min(100, Math.round(((c.current_level_xp ?? c.experience) / (c.exp_to_next || 1)) * 100))
             return (
               <button
                 key={c.id}

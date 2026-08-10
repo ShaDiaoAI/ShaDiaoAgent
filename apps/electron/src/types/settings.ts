@@ -269,6 +269,8 @@ export interface AppSettings {
   mainWindowState?: MainWindowState
   /** 🆕 沙雕人物：每人物上一次活跃 Agent 会话 ID（持久化，重启后可恢复） */
   perCharacterLastSession?: Record<number, string>
+  /** 🆕 沙雕人物：上次选中的角色 ID（持久化，重启后可恢复） */
+  lastSelectedCharacterId?: number | null
 }
 
 /** 主窗口大小、位置和最大化状态 */

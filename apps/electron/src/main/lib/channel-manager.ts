@@ -265,22 +265,72 @@ function decryptKey(encryptedKey: string): string {
 /**
  * 从 Django 后端 /api/models 获取可用模型列表（仅 Anthropic 兼容的）
  * @param baseUrl Django 后端地址（如 http://localhost:8000）
- * @returns 模型列表，失败时返回 hardcode 兜底
+ * @returns 模型列表，失败时抛出异常
  */
 async function fetchDjangoModels(baseUrl: string): Promise<ChannelModel[]> {
-  try {
-    const r = await fetch(`${baseUrl}/api/models`)
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const data = await r.json() as Array<{ id: string; supported_endpoint_types?: string[] }>
-    const models = data
-      .filter(m => !m.supported_endpoint_types || m.supported_endpoint_types.includes('anthropic'))
-      .map(m => ({ id: m.id, name: m.id, enabled: true }))
-    if (models.length > 0) return models
-  } catch (e) {
-    console.warn('[渠道管理] 从 Django 获取模型列表失败:', e)
+  const authState = getAuthState()
+  const headers: Record<string, string> = {}
+  if (authState.token) {
+    headers['Authorization'] = `Bearer ${authState.token}`
   }
-  // hardcode 兜底
-  return [{ id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true }]
+
+  const r = await fetch(`${baseUrl}/api/models`, { headers })
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  const data = await r.json() as Array<{ id: string; supported_endpoint_types?: string[] }>
+  const models = data
+    .filter(m => m.supported_endpoint_types?.includes('anthropic'))
+    .map(m => ({ id: m.id, name: m.id, enabled: true, source: 'fetched' as const }))
+  if (models.length === 0) throw new Error('返回空模型列表')
+  return models
+}
+
+/** 模型列表刷新 TTL（毫秒），Django 渠道在此窗口内不重复请求 /api/models */
+const DJANGO_MODEL_REFRESH_TTL = 5 * 60 * 1000
+
+/**
+ * 后台刷新 Django 代理渠道的模型列表。
+ *
+ * 设计为 fire-and-forget：静默失败，不阻塞 UI，不清空现有列表。
+ * 内置 TTL 门控：窗口内重复调用不产生实际网络请求。
+ */
+export async function refreshDjangoChannelModels(): Promise<void> {
+  const authState = getAuthState()
+  if (!authState.baseUrl) return
+
+  // 未登录时跳过，等登录后 listChannels 或 ModelSelector 自然会触发
+  if (!authState.token) return
+
+  const config = readConfig()
+  const djangoChannel = config.channels.find(
+    c => c.baseUrl.startsWith(authState.baseUrl)
+  )
+  if (!djangoChannel) return
+
+  // TTL 门控
+  if (
+    djangoChannel.modelsRefreshedAt &&
+    Date.now() - djangoChannel.modelsRefreshedAt < DJANGO_MODEL_REFRESH_TTL
+  ) {
+    return
+  }
+
+  try {
+    const models = await fetchDjangoModels(authState.baseUrl)
+
+    // 合并策略：保留 source === 'manual' 且不在新结果中的模型
+    const fetchedIds = new Set(models.map(m => m.id))
+    const manualModels = djangoChannel.models.filter(
+      m => m.source === 'manual' && !fetchedIds.has(m.id)
+    )
+
+    djangoChannel.models = [...models, ...manualModels]
+    djangoChannel.modelsRefreshedAt = Date.now()
+    writeConfig(config)
+    console.log('[渠道管理] Django 渠道模型列表已刷新:', models.length, '个模型')
+  } catch (e) {
+    // 静默失败：网络问题或后端异常时保留现有列表
+    console.warn('[渠道管理] 后台刷新 Django 模型列表失败:', e)
+  }
 }
 
 /**
@@ -310,10 +360,13 @@ export function listChannels(): Channel[] {
       enabled: true,
       createdAt: now,
       updatedAt: now,
+      modelsRefreshedAt: 0,
     }
     config.channels.unshift(presetChannel)
     writeConfig(config)
     console.log('[渠道管理] 已自动创建沙雕后端代理渠道')
+    // 首次创建后异步拉取真实模型列表（不阻塞返回）
+    refreshDjangoChannelModels().catch(() => {})
     return config.channels
   }
 
@@ -350,6 +403,18 @@ export function listChannels(): Channel[] {
     if (changed) {
       writeConfig(config)
       console.log('[渠道管理] 已清理/同步旧渠道配置')
+    }
+  }
+
+  // 对 Django 渠道检查是否需要后台刷新模型列表
+  for (const c of config.channels) {
+    if (
+      authState.baseUrl &&
+      c.baseUrl.startsWith(authState.baseUrl) &&
+      (!c.modelsRefreshedAt || Date.now() - c.modelsRefreshedAt > DJANGO_MODEL_REFRESH_TTL)
+    ) {
+      refreshDjangoChannelModels().catch(() => {})
+      break
     }
   }
 

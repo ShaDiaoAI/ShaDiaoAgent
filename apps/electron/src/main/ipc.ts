@@ -4553,10 +4553,19 @@ export function registerIpcHandlers(): void {
   )
 
   // ===== ShaDiao: Django 认证 =====
-  ipcMain.handle('django:login', async (_, params: { baseUrl: string; username: string; password: string }) => {
+  ipcMain.handle('django:login', async (_, params: { baseUrl?: string; username: string; password: string }) => {
     try {
       const { loginToDjango } = await import('./lib/django-client.js')
-      const state = await loginToDjango(params.baseUrl, params.username, params.password)
+      // baseUrl 可选：生产环境使用写死的 URL，不再暴露给用户
+      const state = await loginToDjango(params.username, params.password, params.baseUrl)
+      return { success: true, data: state }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('django:register', async (_, params: { username: string; password: string; baseUrl?: string }) => {
+    try {
+      const { registerToDjango } = await import('./lib/django-client.js')
+      const state = await registerToDjango(params.username, params.password, params.baseUrl)
       return { success: true, data: state }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
@@ -4565,14 +4574,26 @@ export function registerIpcHandlers(): void {
     try {
       const { logoutFromDjango } = await import('./lib/django-client.js')
       logoutFromDjango()
+      console.log('[沙雕认证] 登出成功，auth 文件已清除')
       return { success: true }
-    } catch (e) { return { success: false, error: (e as Error).message } }
+    } catch (e) {
+      console.error('[沙雕认证] 登出失败:', e)
+      return { success: false, error: (e as Error).message }
+    }
   })
 
   ipcMain.handle('django:auth-status', async () => {
     try {
       const { getAuthState } = await import('./lib/django-client.js')
       return { success: true, data: getAuthState() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('django:refresh-models', async () => {
+    try {
+      const { refreshDjangoChannelModels } = await import('./lib/channel-manager.js')
+      await refreshDjangoChannelModels()
+      return { success: true }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 
@@ -4644,6 +4665,13 @@ export function registerIpcHandlers(): void {
       }
 
       selectedCharacterId = newCharId
+
+      // 🆕 持久化最后选中的人物 ID（用于重启后恢复）
+      if (newCharId != null && newCharId !== oldCharId) {
+        try {
+          updateSettings({ lastSelectedCharacterId: newCharId })
+        } catch { /* 持久化失败不影响切换 */ }
+      }
 
       return {
         success: true,
@@ -4719,6 +4747,36 @@ export function registerIpcHandlers(): void {
     try {
       const { getRewards } = await import('./lib/character-service.js')
       return { success: true, data: await getRewards() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  // ShaDiaoAgent: 调用额度余额
+  ipcMain.handle('quota:balance', async () => {
+    try {
+      const { fetchQuotaBalance } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchQuotaBalance() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  // ShaDiaoAgent: 充值
+  ipcMain.handle('recharge:products', async () => {
+    try {
+      const { fetchRechargeProducts } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchRechargeProducts() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('recharge:create-order', async (_e, productId: number) => {
+    try {
+      const { createRechargeOrder } = await import('./lib/django-client.js')
+      return { success: true, data: await createRechargeOrder(productId) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('recharge:order-status', async (_e, orderNo: string) => {
+    try {
+      const { getRechargeOrderStatus } = await import('./lib/django-client.js')
+      return { success: true, data: await getRechargeOrderStatus(orderNo) }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 

@@ -26,7 +26,8 @@ import {
 } from '@/atoms/chat-atoms'
 import { useConversationModelOptional } from '@/hooks/useConversationSettings'
 import { useConversationIdOptional } from '@/contexts/session-context'
-import { getModelLogo, getChannelLogo, DefaultLogo } from '@/lib/model-logo'
+import { getModelLogo } from '@/lib/model-logo'
+import shadiaoLogo from '@/assets/bots/shadiao-logos/shadiao-logo.png'
 import { cn } from '@/lib/utils'
 import type { Channel, ModelOption } from '@shadiao/shared'
 
@@ -113,6 +114,14 @@ export function ModelSelector({
   React.useEffect(() => {
     if (open) {
       window.electronAPI.listChannels().then(setChannels).catch(console.error)
+      // 后台刷新 Django 渠道模型列表（TTL 内自动跳过），完成后重新拉取以更新 UI
+      window.electronAPI.refreshDjangoModels()
+        .then((result) => {
+          if (result.success) {
+            window.electronAPI.listChannels().then(setChannels).catch(console.error)
+          }
+        })
+        .catch(() => {})
       setSearch('')
     }
   }, [open, setChannels])
@@ -298,7 +307,7 @@ export function ModelSelector({
                     {/* 供应商标题行 - 灰色背景 */}
                     <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border/30">
                       <img
-                        src={channel ? getChannelLogo(channel) : DefaultLogo}
+                        src={shadiaoLogo}
                         alt={first.channelName}
                         className="size-5 rounded object-cover"
                       />

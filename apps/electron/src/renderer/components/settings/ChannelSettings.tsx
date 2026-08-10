@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@shadiao/shared'
 import type { Channel } from '@shadiao/shared'
-import { getChannelLogo } from '@/lib/model-logo'
+import shadiaoLogo from '@/assets/bots/shadiao-logos/shadiao-logo.png'
 import { agentChannelIdAtom, agentModelIdAtom, agentChannelIdsAtom } from '@/atoms/agent-atoms'
 import { channelsAtom } from '@/atoms/chat-atoms'
 import { SettingsSection, SettingsCard, SettingsRow } from './primitives'
@@ -282,7 +282,8 @@ export function ChannelSettings(): React.ReactElement {
         </SettingsSection>
       )}
 
-      {/* 区块二：Agent 供应商 */}
+      {/* 区块二：Agent 供应商（已隐藏） */}
+      {/*}
       <SettingsSection
         title="Agent 供应商"
         description="启用 Agent 模式可用的供应商，支持同时开启多个渠道，在 Agent 模式下可直接切换"
@@ -311,6 +312,7 @@ export function ChannelSettings(): React.ReactElement {
           </SettingsCard>
         )}
       </SettingsSection>
+      {*/}
 
       {/* 删除确认弹窗 */}
       <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
@@ -354,7 +356,7 @@ function ChannelRow({ channel, onEdit, onDelete, onToggle }: ChannelRowProps): R
   return (
     <SettingsRow
       label={channel.name}
-      icon={<img src={getChannelLogo(channel)} alt="" className="w-8 h-8 rounded" />}
+      icon={<img src={shadiaoLogo} alt="" className="w-8 h-8 rounded" />}
       description={description}
       className="group"
     >

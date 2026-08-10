@@ -5,10 +5,12 @@
  */
 
 import * as React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom, useSetAtom } from 'jotai'
 import { Camera, ImagePlus, LogOut, Volume2 } from 'lucide-react'
 import Picker from '@emoji-mart/react'
 import data from '@emoji-mart/data'
+import { toast } from 'sonner'
+import { isAuthenticatedAtom } from '@/atoms/auth-atoms'
 import {
   SettingsSection,
   SettingsCard,
@@ -60,6 +62,7 @@ interface EmojiMartEmoji {
 
 export function GeneralSettings(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
+  const setIsAuthenticated = useSetAtom(isAuthenticatedAtom)
   const [notificationsEnabled, setNotificationsEnabled] = useAtom(notificationsEnabledAtom)
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useAtom(notificationSoundEnabledAtom)
   const [notificationSounds, setNotificationSounds] = useAtom(notificationSoundsAtom)
@@ -88,8 +91,19 @@ export function GeneralSettings(): React.ReactElement {
 
   /** 登出 Django 账户 */
   const handleLogout = async (): Promise<void> => {
-    await window.electronAPI.djangoLogout()
-    window.location.reload()
+    setShowLogoutConfirm(false)
+    try {
+      const result = await window.electronAPI.djangoLogout()
+      if (result.success) {
+        toast.success('已登出')
+        // 直接设置认证状态为 false，App 会自动切到登录页，无需 reload
+        setIsAuthenticated(false)
+      } else {
+        toast.error(result.error || '登出失败，请重试')
+      }
+    } catch (e) {
+      toast.error('登出失败：' + ((e as Error).message || '未知错误'))
+    }
   }
 
   /** 更新归档天数 */

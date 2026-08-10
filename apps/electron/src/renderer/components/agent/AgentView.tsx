@@ -22,6 +22,7 @@ import { AgentMessages } from './AgentMessages'
 import { AgentHeader } from './AgentHeader'
 import { AgentMessageQueue } from './AgentMessageQueue'
 import { ContextUsageBadge } from './ContextUsageBadge'
+import { QuotaInsufficientDialog } from '@/components/recharge/QuotaInsufficientDialog'
 import { PermissionBanner } from './PermissionBanner'
 import { AskUserBanner } from './AskUserBanner'
 import { ExitPlanModeBanner } from './ExitPlanModeBanner'
@@ -57,6 +58,7 @@ import { getActiveAccelerator, getAcceleratorDisplay } from '@/lib/shortcut-regi
 import { registerShortcut } from '@/lib/shortcut-registry'
 import { previewPanelOpenMapAtom, quotedSelectionMapAtom, currentQuotedSelectionAtom } from '@/atoms/preview-atoms'
 import type { QuotedSelection } from '@/atoms/preview-atoms'
+import { callQuotaAtom } from '@/atoms/quota-atoms'
 import {
   agentStreamingStatesAtom,
   agentSessionStreamingStateAtomFamily,
@@ -560,6 +562,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const permissionMode = permissionModeMap.get(sessionId) ?? persistedPermissionMode ?? defaultPermissionMode
   const isPermissionPlanMode = permissionMode === 'plan'
   const store = useStore()
+  /** 额度刷新防抖：避免 send-time + stream-end 短时间内重复请求 */
+  const lastQuotaFetchRef = React.useRef(0)
   const currentQuotedSelection = useAtomValue(currentQuotedSelectionAtom)
   const setQuotedSelectionMap = useSetAtom(quotedSelectionMapAtom)
   const openPreview = useOpenPreview()
@@ -639,6 +643,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
   const [workspaceFilesPath, setWorkspaceFilesPath] = React.useState<string | null>(null)
   const [isDragOver, setIsDragOver] = React.useState(false)
   const [errorCopied, setErrorCopied] = React.useState(false)
+  const [showQuotaDialog, setShowQuotaDialog] = React.useState(false)
 
   // pendingFiles ref（供 addFilesAsAttachments 读取最新列表，避免闭包旧值）
   const pendingFilesRef = React.useRef(pendingFiles)
@@ -963,6 +968,18 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     const payload = buildQueuedMessageSendPayload(message, quotedSelectionBlock)
     if (!payload.rawText || !agentChannelId || !hasAvailableModel) return
 
+    // 预检查调用额度：余额耗尽时阻断发送，弹出充值引导弹窗。
+    // 同时将最新余额回写 callQuotaAtom，使侧边栏额度条实时反映最新值。
+    const balResult = await window.electronAPI.getQuotaBalance?.()
+    if (balResult?.success && balResult.data?.balance != null) {
+      lastQuotaFetchRef.current = Date.now()
+      store.set(callQuotaAtom, balResult.data.balance)
+      if (balResult.data.balance <= 0) {
+        setShowQuotaDialog(true)
+        return
+      }
+    }
+
     clearStoppedByUser()
 
     // 发起新一轮（含队列消息自动发送、后台续轮注入等非用户显式路径）时，
@@ -1004,6 +1021,28 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     startQueuedMessageRun,
     streaming,
   ])
+
+  // 流式输出结束时自动刷新调用额度，使侧边栏额度条在对话完成后实时反映最新余额。
+  // 覆盖：正常完成、用户手动停止、中途报错 — 只要 streaming 从 true 变 false 就触发。
+  const prevStreamingRef = React.useRef(streaming)
+  React.useEffect(() => {
+    const wasStreaming = prevStreamingRef.current
+    prevStreamingRef.current = streaming
+
+    if (!wasStreaming || streaming) return  // 仅 true→false 时触发
+
+    const now = Date.now()
+    if (now - lastQuotaFetchRef.current < 5000) return  // 5s 防抖，避免与 send-time 重复
+
+    lastQuotaFetchRef.current = now
+    window.electronAPI.getQuotaBalance?.()
+      .then((r: any) => {
+        if (r?.success && r.data?.balance != null) {
+          store.set(callQuotaAtom, r.data.balance)
+        }
+      })
+      .catch(() => {})  // 静默忽略网络错误，保留旧值
+  }, [streaming, store])
 
   // 消息是否已完成首次加载（用于 auto-send 等待）
   const [messagesLoaded, setMessagesLoaded] = React.useState(false)
@@ -2853,6 +2892,12 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* 调用额度不足弹窗 */}
+    <QuotaInsufficientDialog
+      open={showQuotaDialog}
+      onClose={() => setShowQuotaDialog(false)}
+    />
     </>
   )
 }

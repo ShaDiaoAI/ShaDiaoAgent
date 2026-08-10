@@ -25,6 +25,7 @@ import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom } f
 import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@/atoms/active-view'
 import { GachaAnim, type GachaAnimHandle } from './GachaAnim'
 import { GachaResultModal, type DrawResultItem } from './GachaResultModal'
+import { GachaDecoPanel } from './GachaDecoPanel'
 
 /** 计算人物槽位贡献：floor(level / 5) */
 function calcSlotContribution(level: number): number {
@@ -261,10 +262,24 @@ export function CharacterPanelView(): React.ReactElement {
   }
 
   const tabs: { value: CharacterPanelTab; label: string; count?: number }[] = [
-    { value: 'info', label: '人物' },
+    { value: 'info', label: '人物', count: characters.length },
     { value: 'skins', label: '皮肤', count: mySkins.length },
     { value: 'gacha', label: '开盲盒' },
   ]
+
+  // 聚合皮肤：同 ID 合并持有数量，兼容后端返回聚合/未聚合两种格式
+  const aggregatedSkins = React.useMemo(() => {
+    const map = new Map<number, Skin & { totalQty: number }>()
+    for (const s of mySkins) {
+      const existing = map.get(s.id)
+      if (existing) {
+        existing.totalQty += (s.quantity ?? 1)
+      } else {
+        map.set(s.id, { ...s, totalQty: s.quantity ?? 1 })
+      }
+    }
+    return Array.from(map.values())
+  }, [mySkins])
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -357,7 +372,7 @@ export function CharacterPanelView(): React.ReactElement {
               {tab === 'info' && (
                 <div className="space-y-4">
                   {/* 人物槽位说明 */}
-                  <div className="text-left text-[11px] text-muted-foreground/60">
+                  <div className="text-xs text-muted-foreground pb-2">
                     {creationLimit ? (
                       creationLimit.can_create
                         ? `${creationLimit.current_count}/${creationLimit.max_characters} 人物槽位 · 还可创建 ${creationLimit.max_characters - creationLimit.current_count} 个`
@@ -440,13 +455,13 @@ export function CharacterPanelView(): React.ReactElement {
 
               {/* 皮肤 Tab */}
               {tab === 'skins' && (() => {
-                // 检查皮肤是否可装备给当前人物
-                const canEquipSkin = (skin: Skin, char: ShadiaoCharacter) => {
+                // 检查皮肤是否可装备给当前人物（基于聚合后的 totalQty）
+                const canEquipSkin = (skin: Skin & { totalQty: number }, char: ShadiaoCharacter) => {
                   // 已装备
                   if (char.equipped_skin?.id === skin.id) {
                     return { canEquip: false, reason: '使用中' }
                   }
-                  const qty = skin.quantity ?? 1
+                  const qty = skin.totalQty
                   // 统计其他人物装备此皮肤的数量
                   const usedByOthers = characters.filter(
                     c => c.id !== char.id && c.equipped_skin?.id === skin.id
@@ -463,18 +478,18 @@ export function CharacterPanelView(): React.ReactElement {
 
                 return (
                 <div>
-                  <p className="text-xs text-muted-foreground pb-3">
+                  <p className="text-xs text-muted-foreground pb-5">
                     点击皮肤即可为当前人物「<span className="font-medium text-foreground/80">{char.name}</span>」装备
                   </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {mySkins.map(skin => {
+                    {aggregatedSkins.map(skin => {
                       const isEquipped = char.equipped_skin?.id === skin.id
                       const localPreviewPath = `./characters/${skin.rive_asset_id}/preview.png`
                       const equipCheck = canEquipSkin(skin, char)
                       return (
                         <SkinCard
                           key={skin.id}
-                          skin={skin}
+                          skin={{ ...skin, quantity: skin.totalQty }}
                           isEquipped={isEquipped}
                           disabled={!equipCheck.canEquip && !isEquipped}
                           statusText={equipCheck.canEquip ? undefined : equipCheck.reason}
@@ -494,59 +509,70 @@ export function CharacterPanelView(): React.ReactElement {
                 const isAnimating = gachaPhase === 'animating'
                 const isDisabled = isAnimating || !animReady
                 return (
-                <div className="w-1/2 space-y-5">
-                  {/* 盲盒动画 Canvas */}
-                  <GachaAnim
-                    ref={gachaAnimRef}
-                    className="w-full aspect-square"
-                    onReady={() => setAnimReady(true)}
-                    onAnimationEnd={() => {
-                      animEndResolveRef.current?.()
-                    }}
-                  />
+                <div
+                  className="w-full grid gap-5 items-stretch"
+                  style={{ gridTemplateColumns: '1fr minmax(300px, 480px) 1fr' }}
+                >
+                  {/* 左侧：福字喜庆装饰 */}
+                  <GachaDecoPanel side="left" />
 
-                  {/* 沙雕币余额 */}
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
-                    <span className="text-sm text-muted-foreground">沙雕币</span>
-                    <span className="text-lg font-semibold tabular-nums text-amber-500">
-                      💰 {wallet?.coins?.toLocaleString() ?? gachaProgress?.coins?.toLocaleString() ?? '—'}
-                    </span>
+                  {/* 中间：盲盒主区域 */}
+                  <div className="space-y-5">
+                    <GachaAnim
+                      ref={gachaAnimRef}
+                      className="w-full aspect-square"
+                      onReady={() => setAnimReady(true)}
+                      onAnimationEnd={() => {
+                        animEndResolveRef.current?.()
+                      }}
+                    />
+
+                    {/* 沙雕币余额 */}
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
+                      <span className="text-sm text-muted-foreground">沙雕币</span>
+                      <span className="text-lg font-semibold tabular-nums text-amber-500">
+                        💰 {wallet?.coins?.toLocaleString() ?? gachaProgress?.coins?.toLocaleString() ?? '—'}
+                      </span>
+                    </div>
+
+                    {/* 抽奖按钮 */}
+                    <div className="flex gap-3">
+                      <button
+                        disabled={isDisabled || !gachaProgress?.can_single_draw}
+                        onClick={() => handleDraw(1)}
+                        className={cn(
+                          'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                          gachaProgress?.can_single_draw && !isDisabled
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed',
+                        )}
+                      >
+                        <Gift size={16} /><span>单抽</span>
+                        <span className="text-xs opacity-70">{gachaProgress?.single_draw_cost ?? '—'} 币</span>
+                      </button>
+                      <button
+                        disabled={isDisabled || !gachaProgress?.can_multi_draw}
+                        onClick={() => handleDraw(5)}
+                        className={cn(
+                          'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                          gachaProgress?.can_multi_draw && !isDisabled
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
+                            : 'bg-muted text-muted-foreground cursor-not-allowed',
+                        )}
+                      >
+                        <Gift size={16} /><span>5 连抽</span>
+                        <span className="text-xs opacity-70">{gachaProgress?.multi_draw_cost ?? '—'} 币</span>
+                      </button>
+                    </div>
+
+                    {/* 错误提示 */}
+                    {drawError && (
+                      <div className="text-xs text-red-500 text-center bg-red-50 rounded-lg py-2">{drawError}</div>
+                    )}
                   </div>
 
-                  {/* 抽奖按钮 */}
-                  <div className="flex gap-3">
-                    <button
-                      disabled={isDisabled || !gachaProgress?.can_single_draw}
-                      onClick={() => handleDraw(1)}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                        gachaProgress?.can_single_draw && !isDisabled
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed',
-                      )}
-                    >
-                      <Gift size={16} /><span>单抽</span>
-                      <span className="text-xs opacity-70">{gachaProgress?.single_draw_cost ?? '—'} 币</span>
-                    </button>
-                    <button
-                      disabled={isDisabled || !gachaProgress?.can_multi_draw}
-                      onClick={() => handleDraw(5)}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                        gachaProgress?.can_multi_draw && !isDisabled
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed',
-                      )}
-                    >
-                      <Gift size={16} /><span>5 连抽</span>
-                      <span className="text-xs opacity-70">{gachaProgress?.multi_draw_cost ?? '—'} 币</span>
-                    </button>
-                  </div>
-
-                  {/* 错误提示 */}
-                  {drawError && (
-                    <div className="text-xs text-red-500 text-center bg-red-50 rounded-lg py-2">{drawError}</div>
-                  )}
+                  {/* 右侧：运字喜庆装饰 */}
+                  <GachaDecoPanel side="right" />
 
                   {/* 抽奖结果弹窗 */}
                   <GachaResultModal
@@ -650,7 +676,7 @@ function CharacterCard({
     if (!isRenaming) setRenameValue(char.name)
   }, [char.name, isRenaming])
 
-  const charExp = Math.round((char.experience / (char.exp_to_next || 1)) * 100)
+  const charExp = Math.min(100, Math.round(((char.current_level_xp ?? char.experience) / (char.exp_to_next || 1)) * 100))
   const slots = calcSlotContribution(char.level)
 
   const handleImgError = () => {

@@ -8,6 +8,7 @@ export interface ShadiaoCharacter {
   level: number
   experience: number
   exp_to_next: number
+  current_level_xp: number
   character_class: { id: number; name: string; description: string } | null
   bound_model: string
   system_prompt: string

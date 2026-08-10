@@ -4,6 +4,7 @@ import { RIVE_STATE_LABELS, type RiveAgentState } from '@/atoms/rive-atoms'
 import { useAtomValue } from 'jotai'
 import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 declare global {
   interface Window {
@@ -347,9 +348,35 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
       </div>
       {/* 沙雕币 — Canvas 内部下方 */}
       {coins !== undefined && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none pointer-events-none flex items-center gap-1">
-          <span>💰</span>
-          <span className="tabular-nums">{coins.toLocaleString()}</span>
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none flex items-center gap-1">
+          {/* 币值展示 — 非交互 */}
+          <span className="pointer-events-none flex items-center gap-1">
+            <span>💰</span>
+            <span className="tabular-nums">{coins.toLocaleString()}</span>
+          </span>
+          {/* 帮助 tooltip — 交互 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="button"
+                tabIndex={0}
+                className="pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none"
+                aria-label="什么是沙雕币？"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+              >
+                ?
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px]">
+              <p className="text-xs leading-relaxed">
+                与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                消耗 token 即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       )}
     </div>

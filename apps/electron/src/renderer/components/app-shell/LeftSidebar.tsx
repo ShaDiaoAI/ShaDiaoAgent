@@ -18,6 +18,7 @@ import { CharacterInfo } from '@/components/character/CharacterInfo'
 import { CharacterCreate } from '@/components/character/CharacterCreate'
 import { type ShadiaoCharacter, charactersAtom, selectedCharacterAtom, walletAtom } from '@/atoms/character-atoms'
 import { CharacterAnim } from '@/components/agent/CharacterAnim'
+import { QuotaBar } from '@/components/recharge/QuotaBar'
 import { SearchDialog } from './SearchDialog'
 import { UserAvatar } from '@/components/chat/UserAvatar'
 import { activeViewAtom, agentSkillsTabAtom, characterPanelTabAtom } from '@/atoms/active-view'
@@ -2604,6 +2605,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           </div>
         </div>
 
+        {/* 额度条（收折模式） */}
+        <QuotaBar />
+
         {/* 更新入口 + 用户头像（点击打开设置） */}
         <div className="flex flex-col items-center gap-1.5 pt-3 pb-3">
           {hasUpdate && (
@@ -2685,7 +2689,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 	      </div>
 
 	      {/* Rive 人物动画画布（相框式，占左侧栏主要空间） */}
-	      <div className="px-3 pt-3" style={{ flex: '1 0 35%', minHeight: 0 }}>
+	      <div className="px-3 pt-3" style={{ flex: '1 0 30%', minHeight: 0 }}>
 	        <CharacterAnim className="w-full h-full" coins={wallet?.coins} />
 	      </div>
 
@@ -3055,6 +3059,9 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
           </button>
         )}
       </div>
+
+      {/* 额度条 */}
+      <QuotaBar />
 
       {/* 底部：用户资料 + 设置入口 */}
       <div className="px-3 pb-3">
