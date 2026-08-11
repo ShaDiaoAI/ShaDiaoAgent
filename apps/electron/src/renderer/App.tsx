@@ -3,8 +3,7 @@ import { useAtomValue, useSetAtom, useAtom } from 'jotai'
 import { TooltipProvider } from './components/ui/tooltip'
 import { AppShell } from './components/app-shell/AppShell'
 import { SettingsDialog } from './components/settings/SettingsDialog'
-import { DjangoLoginPage } from './components/onboarding/DjangoLoginPage'
-import { DjangoRegisterPage } from './components/onboarding/DjangoRegisterPage'
+import { AuthPage } from './components/onboarding/AuthPage'
 import { agentSettingsReadyAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom, currentAgentSessionIdAtom } from './atoms/agent-atoms'
 import { settingsOpenAtom } from './atoms/settings-tab'
 import { channelsLoadedAtom } from './atoms/chat-atoms'
@@ -31,7 +30,6 @@ export default function App(): React.ReactElement {
 
   // Django 认证状态（Jotai atom，跨组件共享，登出时不需要 reload）
   const [isAuthenticated, setIsAuthenticated] = useAtom(isAuthenticatedAtom)
-  const [authView, setAuthView] = React.useState<'login' | 'register'>('login')
 
   // 启动时检查 Django 认证
   React.useEffect(() => {
@@ -60,6 +58,7 @@ export default function App(): React.ReactElement {
     setCurrentAgentSessionId(null)
     setAgentSessions([])
     setSelectedCharacter(null)
+    setCurrentWorkspaceId(null)
     setSettingsOpen(false)
 
     setIsAuthenticated(true)
@@ -107,20 +106,7 @@ export default function App(): React.ReactElement {
 
   // 未登录 → 登录/注册页
   if (!isAuthenticated) {
-    if (authView === 'register') {
-      return (
-        <DjangoRegisterPage
-          onRegisterSuccess={handleLoginSuccess}
-          onGoToLogin={() => setAuthView('login')}
-        />
-      )
-    }
-    return (
-      <DjangoLoginPage
-        onLoginSuccess={handleLoginSuccess}
-        onGoToRegister={() => setAuthView('register')}
-      />
-    )
+    return <AuthPage onAuthSuccess={handleLoginSuccess} />
   }
 
   // 已登录 → 主界面

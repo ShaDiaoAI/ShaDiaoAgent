@@ -3,10 +3,10 @@
  *
  * 当没有打开任何标签页时：
  * 1. 优先复用现有会话（打开最近的一个）
- * 2. 没有现有会话时，创建一个 draft 会话（不在侧边栏显示）
+ * 2. 没有现有会话时，创建一个可见的新会话
  *
  * 这样用户直接看到完整的 ChatView/AgentView（含全功能输入框），
- * 发送第一条消息后 draft 标记自动移除，会话出现在侧边栏。
+ * 新会话立即可见于侧边栏项目下，无需等待首条消息发送。
  */
 
 import * as React from 'react'
@@ -54,6 +54,8 @@ export function WelcomeView(): React.ReactElement {
     if (initRef.current === mode) return
     // Agent 模式需等待 settings 就绪（workspaceId 等异步加载完成）
     if (mode === 'agent' && !agentSettingsReady) return
+    // Agent 模式需等待 workspaceId 就绪（登录后异步加载，null 表示尚未完成）
+    if (mode === 'agent' && !currentWorkspaceId) return
 
     // 标记当前 mode 的请求，用于取消过期的异步回调
     const currentMode = mode
@@ -100,8 +102,8 @@ export function WelcomeView(): React.ReactElement {
           currentSetActiveTabId(result.activeTabId)
           return
         }
-        // 3. 没有任何会话时才创建新的 draft 会话
-        currentCreateChat({ draft: true })
+        // 3. 没有任何会话时才创建新的可见会话
+        currentCreateChat()
       }).catch(console.error)
     } else {
       window.electronAPI.listAgentSessions().then((freshSessions) => {
@@ -145,11 +147,11 @@ export function WelcomeView(): React.ReactElement {
           currentSetActiveTabId(result.activeTabId)
           return
         }
-        // 3. 没有任何会话时才创建新的 draft 会话
-        currentCreateAgent({ draft: true })
+        // 3. 没有任何会话时才创建新的可见会话
+        currentCreateAgent()
       }).catch(console.error)
     }
-  }, [mode, agentSettingsReady])
+  }, [mode, agentSettingsReady, currentWorkspaceId])
 
   // 短暂的过渡状态（通常几十毫秒内就会被 TabContent 替换）
   return (

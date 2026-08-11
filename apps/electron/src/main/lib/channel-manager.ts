@@ -260,9 +260,10 @@ function decryptKey(encryptedKey: string): string {
   try {
     const buffer = Buffer.from(encryptedKey, 'base64')
     return safeStorage.decryptString(buffer)
-  } catch (error) {
-    log.error('解密 API Key 失败:', error)
-    throw new Error('解密 API Key 失败')
+  } catch {
+    // 解密失败：可能存储的是明文占位符（如 django-managed），直接返回原文
+    // 真 API Key 一定是通过 encryptApiKey 加密的，不会走到这里
+    return encryptedKey
   }
 }
 
@@ -387,7 +388,7 @@ export function listChannels(): Channel[] {
       name: '沙雕后端',
       provider: 'anthropic',
       baseUrl,
-      apiKey: encryptApiKey('django-managed'),
+      apiKey: 'django-managed', // 占位符，无需加密（真 key 由 Django 管理）
       models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true }],
       enabled: true,
       createdAt: now,

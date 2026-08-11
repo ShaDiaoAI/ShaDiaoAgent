@@ -1,11 +1,11 @@
 {
   "name": "@shadiao/electron",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "ShaDiao Agent — a character-driven AI desktop client with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
-    "name": "ErlichLiu",
-    "email": "erlichliu@gmail.com"
+    "name": "Fatman13",
+    "email": "2217471347@qq.com"
   },
   "private": true,
   "type": "module",

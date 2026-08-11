@@ -2692,7 +2692,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 	      </div>
 
 	      {/* Rive 人物动画画布（相框式，占左侧栏主要空间） */}
-	      <div className="px-3 pt-3" style={{ flex: '1 0 30%', minHeight: 0 }}>
+	      <div className="px-3 pt-3" style={{ flex: '1 0 35%', minHeight: 0 }}>
 	        <CharacterAnim className="w-full h-full" coins={wallet?.coins} />
 	      </div>
 

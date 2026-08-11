@@ -2,8 +2,8 @@
 # 文档: https://www.electron.build/configuration/configuration
 
 appId: com.shadiao.agent
-productName: ShaDiaoAgent
-copyright: Copyright © 2026 ShaDiaoAgent
+productName: 沙雕智能体
+copyright: Copyright © 2026 沙雕智能体
 
 # Electron 版本（CI 环境 bun workspace 下无法自动检测，需显式指定）
 electronVersion: 39.5.1

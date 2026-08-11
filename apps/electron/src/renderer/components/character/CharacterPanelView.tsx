@@ -23,6 +23,7 @@ import {
 } from '@/atoms/character-atoms'
 import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
 import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@/atoms/active-view'
+import { tabsAtom, activeTabIdAtom, openTab, closeTab } from '@/atoms/tab-atoms'
 import { GachaAnim, type GachaAnimHandle } from './GachaAnim'
 import { GachaResultModal, type DrawResultItem } from './GachaResultModal'
 import { GachaDecoPanel } from './GachaDecoPanel'
@@ -55,6 +56,8 @@ export function CharacterPanelView(): React.ReactElement {
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const setActiveView = useSetAtom(activeViewAtom)
   const activeView = useAtomValue(activeViewAtom)
+  const [appTabs, setAppTabs] = useAtom(tabsAtom)
+  const [appActiveTabId, setAppActiveTabId] = useAtom(activeTabIdAtom)
   const switchCharacter = useCharacterSwitch()
   const [tab, setTab] = useAtom(characterPanelTabAtom)
   // 盲盒状态机
@@ -386,9 +389,34 @@ export function CharacterPanelView(): React.ReactElement {
                     if (r?.success && r.data) {
                       setSelected(r.data)
                       window.electronAPI.selectCharacter(r.data).catch(() => {})
+                      // 切换到新人物的 workspace
+                      const newWsId = `char-${r.data.id}`
+                      setCurrentWorkspaceId(newWsId)
+                      window.electronAPI.updateSettings({ agentWorkspaceId: newWsId }).catch(() => {})
                       window.electronAPI.listCharacters().then((lr: any) => {
                         if (lr?.success && lr.data) setCharacters(lr.data)
                       }).catch(() => {})
+                      window.electronAPI.listAgentWorkspaces().then(setWorkspaces).catch(() => {})
+                      // 为新人物创建初始会话，并打开为当前标签页
+                      try {
+                        const meta = await window.electronAPI.createAgentSession(
+                          undefined, undefined, newWsId, undefined,
+                        )
+                        setAgentSessions(prev => [meta, ...prev])
+                        // 关闭旧人物的标签页，聚焦到新会话
+                        let curTabs = appTabs
+                        let curActiveId = appActiveTabId
+                        for (const tab of curTabs) {
+                          if (tab.type === 'agent' || tab.type === 'preview') {
+                            const r = closeTab(curTabs, curActiveId, tab.id)
+                            curTabs = r.tabs
+                            curActiveId = r.activeTabId
+                          }
+                        }
+                        const openResult = openTab(curTabs, { type: 'agent', sessionId: meta.id, title: meta.title })
+                        setAppTabs(openResult.tabs)
+                        setAppActiveTabId(openResult.activeTabId)
+                      } catch (e) { log.error('创建初始会话失败:', e) }
                     }
                   } catch (e) { log.error('创建人物失败:', e) }
                 }}
@@ -470,9 +498,28 @@ export function CharacterPanelView(): React.ReactElement {
                             const newWsId = `char-${r.data.id}`
                             setCurrentWorkspaceId(newWsId)
                             window.electronAPI.updateSettings({ agentWorkspaceId: newWsId }).catch(() => {})
-                            // 刷新 workspace 列表和会话列表
+                            // 刷新 workspace 列表
                             window.electronAPI.listAgentWorkspaces().then(setWorkspaces).catch(() => {})
-                            window.electronAPI.listAgentSessions().then(setAgentSessions).catch(() => {})
+                            // 为新人物创建初始会话（可见，非 draft），并聚焦到新会话
+                            try {
+                              const meta = await window.electronAPI.createAgentSession(
+                                undefined, undefined, newWsId, undefined,
+                              )
+                              setAgentSessions(prev => [meta, ...prev])
+                              // 关闭旧人物的标签页，聚焦到新会话
+                              let curTabs = appTabs
+                              let curActiveId = appActiveTabId
+                              for (const tab of curTabs) {
+                                if (tab.type === 'agent' || tab.type === 'preview') {
+                                  const r = closeTab(curTabs, curActiveId, tab.id)
+                                  curTabs = r.tabs
+                                  curActiveId = r.activeTabId
+                                }
+                              }
+                              const openResult = openTab(curTabs, { type: 'agent', sessionId: meta.id, title: meta.title })
+                              setAppTabs(openResult.tabs)
+                              setAppActiveTabId(openResult.activeTabId)
+                            } catch (e) { log.error('创建初始会话失败:', e) }
                             window.electronAPI.getCreationLimit?.().then((cr: any) => {
                               if (cr?.success && cr.data) setCreationLimit(cr.data)
                             }).catch(() => {})
