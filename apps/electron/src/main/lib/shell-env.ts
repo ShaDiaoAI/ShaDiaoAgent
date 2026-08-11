@@ -15,7 +15,10 @@
 import { execSync } from 'child_process'
 import { app } from 'electron'
 import type { ShellEnvResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { loadWindowsEnv } from './windows-env'
+
+const log = createLogger('Shell 环境')
 
 /**
  * 获取用户默认 Shell 路径
@@ -218,12 +221,12 @@ export async function loadShellEnv(): Promise<ShellEnvResult> {
   const shell = getUserShell()
 
   try {
-    console.log(`[Shell 环境] 正在从 ${shell} 加载环境变量...`)
+    log.debug(`正在从 ${shell} 加载环境变量...`)
 
     const shellEnv = await getShellEnv(shell)
     const loadedCount = mergeEnvToProcess(shellEnv)
 
-    console.log(`[Shell 环境] 成功加载 ${loadedCount} 个环境变量`)
+    log.info(`成功加载 ${loadedCount} 个环境变量`)
 
     return {
       success: true,
@@ -232,8 +235,8 @@ export async function loadShellEnv(): Promise<ShellEnvResult> {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.warn(`[Shell 环境] 加载失败: ${errorMessage}`)
-    console.warn('[Shell 环境] 应用 fallback 路径...')
+    log.warn(`加载失败: ${errorMessage}`)
+    log.warn('应用 fallback 路径...')
 
     // 失败时应用 fallback 路径
     applyFallbackPaths()

@@ -8,6 +8,9 @@
 import * as React from 'react'
 import { Crop, RotateCw, Pencil, Square, Undo2, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('image-editor')
 
 type Tool = 'crop' | 'rect' | 'draw' | 'none'
 
@@ -73,7 +76,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
       offscreen.width = w
       offscreen.height = h
       const ctx = offscreen.getContext('2d')
-      if (!ctx) { console.error('ImageEditor: failed to get offscreen 2D context'); return }
+      if (!ctx) { log.error('failed to get offscreen 2D context'); return }
       ctx.drawImage(img, 0, 0, w, h)
       offscreenCanvasRef.current = offscreen
 
@@ -82,7 +85,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
       drawLayer.height = h
       drawCanvasRef.current = drawLayer
       const drawCtx = drawLayer.getContext('2d')
-      if (!drawCtx) { console.error('ImageEditor: failed to get draw layer 2D context'); return }
+      if (!drawCtx) { log.error('failed to get draw layer 2D context'); return }
       drawCtxRef.current = drawCtx
 
       setImageLoaded(true)
@@ -130,7 +133,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     display.style.height = `${dh}px`
 
     const dCtx = display.getContext('2d')
-    if (!dCtx) { console.error('ImageEditor: failed to get display 2D context'); return }
+    if (!dCtx) { log.error('failed to get display 2D context'); return }
     // 绘制坐标系统一到 CSS 逻辑像素：dpr 由 transform 吸收，后续绘制与坐标换算无需感知 dpr
     dCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
     dCtx.clearRect(0, 0, dw, dh)
@@ -213,7 +216,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     newOffscreen.width = w
     newOffscreen.height = h
     const ctx = newOffscreen.getContext('2d')
-    if (!ctx) { console.error('ImageEditor: applyCrop failed to get 2D context'); return }
+    if (!ctx) { log.error('applyCrop failed to get 2D context'); return }
     ctx.drawImage(offscreen, x, y, w, h, 0, 0, w, h)
     ctx.drawImage(drawLayer, x, y, w, h, 0, 0, w, h)
     offscreenCanvasRef.current = newOffscreen
@@ -223,7 +226,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     newDraw.height = h
     drawCanvasRef.current = newDraw
     const newDrawCtx = newDraw.getContext('2d')
-    if (!newDrawCtx) { console.error('ImageEditor: applyCrop failed to get new draw layer 2D context'); return }
+    if (!newDrawCtx) { log.error('applyCrop failed to get new draw layer 2D context'); return }
     drawCtxRef.current = newDrawCtx
 
     setCropRect(null)
@@ -269,7 +272,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     final.width = fw
     final.height = fh
     const ctx = final.getContext('2d')
-    if (!ctx) { console.error('ImageEditor: handleExport failed to get 2D context'); return }
+    if (!ctx) { log.error('handleExport failed to get 2D context'); return }
 
     if (r !== 0) {
       ctx.translate(fw / 2, fh / 2)
@@ -296,7 +299,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     offscreen.width = w
     offscreen.height = h
     const ctx = offscreen.getContext('2d')
-    if (!ctx) { console.error('ImageEditor: handleReset failed to get 2D context'); return }
+    if (!ctx) { log.error('handleReset failed to get 2D context'); return }
     ctx.drawImage(img, 0, 0, w, h)
     offscreenCanvasRef.current = offscreen
 
@@ -305,7 +308,7 @@ export function ImageEditor({ src, onSave, onCancel }: ImageEditorProps): React.
     drawLayer.height = h
     drawCanvasRef.current = drawLayer
     const drawCtx = drawLayer.getContext('2d')
-    if (!drawCtx) { console.error('ImageEditor: handleReset failed to get draw layer 2D context'); return }
+    if (!drawCtx) { log.error('handleReset failed to get draw layer 2D context'); return }
     drawCtxRef.current = drawCtx
 
     setRotation(0)

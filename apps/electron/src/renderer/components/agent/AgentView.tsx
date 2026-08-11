@@ -113,7 +113,7 @@ import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import type { AgentRuntime, AgentSendInput, AgentPendingFile, FileDialogLargeFile, ModelOption, SDKMessage, SDKUserMessage, ProviderType } from '@shadiao/shared'
-import { inferAgentSdkContextWindow, inferContextWindow, MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { createLogger, inferAgentSdkContextWindow, inferContextWindow, MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
 import { fileToBase64, formatFileNames, getFileParentPath } from '@/lib/file-utils'
 import { buildQuotedSelectionBlock } from '@/lib/quoted-selection'
 import { createClipboardPendingFile, createClipboardTextDraft, makeUniqueAttachmentName } from '@/lib/clipboard-text-attachment'
@@ -127,6 +127,8 @@ import {
   restoreQueuedMessageToFront,
 } from '@/lib/agent-message-queue'
 import type { AgentQueuedAttachment, AgentQueuedMessage, QueueDropPlacement } from '@/lib/agent-message-queue'
+
+const log = createLogger('AgentView')
 
 /** 稳定的空 SDKMessage 数组引用，避免 ?? [] 每次创建新引用 */
 const EMPTY_SDK_MESSAGES: SDKMessage[] = []
@@ -1000,7 +1002,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         await queueMessageIntoActiveAgent(message, payload.rawText, payload.sdkText, payload.mentions, streaming)
       } catch (error) {
         if (isStaleAgentQueueError(error)) {
-          console.warn('[AgentView] 检测到陈旧的 Agent 追加通道，改为启动新一轮运行:', error)
+          log.warn('检测到陈旧的 Agent 追加通道，改为启动新一轮运行:', error)
           await startQueuedMessageRun(payload.rawText, payload.mentions, agentChannelId, message.additionalDirectories)
           return
         }
@@ -1136,7 +1138,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       })
       .catch((error) => {
         if (cancelled) return
-        console.error(error)
+        log.error(String(error))
         setMessagesLoaded(true)
         messagesRefreshingRef.current = false
         setMessagesRefreshing(false)
@@ -1237,7 +1239,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         }),
       }
       window.electronAPI.sendAgentMessage(input).catch((error) => {
-        console.error('[AgentView] 自动发送配置消息失败:', error)
+        log.error('自动发送配置消息失败:', error)
         setStreamingStates((prev) => {
           const current = prev.get(sessionId)
           if (!current) return prev
@@ -1321,7 +1323,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         const data = await fileToBase64(new File([read.content], f.filename, { type: f.mediaType }))
         draftFilesToSave.push({ sourceFile: f, filename: f.filename, data })
       } catch (error) {
-        console.error('[AgentView] 读取剪贴板草稿失败:', error)
+        log.error('读取剪贴板草稿失败:', error)
         staleDraftFiles.push(f.filename)
       }
     }
@@ -1360,7 +1362,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           allRefs.push({ ...savedFile, sourceFile })
         })
       } catch (error) {
-        console.error('[AgentView] 保存附件到 session 失败:', error)
+        log.error('保存附件到 session 失败:', error)
         toast.error('附件保存失败', {
           description: '请确认当前工作区可用，或新建 Agent 会话后重新上传。',
         })
@@ -1465,7 +1467,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
         setPendingFiles((prev) => [...prev, pending])
       } catch (error) {
-        console.error('[AgentView] 添加附件失败:', error)
+        log.error('添加附件失败:', error)
       }
     }
 
@@ -1500,7 +1502,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         setPendingFiles((prev) => [...prev, pending])
         added.push(uniqueFilename)
       } catch (error) {
-        console.error('[AgentView] 附加大文件失败:', error)
+        log.error('附加大文件失败:', error)
         rejected.push(file.filename)
       }
     }
@@ -1556,7 +1558,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         toast.warning(`以下文件无法读取，已跳过：${formatFileNames(skippedFiles.map((f) => f.filename))}`)
       }
     } catch (error) {
-      console.error('[AgentView] 文件选择对话框失败:', error)
+      log.error('文件选择对话框失败:', error)
     }
   }, [addLargeDialogFilesAsReferences, setPendingFiles])
 
@@ -1579,7 +1581,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
       toast.success(`已附加目录: ${result.name}`)
     } catch (error) {
-      console.error('[AgentView] 附加文件夹失败:', error)
+      log.error('附加文件夹失败:', error)
       toast.error('附加文件夹失败')
     }
   }, [sessionId, setAttachedDirsMap])
@@ -1653,7 +1655,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       window.__pendingAgentFileData?.delete(file.id)
       openClipboardPreviewFile(tmpPath)
     } catch (error) {
-      console.error('[AgentView] clipboard 预览写入失败:', error)
+      log.error('clipboard 预览写入失败:', error)
     }
   }, [openClipboardPreviewFile, setPendingFiles])
 
@@ -1687,7 +1689,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         })
       })
       .catch((error) => {
-        console.error('[AgentView] 超长文本转附件失败:', error)
+        log.error('超长文本转附件失败:', error)
         toast.error('超长文本转附件失败')
       })
   }, [addClipboardTextDraft])
@@ -1746,7 +1748,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
             const dirName = dirPath.split('/').pop() || dirPath
             toast.success(`已附加目录: ${dirName}`)
           } catch (error) {
-            console.error('[AgentView] 拖拽附加文件夹失败:', error)
+            log.error('拖拽附加文件夹失败:', error)
           }
         }
 
@@ -1761,7 +1763,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
           addFilesAsAttachments(regularFiles, fileSourcePaths)
         }
       } catch (error) {
-        console.error('[AgentView] 路径检测失败，回退处理:', error)
+        log.error('路径检测失败，回退处理:', error)
         addFilesAsAttachments(droppedFiles)
       }
     } else {
@@ -1855,10 +1857,10 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       const updated = await window.electronAPI.updateSessionAgentRuntime(sessionId, runtime)
       setAgentSessions((prev) => prev.map((item) => item.id === sessionId ? updated : item))
       window.electronAPI.updateSettings({ agentRuntime: runtime }).catch((error) => {
-        console.error('[AgentView] 保存 Agent Runtime 默认值失败:', error)
+        log.error('保存 Agent Runtime 默认值失败:', error)
       })
     } catch (error) {
-      console.error('[AgentView] 切换 Agent Runtime 失败:', error)
+      log.error('切换 Agent Runtime 失败:', error)
       setAgentRuntime(previousDefaultRuntime)
       if (previousSessionMeta) {
         setAgentSessions((prev) => prev.map((item) => item.id === sessionId ? previousSessionMeta : item))
@@ -1963,7 +1965,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         return map
       })
       sendPlainTextAgentMessage(message).catch((error) => {
-        console.error('[AgentView] 追加消息失败:', error)
+        log.error('追加消息失败:', error)
         toast.error('追加消息失败', { description: String(error) })
         // 回滚：恢复输入框内容和建议，避免用户输入丢失
         setInputContent(effectiveText)
@@ -2091,7 +2093,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     }
 
     window.electronAPI.sendAgentMessage(input).catch((error) => {
-      console.error('[AgentView] 发送消息失败:', error)
+      log.error('发送消息失败:', error)
       setStreamingStates((prev) => {
         const current = prev.get(sessionId)
         if (!current) return prev
@@ -2174,7 +2176,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       startedAt: streamStartedAt,
       permissionModeOverride: permissionMode,
     }).catch((error) => {
-      console.error('[AgentView] /compact 发送失败:', error)
+      log.error('/compact 发送失败:', error)
       // 回滚：移除合成用户消息 + 清除 isCompacting flag
       store.set(liveMessagesMapAtom, (prev) => {
         const map = new Map(prev)
@@ -2203,7 +2205,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
       setErrorCopied(true)
       setTimeout(() => setErrorCopied(false), 2000)
     } catch (error) {
-      console.error('[AgentView] 复制错误信息失败:', error)
+      log.error('复制错误信息失败:', error)
     }
   }, [agentError])
 
@@ -2297,7 +2299,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         permissionModeOverride: permissionMode,
       }).catch(console.error)
     } catch (error) {
-      console.error('[AgentView] 在新会话中重试失败:', error)
+      log.error('在新会话中重试失败:', error)
     }
   }, [sessionId, agentChannelId, agentModelId, sessionAgentRuntime, currentWorkspaceId, openSession, setAgentSessions, setStreamingStates, permissionMode])
 
@@ -2326,7 +2328,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         description: meta.title,
       })
     } catch (error) {
-      console.error('[AgentView] 分叉会话失败:', error)
+      log.error('分叉会话失败:', error)
       const rawMsg = error instanceof Error ? error.message : '未知错误'
       // SDK 偶尔会因为 sidechain/消息归属问题抛 "not found in session"，
       // 这里给出更可操作的中文提示，而不是把 SDK 内部英文报错直接透传给用户
@@ -2382,7 +2384,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         toast.success('已回退到此处')
       }
     } catch (error) {
-      console.error('[AgentView] 回退失败:', error)
+      log.error('回退失败:', error)
       toast.error('回退失败', {
         description: error instanceof Error ? error.message : '未知错误',
       })
@@ -2432,7 +2434,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     setQueuedMessages((prev) => removeQueuedMessage(prev, messageId))
     sendPlainTextAgentMessage(message)
       .catch((error) => {
-        console.error('[AgentView] 队列消息发送失败:', error)
+        log.error('队列消息发送失败:', error)
         toast.error('队列消息发送失败', { description: String(error) })
         setQueuedMessages((prev) => restoreQueuedMessageToFront(prev, message))
       })
@@ -2504,7 +2506,7 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     setQueuedMessages((prev) => removeQueuedMessage(prev, message.id))
     sendPlainTextAgentMessage(message)
       .catch((error) => {
-        console.error('[AgentView] 自动发送队列消息失败:', error)
+        log.error('自动发送队列消息失败:', error)
         toast.error('自动发送队列消息失败', { description: String(error) })
         setQueuedMessages((prev) => restoreQueuedMessageToFront(prev, message))
       })

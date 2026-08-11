@@ -13,6 +13,9 @@ import {
   backgroundTasksAtomFamily,
   type BackgroundTask,
 } from '@/atoms/agent-atoms'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('useBackgroundTasks')
 
 export interface UseBackgroundTasksResult {
   /** 当前会话的后台任务列表 */
@@ -104,7 +107,7 @@ export function useBackgroundTasks(sessionId: string): UseBackgroundTasksResult 
           removeTask(task.toolUseId)
         }
       } catch (error) {
-        console.error('[useBackgroundTasks] 停止任务失败:', error)
+        log.error('停止任务失败:', error)
         throw error
       }
     },

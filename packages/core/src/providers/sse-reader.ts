@@ -11,6 +11,9 @@
  */
 
 import type { ProviderAdapter, ProviderRequest, StreamEventCallback, ThinkingBlock, ToolCall } from './types.ts'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('sse-reader')
 
 // ===== 流式请求 =====
 
@@ -170,7 +173,7 @@ export async function streamSSE(options: StreamSSEOptions): Promise<StreamSSERes
       elapsedRetryDelayMs += delay
 
       const msg = error instanceof Error ? error.message : String(error)
-      console.warn(`[streamSSE] 首字节前出错，${delay}ms 后第 ${attempt} 次重试: ${msg}`)
+      log.warn(`首字节前出错，${delay}ms 后第 ${attempt} 次重试: ${msg}`)
       await sleepWithAbort(delay, signal)
     }
   }
@@ -351,7 +354,7 @@ export async function fetchTitle(
   fetchFn: typeof globalThis.fetch = fetch,
 ): Promise<string | null> {
   try {
-    console.log('[fetchTitle] 发送请求:', {
+    log.debug('fetchTitle 发送请求:', {
       url: request.url,
       provider: adapter.providerType,
       bodyPreview: request.body.slice(0, 200),
@@ -363,7 +366,7 @@ export async function fetchTitle(
       body: request.body,
     })
 
-    console.log('[fetchTitle] 收到响应:', {
+    log.debug('fetchTitle 收到响应:', {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok,
@@ -371,7 +374,7 @@ export async function fetchTitle(
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'unknown')
-      console.warn('[fetchTitle] 请求失败:', {
+      log.warn('fetchTitle 请求失败:', {
         status: response.status,
         error: errorText.slice(0, 500),
       })
@@ -379,7 +382,7 @@ export async function fetchTitle(
     }
 
     const responseText = await response.text()
-    console.log('[fetchTitle] 响应体前 300 字符:', responseText.slice(0, 300))
+    log.debug('fetchTitle 响应体前 300 字符:', responseText.slice(0, 300))
 
     // 处理 SSE 流格式（Django 代理始终返回 SSE）
     let data: unknown
@@ -397,20 +400,20 @@ export async function fetchTitle(
     }
 
     if (!data) {
-      console.warn('[fetchTitle] 无法解析响应:', responseText.slice(0, 200))
+      log.warn('fetchTitle 无法解析响应:', responseText.slice(0, 200))
       return null
     }
 
-    console.log('[fetchTitle] 解析响应体:', {
+    log.debug('fetchTitle 解析响应体:', {
       provider: adapter.providerType,
       dataPreview: JSON.stringify(data).slice(0, 500),
     })
 
     const title = adapter.parseTitleResponse(data)
-    console.log('[fetchTitle] 解析标题结果:', { title })
+    log.debug('fetchTitle 解析标题结果:', { title })
     return title
   } catch (error) {
-    console.error('[fetchTitle] 异常:', error)
+    log.error('fetchTitle 异常:', error)
     return null
   }
 }

@@ -31,6 +31,9 @@ import { automationFormAtom } from '@/atoms/automation-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
 import { interfaceVariantAtom } from '@/atoms/theme'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('MainArea')
 
 export function MainArea(): React.ReactElement {
   // 记录每个会话上次停留的视图（对话 / 预览），供切回时重建预览 Tab
@@ -168,7 +171,7 @@ export function MainArea(): React.ReactElement {
 
   React.useEffect(() => {
     if (tabs.length === 0) {
-      console.warn('[FLASH-DEBUG] MainArea: tabs.length === 0, showing WelcomeView!', new Error().stack)
+      log.debug('tabs.length === 0, showing WelcomeView!', new Error().stack)
     }
   }, [tabs.length])
 

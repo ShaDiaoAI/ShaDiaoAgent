@@ -8,6 +8,9 @@
 import * as React from 'react'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { useDefaultAppForFile } from '@/hooks/useDefaultAppForFile'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('DefaultAppMenuItem')
 
 interface DefaultAppMenuItemProps {
   filePath: string
@@ -27,7 +30,7 @@ export function DefaultAppMenuItem({
       className={className}
       onSelect={() => {
         window.electronAPI.systemOpenFile(filePath).catch((err) => {
-          console.error('[DefaultAppMenuItem] 打开文件失败:', err)
+          log.error('打开文件失败:', err)
         })
       }}
     >

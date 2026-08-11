@@ -25,6 +25,9 @@ import { Wrench, Brain, Globe, Settings, ImagePlus } from 'lucide-react'
 import { chatToolsAtom, hasActiveToolsAtom } from '@/atoms/chat-tool-atoms'
 import { settingsTabAtom, settingsOpenAtom } from '@/atoms/settings-tab'
 import { inputToolbarActiveButtonClass, inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ToolSelectorPopover')
 
 /** 工具 ID 到图标的映射 */
 function getToolIcon(iconName?: string): React.ReactElement {
@@ -55,7 +58,7 @@ export function ToolSelectorPopover(): React.ReactElement {
       const updated = await window.electronAPI.getChatTools()
       setChatTools(updated)
     } catch (err) {
-      console.error('[ToolSelectorPopover] 切换工具失败:', err)
+      log.error('切换工具失败:', err)
     }
   }
 

@@ -6,6 +6,9 @@
  */
 
 import { rmSync, renameSync, cpSync, existsSync, type RmOptions } from 'node:fs'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('fs-retry')
 
 /**
  * Windows 上 fs.watch 递归监听持有的句柄释放是毫秒级延迟，
@@ -112,7 +115,7 @@ export function renameWithRetry(srcPath: string, destPath: string): void {
       try {
         rmSyncWithRetry(destPath, { recursive: true, force: true })
       } catch (rollbackErr) {
-        console.warn(`[fs-retry] 回滚目标目录失败:`, rollbackErr)
+        log.warn('回滚目标目录失败:', rollbackErr)
       }
       throw moveErr
     }

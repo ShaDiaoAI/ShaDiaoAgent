@@ -23,12 +23,14 @@ import {
   Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { SCREENSHOT_LIMITS } from '@shadiao/shared'
+import { SCREENSHOT_LIMITS, createLogger } from '@shadiao/shared'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+
+const log = createLogger('MarkdownEditorToolbar')
 
 interface MarkdownEditorToolbarProps {
   editor: Editor
@@ -321,7 +323,7 @@ export function MarkdownEditorToolbar({ editor }: MarkdownEditorToolbarProps): R
         toast.warning(result.message)
       }
     } catch (err) {
-      console.error('[截图] 失败:', err)
+      log.error('失败:', err)
       toast.error(err instanceof Error ? err.message : '截图失败')
     } finally {
       screenshottingRef.current = false

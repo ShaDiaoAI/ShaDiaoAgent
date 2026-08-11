@@ -21,6 +21,9 @@ import {
 } from './config-paths'
 import { listAgentSessions } from './agent-session-manager'
 import { listAgentWorkspaces } from './agent-workspace-manager'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('storage-service')
 
 // ─── 类型定义 ───
 
@@ -525,7 +528,7 @@ export async function cleanupTempFiles(): Promise<CleanupResult> {
   }
 
   if (freedBytes > 0) {
-    console.log(`[存储清理] 临时文件: 释放 ${(freedBytes / 1024 / 1024).toFixed(1)} MB, 删除 ${deletedCount} 个文件`)
+    log.info(`临时文件: 释放 ${(freedBytes / 1024 / 1024).toFixed(1)} MB, 删除 ${deletedCount} 个文件`)
   }
   return { freedBytes, deletedCount, errors }
 }
@@ -674,7 +677,7 @@ function cleanupArchivedSessions(beforeDays: number): CleanupResult {
   }
 
   if (freedBytes > 0) {
-    console.log(`[存储清理] 归档数据: 释放 ${(freedBytes / 1024 / 1024).toFixed(1)} MB, 删除 ${deletedCount} 项`)
+    log.info(`归档数据: 释放 ${(freedBytes / 1024 / 1024).toFixed(1)} MB, 删除 ${deletedCount} 项`)
   }
   return { freedBytes, deletedCount, errors }
 }
@@ -709,7 +712,7 @@ export async function cleanupStorage(options: CleanupOptions): Promise<CleanupRe
   }
 
   if (totalFreed > 0) {
-    console.log(`[存储清理] 总计释放 ${(totalFreed / 1024 / 1024).toFixed(1)} MB, 删除 ${totalDeleted} 项`)
+    log.info(`总计释放 ${(totalFreed / 1024 / 1024).toFixed(1)} MB, 删除 ${totalDeleted} 项`)
   }
   return { freedBytes: totalFreed, deletedCount: totalDeleted, errors: allErrors }
 }

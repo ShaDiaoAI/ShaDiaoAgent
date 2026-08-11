@@ -54,7 +54,7 @@ export function GachaResultModal({ results, isOpen, onClose }: GachaResultModalP
       <div
         className={cn(
           'relative mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border bg-card shadow-2xl',
-          isMulti ? 'w-[640px]' : 'w-[340px]',
+          isMulti ? 'w-[640px] translate-x-[80px]' : 'w-[340px]',
         )}
         onClick={e => e.stopPropagation()}
       >

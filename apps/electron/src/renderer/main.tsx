@@ -9,6 +9,13 @@
 // 但每个 @font-face 都带 unicode-range，浏览器仅按需下载实际用到的子集（本应用主要是 latin）。
 import '@fontsource-variable/inter/index.css'
 
+// ---- 日志系统初始化（最早，在任何 React 组件之前） ----
+import { setGlobalLogLevel, LogLevel, createLogger } from '@shadiao/shared'
+
+setGlobalLogLevel(import.meta.env.PROD ? LogLevel.WARN : LogLevel.DEBUG)
+
+const log = createLogger('main')
+
 import React, { useEffect, useMemo, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
 import { useSetAtom, useAtomValue, useStore } from 'jotai'
@@ -194,7 +201,7 @@ function AgentSettingsInitializer(): null {
       // 验证 Chat 模式的全局默认模型（localStorage 持久化的可能指向已删除渠道）
       const chatModel = store.get(selectedModelAtom)
       if (chatModel && !channelIds.has(chatModel.channelId)) {
-        console.warn('[AgentSettings] Chat selectedModel 指向已删除的渠道，清除')
+        log.warn('Chat selectedModel 指向已删除的渠道，清除')
         store.set(selectedModelAtom, null)
       }
 
@@ -203,7 +210,7 @@ function AgentSettingsInitializer(): null {
         setAgentChannelId(settings.agentChannelId)
       } else if (settings.agentChannelId && !channelIds.has(settings.agentChannelId)) {
         // 渠道已删除，清除无效设置
-        console.warn('[AgentSettings] agentChannelId 指向已删除的渠道，清除')
+        log.warn('agentChannelId 指向已删除的渠道，清除')
         window.electronAPI.updateSettings({ agentChannelId: undefined, agentModelId: undefined }).catch(console.error)
       }
 
@@ -221,7 +228,7 @@ function AgentSettingsInitializer(): null {
             agentModelId: autoModelId,
             agentChannelIds: [autoChannel.id],
           }).catch(console.error)
-          console.log('[AgentSettings] 自动选择默认渠道:', autoChannel.name, '模型:', autoModelId)
+          log.info('自动选择默认渠道:', autoChannel.name, '模型:', autoModelId)
         }
       }
       if (settings.agentModelId && (!settings.agentChannelId || channelIds.has(settings.agentChannelId))) {
@@ -237,7 +244,7 @@ function AgentSettingsInitializer(): null {
         setAgentChannelIds(validIds)
         // 如果有渠道被清理，持久化更新后的列表
         if (validIds.length !== settings.agentChannelIds.length) {
-          console.warn('[AgentSettings] 清理了已删除的 agentChannelIds')
+          log.warn('清理了已删除的 agentChannelIds')
           window.electronAPI.updateSettings({ agentChannelIds: validIds }).catch(console.error)
         }
       } else if (settings.agentChannelId && channelIds.has(settings.agentChannelId)) {
@@ -285,11 +292,11 @@ function AgentSettingsInitializer(): null {
         }
         setAgentSettingsReady(true)
       }).catch((err) => {
-        console.error(err)
+        log.error(String(err))
         setAgentSettingsReady(true) // 即使出错也标记就绪，避免永远阻塞
       })
     }).catch((err) => {
-      console.error(err)
+      log.error(String(err))
       setAgentSettingsReady(true) // 即使出错也标记就绪，避免永远阻塞
     })
   }, [setAgentChannelId, setAgentModelId, setAgentChannelIds, setAgentRuntime, setAgentWorkspaces, setCurrentWorkspaceId, setThinking, setEffort, setMaxBudget, setMaxTurns, setAutomationGroupOrder, setChannels, setChannelsLoaded, setAgentSettingsReady])
@@ -416,7 +423,7 @@ function DockBadgeInitializer(): null {
 
   useEffect(() => {
     window.electronAPI.setDockBadgeCount(badgeCount).catch((error) => {
-      console.error('[Dock 角标] 同步失败:', error)
+      log.error('同步失败:', error)
     })
   }, [badgeCount])
 
@@ -513,7 +520,7 @@ function ChatToolInitializer(): null {
   useEffect(() => {
     window.electronAPI.getChatTools()
       .then(setChatTools)
-      .catch((err: unknown) => console.error('[ChatToolInitializer] 加载工具列表失败:', err))
+      .catch((err: unknown) => log.error('加载工具列表失败:', err))
   }, [setChatTools])
 
   // 订阅自定义工具配置变更
@@ -524,7 +531,7 @@ function ChatToolInitializer(): null {
           setChatTools(tools)
           toast.success('Chat 工具已更新')
         })
-        .catch((err: unknown) => console.error('[ChatToolInitializer] 刷新工具列表失败:', err))
+        .catch((err: unknown) => log.error('刷新工具列表失败:', err))
     })
     return cleanup
   }, [setChatTools])
@@ -631,8 +638,8 @@ function TabStatePersistenceInitializer(): null {
         }
       }
 
-      console.log(`[TabRestore] 已恢复当前会话入口，历史标签 ${validTabs.length} 个已收敛到左侧列表`)
-    }).catch((err) => console.error('[TabRestore] 恢复标签页失败:', err))
+      log.info(`已恢复当前会话入口，历史标签 ${validTabs.length} 个已收敛到左侧列表`)
+    }).catch((err) => log.error('恢复标签页失败:', err))
       .finally(() => { restoredRef.current = true })
   }, [store])
 
@@ -668,7 +675,7 @@ function TabStatePersistenceInitializer(): null {
       if (tabs.length > 0 && window.electronAPI.updateSettingsSync) {
         const ok = window.electronAPI.updateSettingsSync({ tabState: persistableTabState })
         if (!ok) {
-          console.warn('[TabPersist] sync IPC failed, falling back to async save')
+          log.warn('sync IPC failed, falling back to async save')
           save()
         }
       } else {

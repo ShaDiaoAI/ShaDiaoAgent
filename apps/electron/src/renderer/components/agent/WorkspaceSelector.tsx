@@ -25,6 +25,9 @@ import { useProjectActions } from '@/hooks/useProjectActions'
 import { agentSessionsAtom, agentWorkspacesAtom } from '@/atoms/agent-atoms'
 import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import type { AgentWorkspace } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('WorkspaceSelector')
 
 export function WorkspaceSelector(): React.ReactElement {
   const { workspaces: allWorkspaces, currentWorkspaceId, selectProject, createProject } = useProjectActions()
@@ -202,7 +205,7 @@ export function WorkspaceSelector(): React.ReactElement {
         selectProject((defaultWorkspace ?? remaining[0]!).id)
       }
     } catch (error) {
-      console.error('[WorkspaceSelector] 删除项目失败:', error)
+      log.error('删除项目失败:', error)
     } finally {
       setDeleteTargetId(null)
     }

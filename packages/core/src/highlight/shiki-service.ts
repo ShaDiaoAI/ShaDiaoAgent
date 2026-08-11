@@ -10,6 +10,10 @@
  * - highlightToTokens()  同步 token 结构，适合逐行 React 渲染（流式最优）
  */
 
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('shiki-service')
+
 import { createHighlighter, bundledLanguages } from 'shiki'
 import type { HighlighterGeneric, BundledLanguage, BundledTheme } from 'shiki'
 
@@ -162,7 +166,7 @@ function getHighlighter(): Promise<ShikiHighlighter> {
         try {
           listener()
         } catch (error) {
-          console.error('[shiki-service] ready listener 抛错:', error)
+          log.error('ready listener 抛错:', error)
         }
       }
       return hl
@@ -205,7 +209,7 @@ async function resolveAndLoadLanguage(highlighter: ShikiHighlighter, lang: strin
     await highlighter.loadLanguage(resolved as BundledLanguage)
     return resolved
   } catch {
-    console.warn(`[shiki-service] 加载语言 "${resolved}" 失败，回退到 text`)
+    log.warn(`加载语言 "${resolved}" 失败，回退到 text`)
     return 'text'
   }
 }

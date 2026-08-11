@@ -8,6 +8,9 @@ import { clipboard, systemPreferences } from 'electron'
 import type { NativeImage } from 'electron'
 import { execFile } from 'child_process'
 import { setTimeout as sleep } from 'timers/promises'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('text-insertion-service')
 
 const CLIPBOARD_READY_DELAY_MS = 80
 const CLIPBOARD_RESTORE_DELAY_MS = 10_000
@@ -57,7 +60,7 @@ export async function pasteTextAtCurrentCursor(text: string): Promise<TextInsert
     }
   } catch (error) {
     const message = getErrorMessage(error)
-    console.warn('[语音输入] 自动粘贴失败，已保留文本到剪贴板:', message)
+    log.warn('自动粘贴失败，已保留文本到剪贴板:', message)
     return {
       success: false,
       mode: 'clipboard',
@@ -99,7 +102,7 @@ function scheduleClipboardRestore(snapshot: ClipboardSnapshot, insertedText: str
       if (clipboard.readText() !== insertedText) return
       restoreClipboardSnapshot(snapshot)
     } catch (error) {
-      console.warn('[语音输入] 恢复剪贴板失败:', getErrorMessage(error))
+      log.warn('恢复剪贴板失败:', getErrorMessage(error))
     }
   }, CLIPBOARD_RESTORE_DELAY_MS)
   timer.unref?.()

@@ -21,6 +21,9 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import type { AgentWorkspace, AgentSessionMeta } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('MoveSessionDialog')
 
 interface MoveSessionDialogProps {
   open: boolean
@@ -69,7 +72,7 @@ export function MoveSessionDialog({
       await onMoved(updated, targetWs?.name ?? '未知工作区')
       onOpenChange(false)
     } catch (error) {
-      console.error('[迁移会话] 迁移失败:', error)
+      log.error('迁移失败:', error)
       const message = error instanceof Error ? error.message : '未知错误'
       toast.error('迁移失败', { description: message })
       setMoving(false)

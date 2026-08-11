@@ -39,6 +39,9 @@ import type {
   MessageSearchResult,
   AgentMessageSearchResult,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('搜索')
 
 /** 标题搜索结果项 */
 interface TitleResult {
@@ -343,7 +346,7 @@ export function SearchDialog(): React.ReactElement {
 
       setContentResults([...chatContent, ...agentContent])
     } catch (error) {
-      console.error('[搜索] 内容搜索失败:', error)
+      log.error('内容搜索失败:', error)
       if (token === searchTokenRef.current) setContentResults([])
     } finally {
       if (token === searchTokenRef.current) setLoading(false)

@@ -21,6 +21,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { allPendingExitPlanRequestsAtom, agentStreamingStatesAtom, finalizeStreamingActivities } from '@/atoms/agent-atoms'
 import type { ExitPlanModeAction, ExitPlanAllowedPrompt } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ExitPlanModeBanner')
 
 /** 选项定义 */
 interface PlanOption {
@@ -103,7 +106,7 @@ export function ExitPlanModeBanner({ sessionId }: ExitPlanModeBannerProps): Reac
         return map
       })
     } catch (error) {
-      console.error('[ExitPlanModeBanner] 响应失败:', error)
+      log.error('响应失败:', error)
     } finally {
       setSubmitting(false)
     }

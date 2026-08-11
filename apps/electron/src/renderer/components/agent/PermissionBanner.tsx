@@ -14,6 +14,9 @@ import { Shield, ShieldAlert, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { allPendingPermissionRequestsAtom, agentStreamingStatesAtom, finalizeStreamingActivities } from '@/atoms/agent-atoms'
 import type { DangerLevel } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('PermissionBanner')
 
 /** 危险等级对应的图标颜色 */
 const DANGER_ICON_STYLES: Record<DangerLevel, string> = {
@@ -111,7 +114,7 @@ export function PermissionBanner({ sessionId }: PermissionBannerProps): React.Re
         return map
       })
     } catch (error) {
-      console.error('[PermissionBanner] 响应失败:', error)
+      log.error('响应失败:', error)
     } finally {
       setResponding(false)
     }

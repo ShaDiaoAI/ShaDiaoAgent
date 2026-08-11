@@ -9,6 +9,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { getSettingsPath } from './config-paths'
 import { DEFAULT_AGENT_RUNTIME, DEFAULT_INTERFACE_VARIANT, DEFAULT_THEME_MODE } from '../../types'
 import type { AppSettings } from '../../types'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('设置')
 
 /**
  * 获取应用设置
@@ -58,7 +61,7 @@ export function getSettings(): AppSettings {
       lastSelectedCharacterId: data.lastSelectedCharacterId ?? null,
     }
   } catch (error) {
-    console.error('[设置] 读取失败:', error)
+    log.error('读取失败:', error)
     return {
       themeMode: DEFAULT_THEME_MODE,
       interfaceVariant: DEFAULT_INTERFACE_VARIANT,
@@ -96,9 +99,9 @@ export function updateSettings(updates: Partial<AppSettings>): AppSettings {
 
   try {
     writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8')
-    console.log('[设置] 已更新 keys:', Object.keys(updates).join(', '))
+    log.info('已更新 keys:', Object.keys(updates).join(', '))
   } catch (error) {
-    console.error('[设置] 写入失败:', error)
+    log.error('写入失败:', error)
     throw new Error('写入应用设置失败')
   }
 

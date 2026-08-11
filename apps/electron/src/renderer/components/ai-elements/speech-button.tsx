@@ -14,6 +14,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('speech-button')
 
 interface SpeechButtonProps {
   /** @deprecated 语音结果统一由全局语音输入回填到当前输入框 */
@@ -38,7 +41,7 @@ export function SpeechButton({
 
         await window.electronAPI.toggleVoiceDictation()
       } catch (error) {
-        console.error('[语音输入] 唤起浮窗失败:', error)
+        log.error('唤起浮窗失败:', error)
         toast.error('唤起语音输入失败')
       }
     })()

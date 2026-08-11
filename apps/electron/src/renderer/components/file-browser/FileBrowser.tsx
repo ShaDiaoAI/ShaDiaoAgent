@@ -53,6 +53,9 @@ import {
   STICKY_ROW_BASE_CLASS,
   canBeSticky,
 } from './tree-row-layout'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('FileBrowser')
 
 /** 计算目标路径相对 rootPath 的祖先目录集合（不含 rootPath 自身、含目标的所有上级） */
 export function computeRevealAncestors(rootPath: string, targetPath: string): Set<string> {
@@ -264,7 +267,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       setSelectedPaths(new Set())
       await loadRoot()
     } catch (err) {
-      console.error('[FileBrowser] 删除失败:', err)
+      log.error('删除失败:', err)
     }
     setDeleteTarget(null)
   }, [deleteTarget, selectedPaths, loadRoot])
@@ -286,7 +289,7 @@ export function FileBrowser({ rootPath, hideToolbar, embedded, hideEmpty, onAddT
       setSelectedPaths(new Set())
       await loadRoot()
     } catch (err) {
-      console.error('[FileBrowser] 移动失败:', err)
+      log.error('移动失败:', err)
     } finally {
       setMoving(false)
     }
@@ -476,7 +479,7 @@ function FileTreeItem({
     if (expanded && childrenLoaded && entry.isDirectory) {
       window.electronAPI.listDirectory(entry.path)
         .then((items) => setChildren(items))
-        .catch((err) => console.error('[FileTreeItem] 刷新子目录失败:', err))
+        .catch((err) => log.error('刷新子目录失败:', err))
     }
   }, [refreshVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -507,7 +510,7 @@ function FileTreeItem({
               setChildrenLoaded(true)
             }
           } catch (err) {
-            console.error('[FileTreeItem] reveal 加载子目录失败:', err)
+            log.error('reveal 加载子目录失败:', err)
             return
           }
         }
@@ -569,7 +572,7 @@ function FileTreeItem({
           }, 800)
         }
       } catch (err) {
-        console.error('[FileTreeItem] 加载子目录失败:', err)
+        log.error('加载子目录失败:', err)
       }
     }
 

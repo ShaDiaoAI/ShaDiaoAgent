@@ -35,6 +35,7 @@ import {
   isAgentCompatibleProvider,
   parseZhipuTeamCredentials,
   parseCodexCredentials,
+  createLogger,
 } from '@shadiao/shared'
 import type {
   Channel,
@@ -64,6 +65,8 @@ import {
   SettingsSelect,
   SettingsToggle,
 } from './primitives'
+
+const log = createLogger('ChannelForm')
 
 interface ChannelFormProps {
   /** 编辑模式下传入已有渠道，创建模式传 null */
@@ -231,7 +234,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         }
         setApiKeyLoaded(true)
       }).catch((error) => {
-        console.error('[模型配置表单] 解密 API Key 失败:', error)
+        log.error('解密 API Key 失败:', error)
         setApiKeyLoaded(true)
       })
     }
@@ -287,7 +290,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
       }
       toast.success('已保存', { id: 'auto-save-success' })
     } catch (error) {
-      console.error('[模型配置表单] auto-save 失败:', error)
+      log.error('auto-save 失败:', error)
       toast.error('自动保存失败，请检查后手动重试', { id: 'auto-save-error' })
     }
   }, [isEdit, channel, onAgentEligibilityChange])
@@ -456,7 +459,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
           setModels(codexModels)
         }
       } catch (modelErr) {
-        console.error('[模型配置表单] 拉取 ChatGPT 模型失败:', modelErr)
+        log.error('拉取 ChatGPT 模型失败:', modelErr)
       }
 
       // OAuth 流程中用户很容易在浏览器授权后直接关闭表单，来不及点「创建」而丢失凭据。
@@ -481,7 +484,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
         onSaved(saved)
       }
     } catch (error) {
-      console.error('[模型配置表单] ChatGPT 登录失败:', error)
+      log.error('ChatGPT 登录失败:', error)
       toast.error('ChatGPT 登录失败，请重试')
     } finally {
       setCodexLoggingIn(false)
@@ -577,7 +580,7 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
       toast.success('渠道创建成功')
       return savedChannel
     } catch (error) {
-      console.error('[模型配置表单] 创建失败:', error)
+      log.error('创建失败:', error)
       toast.error('渠道创建失败，请检查配置后重试')
       return null
     } finally {

@@ -360,7 +360,7 @@ export function buildUsageTooltip(durationMs: number, usage?: AgentEventUsage): 
   return lines.join('\n')
 }
 
-/** 耗时徽章 — 悬浮显示 token 用量明细 */
+/** 耗时徽章 — 悬浮显示词元用量明细 */
 export function DurationBadge({ durationMs, usage }: { durationMs: number; usage?: AgentEventUsage }): React.ReactElement {
   return (
     <Tooltip>

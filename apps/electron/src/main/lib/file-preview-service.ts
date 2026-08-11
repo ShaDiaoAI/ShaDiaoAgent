@@ -13,6 +13,9 @@ import { createHash } from 'node:crypto'
 import AdmZip from 'adm-zip'
 import { DOMParser } from '@xmldom/xmldom'
 import type { OfficePreviewResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('file-preview-service')
 
 const require = createRequire(__filename)
 const PDFJS_PACKAGE = 'pdfjs-dist'
@@ -571,7 +574,7 @@ export async function preparePdfPreview(filePath: string, basePaths?: string[]):
     const pdfPackageDir = dirname(require.resolve(`${PDFJS_PACKAGE}/package.json`))
     standardFontDataUrl = `${registerPromaDirectoryPath(join(pdfPackageDir, 'standard_fonts'))}/`
   } catch (err) {
-    console.error('[file-preview] preparePdfPreview asset resolution failed:', err)
+    log.error('preparePdfPreview asset resolution failed:', err)
     return null
   }
 
@@ -660,7 +663,7 @@ export async function convertDocxToHtml(filePath: string, basePaths?: string[]):
     const result = await mammoth.convertToHtml({ path: safePath })
     return { resolvedPath: safePath, html: result.value }
   } catch (err) {
-    console.error('[file-preview] convertDocxToHtml failed:', err)
+    log.error('convertDocxToHtml failed:', err)
     return null
   }
 }
@@ -691,7 +694,7 @@ export async function convertOfficeToHtml(filePath: string, basePaths?: string[]
     if (ext === '.pptx') return convertPptxToHtml(filePath, safePath)
     return null
   } catch (err) {
-    console.error('[file-preview] convertOfficeToHtml structured preview failed:', err)
+    log.error('convertOfficeToHtml structured preview failed:', err)
     try {
       const officeParser = await import('officeparser')
       const text = await officeParser.parseOfficeAsync(safePath)
@@ -704,7 +707,7 @@ export async function convertOfficeToHtml(filePath: string, basePaths?: string[]
         text,
       }
     } catch (fallbackErr) {
-      console.error('[file-preview] convertOfficeToHtml text fallback failed:', fallbackErr)
+      log.error('convertOfficeToHtml text fallback failed:', fallbackErr)
       return null
     }
   }

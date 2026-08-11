@@ -20,6 +20,9 @@ import type { FileIndexEntry } from '@shadiao/shared'
 import { FileTypeIcon } from './FileTypeIcon'
 import { ChevronRight, Folder } from 'lucide-react'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('FileMentionList')
 
 // ===== Error Boundary =====
 
@@ -36,7 +39,7 @@ class MentionErrorBoundary extends React.Component<
   }
   override render() {
     if (this.state.error) {
-      console.error('[FileMentionList] render error:', this.state.error)
+      log.error('render error:', this.state.error)
       return (
         <div className="rounded-lg border bg-popover p-2 shadow-lg text-[11px] text-muted-foreground">
           无匹配文件

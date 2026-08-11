@@ -25,8 +25,10 @@ import {
 import { findAllGitRoots, normalizeGitRoot } from './git-diff-service'
 import { listBuiltinMcpServers } from './builtin-mcp/catalog'
 import { RESERVED_BUILTIN_KEYS } from './builtin-mcp/baseline'
-import { inferMcpTransportType, normalizeMcpTransportType } from '@shadiao/shared'
+import { createLogger, inferMcpTransportType, normalizeMcpTransportType } from '@shadiao/shared'
 import type { AgentWorkspace, WorkspaceMcpConfig, SkillMeta, SkillImportSource, OtherWorkspaceSkillsGroup, WorkspaceCapabilities, SkillFileNode, SkillFileContent, WorkspaceMemorySummary } from '@shadiao/shared'
+
+const log = createLogger('Agent 工作区')
 
 interface AgentWorkspacesIndex {
   version: number
@@ -85,7 +87,7 @@ function migrateIndex(index: AgentWorkspacesIndex): void {
 
   index.version = INDEX_VERSION
   writeIndex(index)
-  console.log(`[Agent 工作区] 索引已迁移: v${oldVersion} → v${INDEX_VERSION}`)
+  log.info(`索引已迁移: v${oldVersion} → v${INDEX_VERSION}`)
 }
 
 /** v1→v2 迁移：将 skills-inactive/skill-creator 移到 skills/ */
@@ -104,9 +106,9 @@ function activateSkillCreatorInAllWorkspaces(index: AgentWorkspacesIndex): void 
         mkdirSync(activeDir, { recursive: true })
       }
       renameWithRetry(inactivePath, activePath)
-      console.log(`[Agent 工作区] 已为 ${workspace.slug} 启用 skill-creator`)
+      log.info(`已为 ${workspace.slug} 启用 skill-creator`)
     } catch (err) {
-      console.warn(`[Agent 工作区] 启用 skill-creator 失败 (${workspace.slug}):`, err)
+      log.warn(`启用 skill-creator 失败 (${workspace.slug}):`, err)
     }
   }
 }
@@ -117,7 +119,7 @@ function writeIndex(index: AgentWorkspacesIndex): void {
   try {
     writeJsonFileAtomic(indexPath, index)
   } catch (error) {
-    console.error('[Agent 工作区] 写入索引文件失败:', error)
+    log.error('写入索引文件失败:', error)
     throw new Error('写入 Agent 工作区索引失败')
   }
 }
@@ -190,7 +192,7 @@ function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: bool
   try {
     const entries = readdirSync(defaultDir, { withFileTypes: true })
     if (entries.length === 0) {
-      console.warn(`[Agent 工作区] 默认 Skills 模板为空，工作区 Skills 未初始化: ${workspaceSlug}`)
+      log.warn(`默认 Skills 模板为空，工作区 Skills 未初始化: ${workspaceSlug}`)
       return
     }
 
@@ -201,13 +203,13 @@ function copyDefaultSkills(workspaceSlug: string, options: { throwOnError?: bool
       try {
         cpSync(source, target, { recursive: true, filter: skillCopyFilter })
       } catch (err) {
-        console.warn(`[Agent 工作区] 复制默认 Skill 失败 (${workspaceSlug}/${entry.name}):`, err)
+        log.warn(`复制默认 Skill 失败 (${workspaceSlug}/${entry.name}):`, err)
         if (options.throwOnError) throw err
       }
     }
-    console.log(`[Agent 工作区] 已复制默认 Skills 到: ${workspaceSlug}`)
+    log.info(`已复制默认 Skills 到: ${workspaceSlug}`)
   } catch (err) {
-    console.error(`[Agent 工作区] 复制默认 Skills 失败 (${workspaceSlug}):`, err)
+    log.error(`复制默认 Skills 失败 (${workspaceSlug}):`, err)
     if (options.throwOnError) throw err
   }
 }
@@ -245,17 +247,17 @@ export function createAgentWorkspace(name: string, characterId?: number): AgentW
       try {
         rmSyncWithRetry(workspaceDir, { recursive: true, force: true })
       } catch (cleanupError) {
-        console.warn(`[Agent 工作区] 创建失败后清理目录失败 (${slug}):`, cleanupError)
+        log.warn(`创建失败后清理目录失败 (${slug}):`, cleanupError)
       }
     }
-    console.error(`[Agent 工作区] 创建工作区失败 (${name}, slug: ${slug}):`, error)
+    log.error(`创建工作区失败 (${name}, slug: ${slug}):`, error)
     throw new Error(`创建项目失败: ${(error as Error)?.message ?? '初始化项目目录失败'}`)
   }
 
   index.workspaces.unshift(workspace)
   writeIndex(index)
 
-  console.log(`[Agent 工作区] 已创建工作区: ${name} (slug: ${slug})`)
+  log.info(`已创建工作区: ${name} (slug: ${slug})`)
   return workspace
 }
 
@@ -287,7 +289,7 @@ export function updateAgentWorkspace(
   index.workspaces[idx] = updated
   writeIndex(index)
 
-  console.log(`[Agent 工作区] 已更新工作区: ${updated.name} (${updated.id})`)
+  log.info(`已更新工作区: ${updated.name} (${updated.id})`)
   return updated
 }
 
@@ -324,13 +326,13 @@ export function deleteAgentWorkspace(id: string): void {
   if (existsSync(workspaceDir)) {
     try {
       rmSyncWithRetry(workspaceDir, { recursive: true, force: true })
-      console.log(`[Agent 工作区] 已删除工作区目录: ${workspaceDir}`)
+      log.info(`已删除工作区目录: ${workspaceDir}`)
     } catch (error) {
-      console.warn(`[Agent 工作区] 删除工作区目录失败，已残留无引用目录 (${target.slug}):`, error)
+      log.warn(`删除工作区目录失败，已残留无引用目录 (${target.slug}):`, error)
     }
   }
 
-  console.log(`[Agent 工作区] 已删除工作区: ${removed.name} (slug: ${removed.slug})`)
+  log.info(`已删除工作区: ${removed.name} (slug: ${removed.slug})`)
 }
 
 /** 确保默认工作区存在，首次启动时自动创建（slug: default） */
@@ -355,7 +357,7 @@ export function ensureDefaultWorkspace(): AgentWorkspace {
     index.workspaces.push(defaultWs)
     writeIndex(index)
 
-    console.log('[Agent 工作区] 已创建默认工作区')
+    log.info('已创建默认工作区')
   } else {
     // 迁移兼容：确保已有默认工作区包含 plugin manifest
     ensurePluginManifest(defaultWs.slug, defaultWs.name)
@@ -412,12 +414,12 @@ export function upgradeDefaultSkillsInWorkspaces(): void {
         const currentVer = parseSkillVersion(activePath)
         if (compareSemver(info.version, currentVer) > 0) {
           if (safeReplaceSkillDir(info.sourcePath, activePath)) {
-            console.log(
-              `[Agent 工作区] 已升级默认 Skill: ${workspace.slug}/${slug} (active, ${currentVer} → ${info.version})`,
+            log.info(
+              `已升级默认 Skill: ${workspace.slug}/${slug} (active, ${currentVer} → ${info.version})`,
             )
           } else {
-            console.warn(
-              `[Agent 工作区] 升级默认 Skill 失败 (${workspace.slug}/${slug}, active)，跳过`,
+            log.warn(
+              `升级默认 Skill 失败 (${workspace.slug}/${slug}, active)，跳过`,
             )
           }
         }
@@ -428,12 +430,12 @@ export function upgradeDefaultSkillsInWorkspaces(): void {
         const currentVer = parseSkillVersion(inactivePath)
         if (compareSemver(info.version, currentVer) > 0) {
           if (safeReplaceSkillDir(info.sourcePath, inactivePath)) {
-            console.log(
-              `[Agent 工作区] 已升级默认 Skill: ${workspace.slug}/${slug} (inactive, ${currentVer} → ${info.version})`,
+            log.info(
+              `已升级默认 Skill: ${workspace.slug}/${slug} (inactive, ${currentVer} → ${info.version})`,
             )
           } else {
-            console.warn(
-              `[Agent 工作区] 升级默认 Skill 失败 (${workspace.slug}/${slug}, inactive)，跳过`,
+            log.warn(
+              `升级默认 Skill 失败 (${workspace.slug}/${slug}, inactive)，跳过`,
             )
           }
         }
@@ -443,9 +445,9 @@ export function upgradeDefaultSkillsInWorkspaces(): void {
       try {
         if (!existsSync(activeDir)) mkdirSync(activeDir, { recursive: true })
         cpSync(info.sourcePath, activePath, { recursive: true, filter: skillCopyFilter })
-        console.log(`[Agent 工作区] 已注入新默认 Skill: ${workspace.slug}/${slug} → active`)
+        log.info(`已注入新默认 Skill: ${workspace.slug}/${slug} → active`)
       } catch (err) {
-        console.warn(`[Agent 工作区] 注入默认 Skill 失败 (${workspace.slug}/${slug}):`, err)
+        log.warn(`注入默认 Skill 失败 (${workspace.slug}/${slug}):`, err)
       }
     }
   }
@@ -467,7 +469,7 @@ function safeReplaceSkillDir(sourcePath: string, targetPath: string): boolean {
     cpSync(sourcePath, targetPath, { recursive: true, filter: skillCopyFilter })
     return true
   } catch (err) {
-    console.warn(`[Agent 工作区] safeReplaceSkillDir 失败 (${targetPath}):`, err)
+    log.warn(`safeReplaceSkillDir 失败 (${targetPath}):`, err)
     return false
   }
 }
@@ -520,7 +522,7 @@ export function ensurePluginManifest(workspaceSlug: string, workspaceName: strin
   }
 
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
-  console.log(`[Agent 工作区] 已创建 plugin manifest: ${workspaceSlug}`)
+  log.info(`已创建 plugin manifest: ${workspaceSlug}`)
 }
 
 // ===== MCP 配置管理 =====
@@ -532,7 +534,7 @@ export function normalizeWorkspaceMcpConfig(config: Partial<WorkspaceMcpConfig>)
   for (const [name, rawEntry] of Object.entries(rawServers)) {
     if (!rawEntry || typeof rawEntry !== 'object') continue
     if (RESERVED_BUILTIN_KEYS.has(name)) {
-      console.warn(`[Agent 工作区] MCP 服务器 "${name}" 与内置 MCP 保留名冲突，已忽略（内置 MCP 不写入 mcp.json）`)
+      log.warn(`MCP 服务器 "${name}" 与内置 MCP 保留名冲突，已忽略（内置 MCP 不写入 mcp.json）`)
       continue
     }
 
@@ -542,12 +544,12 @@ export function normalizeWorkspaceMcpConfig(config: Partial<WorkspaceMcpConfig>)
 
     if (normalizedType) {
       if (entry.type !== normalizedType) {
-        console.log(`[Agent 工作区] MCP 服务器 "${name}" 的 type "${String(entry.type)}" 已规范化为 "${normalizedType}"`)
+        log.debug(`MCP 服务器 "${name}" 的 type "${String(entry.type)}" 已规范化为 "${normalizedType}"`)
       }
       entry.type = normalizedType
     } else if (!entry.type) {
       entry.type = inferMcpTransportType(entry)
-      console.log(`[Agent 工作区] MCP 服务器 "${name}" 缺少 type 字段，已自动推断为 "${entry.type}"`)
+      log.debug(`MCP 服务器 "${name}" 缺少 type 字段，已自动推断为 "${entry.type}"`)
     }
 
     servers[name] = entry as WorkspaceMcpConfig['servers'][string]
@@ -568,7 +570,7 @@ export function getWorkspaceMcpConfig(workspaceSlug: string): WorkspaceMcpConfig
     const parsed = JSON.parse(raw) as Partial<WorkspaceMcpConfig>
     return normalizeWorkspaceMcpConfig(parsed)
   } catch (error) {
-    console.error('[Agent 工作区] 读取 MCP 配置失败:', error)
+    log.error('读取 MCP 配置失败:', error)
     return { servers: {} }
   }
 }
@@ -578,9 +580,9 @@ export function saveWorkspaceMcpConfig(workspaceSlug: string, config: WorkspaceM
 
   try {
     writeFileSync(mcpPath, JSON.stringify(normalizeWorkspaceMcpConfig(config), null, 2), 'utf-8')
-    console.log(`[Agent 工作区] 已保存 MCP 配置: ${workspaceSlug}`)
+    log.info(`已保存 MCP 配置: ${workspaceSlug}`)
   } catch (error) {
-    console.error('[Agent 工作区] 保存 MCP 配置失败:', error)
+    log.error('保存 MCP 配置失败:', error)
     throw new Error('保存 MCP 配置失败')
   }
 }
@@ -675,7 +677,7 @@ export function deleteWorkspaceSkill(workspaceSlug: string, skillSlug: string): 
   }
 
   rmSyncWithRetry(skillPath, { recursive: true, force: true })
-  console.log(`[Agent 工作区] 已删除 Skill: ${workspaceSlug}/${skillSlug}`)
+  log.info(`已删除 Skill: ${workspaceSlug}/${skillSlug}`)
 }
 
 /** 扫描指定目录下的 Skills，供 getWorkspaceSkills 和 getAllWorkspaceSkills 复用 */
@@ -719,7 +721,7 @@ function scanSkillsInDir(dir: string, enabled: boolean): SkillMeta[] {
 
         skills.push(meta)
       } catch {
-        console.warn(`[Agent 工作区] 解析 Skill 失败: ${entry.name}`)
+        log.warn(`解析 Skill 失败: ${entry.name}`)
       }
     }
   } catch {
@@ -770,7 +772,7 @@ export function toggleWorkspaceSkill(workspaceSlug: string, skillSlug: string, e
   }
 
   renameWithRetry(srcPath, destPath)
-  console.log(`[Agent 工作区] Skill ${enabled ? '启用' : '禁用'}: ${workspaceSlug}/${skillSlug}`)
+  log.info(`Skill ${enabled ? '启用' : '禁用'}: ${workspaceSlug}/${skillSlug}`)
 }
 
 /**
@@ -837,7 +839,7 @@ export function importSkillFromWorkspace(
   }
   writeSkillImportSource(targetPath, importSource)
 
-  console.log(`[Agent 工作区] 已从 ${sourceSlug} 导入 Skill: ${targetSlug}/${skillSlug}`)
+  log.info(`已从 ${sourceSlug} 导入 Skill: ${targetSlug}/${skillSlug}`)
 
   const content = readFileSync(join(targetPath, 'SKILL.md'), 'utf-8')
   const meta = parseSkillFrontmatter(content, skillSlug, true)
@@ -911,7 +913,7 @@ export function updateSkillFromSource(
   meta.importSource = updatedSource
   meta.hasUpdate = false
 
-  console.log(`[Agent 工作区] 已从源更新 Skill: ${targetSlug}/${skillSlug}`)
+  log.info(`已从源更新 Skill: ${targetSlug}/${skillSlug}`)
   return meta
 }
 
@@ -954,7 +956,7 @@ export function writeWorkspaceSkillContent(workspaceSlug: string, skillSlug: str
   const dir = resolveSkillDir(workspaceSlug, skillSlug)
   if (!dir) throw new Error(`Skill 不存在: ${workspaceSlug}/${skillSlug}`)
   writeFileSync(join(dir, 'SKILL.md'), content, 'utf-8')
-  console.log(`[Agent 工作区] 已更新 SKILL.md: ${workspaceSlug}/${skillSlug}`)
+  log.info(`已更新 SKILL.md: ${workspaceSlug}/${skillSlug}`)
 }
 
 // ===== Skill 子文件管理 =====
@@ -1148,7 +1150,7 @@ export function writeWorkspaceClaudeMd(workspaceSlug: string, content: string): 
     throw new Error(`内容过大（${(byteLen / 1024 / 1024).toFixed(2)} MB），超过 10 MB 限制`)
   }
   writeFileSync(getWorkspaceClaudeMdPath(workspaceSlug), content, 'utf-8')
-  console.log(`[Agent 工作区] 已更新工作区 CLAUDE.md: ${workspaceSlug}`)
+  log.info(`已更新工作区 CLAUDE.md: ${workspaceSlug}`)
 }
 
 export function listWorkspaceAutoMemoryFiles(workspaceSlug: string): SkillFileNode[] {
@@ -1191,7 +1193,7 @@ export function writeWorkspaceAutoMemoryFile(workspaceSlug: string, relativePath
     mkdirSync(parent, { recursive: true })
   }
   writeFileSync(abs, content, 'utf-8')
-  console.log(`[Agent 工作区] 已更新 auto memory 文件: ${workspaceSlug}/${relativePath}`)
+  log.info(`已更新 auto memory 文件: ${workspaceSlug}/${relativePath}`)
 }
 
 /** 把相对路径限制在 Skill 根目录内，并拒绝直接覆盖 SKILL.md */
@@ -1329,7 +1331,7 @@ export function writeSkillFile(workspaceSlug: string, skillSlug: string, relativ
   }
 
   writeFileSync(abs, content, 'utf-8')
-  console.log(`[Agent 工作区] 已更新 Skill 子文件: ${workspaceSlug}/${skillSlug}/${relativePath}`)
+  log.info(`已更新 Skill 子文件: ${workspaceSlug}/${skillSlug}/${relativePath}`)
 }
 
 export function createSkillEntry(
@@ -1355,7 +1357,7 @@ export function createSkillEntry(
     }
     writeFileSync(abs, '', 'utf-8')
   }
-  console.log(`[Agent 工作区] 已创建 Skill 子${type === 'directory' ? '目录' : '文件'}: ${workspaceSlug}/${skillSlug}/${relativePath}`)
+  log.info(`已创建 Skill 子${type === 'directory' ? '目录' : '文件'}: ${workspaceSlug}/${skillSlug}/${relativePath}`)
 }
 
 export function deleteSkillEntry(workspaceSlug: string, skillSlug: string, relativePath: string): void {
@@ -1366,7 +1368,7 @@ export function deleteSkillEntry(workspaceSlug: string, skillSlug: string, relat
     throw new Error(`目标不存在: ${relativePath}`)
   }
   rmSyncWithRetry(abs, { recursive: true, force: true })
-  console.log(`[Agent 工作区] 已删除 Skill 子项: ${workspaceSlug}/${skillSlug}/${relativePath}`)
+  log.info(`已删除 Skill 子项: ${workspaceSlug}/${skillSlug}/${relativePath}`)
 }
 
 export function renameSkillEntry(
@@ -1390,7 +1392,7 @@ export function renameSkillEntry(
     mkdirSync(parent, { recursive: true })
   }
   renameWithRetry(fromAbs, toAbs)
-  console.log(`[Agent 工作区] Skill 子项重命名: ${workspaceSlug}/${skillSlug}: ${fromRelative} → ${toRelative}`)
+  log.info(`Skill 子项重命名: ${workspaceSlug}/${skillSlug}: ${fromRelative} → ${toRelative}`)
 }
 
 /** 简单 semver 比较：a 是否比 b 更新 */
@@ -1464,7 +1466,7 @@ export function attachWorkspaceDirectory(workspaceSlug: string, directoryPath: s
 
   const updated = [...existing, directoryPath]
   writeWorkspaceConfig(workspaceSlug, { ...config, attachedDirectories: updated })
-  console.log(`[Agent 工作区] 已附加工作区目录: ${directoryPath} → ${workspaceSlug}`)
+  log.info(`已附加工作区目录: ${directoryPath} → ${workspaceSlug}`)
   return updated
 }
 
@@ -1473,7 +1475,7 @@ export function detachWorkspaceDirectory(workspaceSlug: string, directoryPath: s
   const existing = config.attachedDirectories ?? []
   const updated = existing.filter((d) => d !== directoryPath)
   writeWorkspaceConfig(workspaceSlug, { ...config, attachedDirectories: updated })
-  console.log(`[Agent 工作区] 已移除工作区目录: ${directoryPath} ← ${workspaceSlug}`)
+  log.info(`已移除工作区目录: ${directoryPath} ← ${workspaceSlug}`)
   return updated
 }
 
@@ -1494,7 +1496,7 @@ export function attachWorkspaceFile(workspaceSlug: string, filePath: string): st
 
   const updated = [...existing, filePath]
   writeWorkspaceConfig(workspaceSlug, { ...config, attachedFiles: updated })
-  console.log(`[Agent 工作区] 已附加工作区文件: ${filePath} → ${workspaceSlug}`)
+  log.info(`已附加工作区文件: ${filePath} → ${workspaceSlug}`)
   return updated
 }
 
@@ -1503,7 +1505,7 @@ export function detachWorkspaceFile(workspaceSlug: string, filePath: string): st
   const existing = config.attachedFiles ?? []
   const updated = existing.filter((f) => f !== filePath)
   writeWorkspaceConfig(workspaceSlug, { ...config, attachedFiles: updated })
-  console.log(`[Agent 工作区] 已移除工作区文件: ${filePath} ← ${workspaceSlug}`)
+  log.info(`已移除工作区文件: ${filePath} ← ${workspaceSlug}`)
   return updated
 }
 
@@ -1565,7 +1567,7 @@ export function addWorktreeRepo(workspaceSlug: string, repo: import('@shadiao/sh
 
   const updated = [...existing, repo]
   writeWorkspaceConfig(workspaceSlug, { ...config, worktreeRepos: updated })
-  console.log(`[Agent 工作区] 已添加 worktree 仓库: ${repo.name} (${repo.repoPath}) → ${workspaceSlug}`)
+  log.info(`已添加 worktree 仓库: ${repo.name} (${repo.repoPath}) → ${workspaceSlug}`)
   return updated
 }
 
@@ -1574,7 +1576,7 @@ export function removeWorktreeRepo(workspaceSlug: string, repoPath: string): imp
   const existing = config.worktreeRepos ?? []
   const updated = existing.filter((r) => r.repoPath !== repoPath)
   writeWorkspaceConfig(workspaceSlug, { ...config, worktreeRepos: updated })
-  console.log(`[Agent 工作区] 已移除 worktree 仓库: ${repoPath} ← ${workspaceSlug}`)
+  log.info(`已移除 worktree 仓库: ${repoPath} ← ${workspaceSlug}`)
   return updated
 }
 
@@ -1614,7 +1616,7 @@ export function cleanupStaleWorkspaceAttachedPaths(): number {
   }
 
   if (count > 0) {
-    console.log(`[Agent 工作区] 清理了 ${count} 个不存在的附加路径`)
+    log.info(`清理了 ${count} 个不存在的附加路径`)
   }
 
   return count

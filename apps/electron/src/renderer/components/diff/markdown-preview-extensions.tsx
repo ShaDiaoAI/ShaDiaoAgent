@@ -20,6 +20,9 @@ import type { HighlightTokensResult } from '@shadiao/core'
 import type { FileAccessOptions } from '@shadiao/shared'
 import { extractCodeText } from '../../lib/markdown-rich-text'
 import { shouldRenderMermaidCodeBlock } from '../../lib/mermaid-detection'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('markdown-preview-extensions')
 
 type FileAccessRef = { current: FileAccessOptions | undefined }
 /** 传 null 表示当前编辑器无会话/文件上下文（如 ScratchPad），跳过路径解析。 */
@@ -196,7 +199,7 @@ function requestMissingShikiLanguages(view: EditorView, theme: string, pending: 
     requests.push(
       highlightCode({ code: ' ', language, theme })
         .then(() => {})
-        .catch((error) => console.error('[MarkdownRichEditor] Shiki 高亮失败:', error))
+        .catch((error) => log.error('Shiki 高亮失败:', error))
         .finally(() => pending.delete(key)),
     )
   }

@@ -31,6 +31,9 @@ import {
   AlertDialogTitle,
 } from '../ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('StorageSettings')
 
 interface StorageOrphanItem {
   kind: 'file' | 'directory'
@@ -123,7 +126,7 @@ export function StorageSettings(): React.ReactElement {
       const result = await window.electronAPI.getStorageStats() as StorageStats
       setStats(result)
     } catch (e) {
-      console.error('[存储管理] 获取统计失败:', e)
+      log.error('获取统计失败:', e)
     } finally {
       setLoading(false)
     }
@@ -149,7 +152,7 @@ export function StorageSettings(): React.ReactElement {
       setLastResult(result)
       await loadStats()
     } catch (e) {
-      console.error('[存储管理] 清理失败:', e)
+      log.error('清理失败:', e)
     } finally {
       setCleaningKey(null)
     }
@@ -163,7 +166,7 @@ export function StorageSettings(): React.ReactElement {
       setLastResult(result)
       await loadStats()
     } catch (e) {
-      console.error('[存储管理] 清理临时文件失败:', e)
+      log.error('清理临时文件失败:', e)
     } finally {
       setCleaningKey(null)
     }
@@ -190,7 +193,7 @@ export function StorageSettings(): React.ReactElement {
     try {
       await window.electronAPI.updateSettings({ autoCleanupTempOnStart: enabled })
     } catch (e) {
-      console.error('[存储管理] 更新自动清理设置失败:', e)
+      log.error('更新自动清理设置失败:', e)
     }
   }
 
@@ -200,7 +203,7 @@ export function StorageSettings(): React.ReactElement {
     try {
       await window.electronAPI.updateSettings({ autoCleanupArchivedDays: days })
     } catch (e) {
-      console.error('[存储管理] 更新自动清理天数失败:', e)
+      log.error('更新自动清理天数失败:', e)
     }
   }
 

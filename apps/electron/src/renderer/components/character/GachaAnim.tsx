@@ -1,5 +1,8 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('GachaAnim')
 
 declare global {
   interface Window {
@@ -233,7 +236,7 @@ export const GachaAnim = React.forwardRef<GachaAnimHandle, GachaAnimProps>(
             exportRoot.gotoAndPlay('idle')
             setPhase('ready')
             onReadyRef.current?.()
-            console.log('[GachaAnim] phase=ready, compId=', found.id)
+            log.info('phase=ready, compId=', found.id)
           }
 
           if (manifest.some(e => !e.src.startsWith('data:'))) {
@@ -255,7 +258,7 @@ export const GachaAnim = React.forwardRef<GachaAnimHandle, GachaAnimProps>(
             setupMovieClip()
           }
         } catch (err) {
-          console.error('[GachaAnim] init error:', err)
+          log.error('init error:', err)
           if (!cancelled) setPhase('error')
         }
       }

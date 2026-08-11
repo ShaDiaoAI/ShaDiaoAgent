@@ -17,6 +17,9 @@ import {
 } from './config-paths'
 import { deleteConversationAttachments, deleteAttachment } from './attachment-service'
 import type { ConversationMeta, ChatMessage, RecentMessagesResult, MessageSearchResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('对话管理')
 
 /**
  * 对话索引文件格式
@@ -40,7 +43,7 @@ function readIndex(): ConversationsIndex {
   if (data) {
     // 防御：旧格式可能是纯数组（无 version/conversations 包裹），当作损坏文件重建
     if (!Array.isArray((data as ConversationsIndex).conversations)) {
-      console.warn('[对话管理] conversations.json 格式异常（缺少 conversations 数组），已重建空索引')
+      log.warn('conversations.json 格式异常（缺少 conversations 数组），已重建空索引')
       return { version: INDEX_VERSION, conversations: [] }
     }
     return data
@@ -57,7 +60,7 @@ function writeIndex(index: ConversationsIndex): void {
   try {
     writeJsonFileAtomic(indexPath, index)
   } catch (error) {
-    console.error('[对话管理] 写入索引文件失败:', error)
+    log.error('写入索引文件失败:', error)
     throw new Error('写入对话索引失败')
   }
 }
@@ -101,7 +104,7 @@ export function createConversation(
   // 确保消息目录存在
   getConversationsDir()
 
-  console.log(`[对话管理] 已创建对话: ${meta.title} (${meta.id})`)
+  log.info(`已创建对话: ${meta.title} (${meta.id})`)
   return meta
 }
 
@@ -126,7 +129,7 @@ export function getConversationMessages(id: string): ChatMessage[] {
 
     return lines.map((line) => JSON.parse(line) as ChatMessage)
   } catch (error) {
-    console.error(`[对话管理] 读取消息失败 (${id}):`, error)
+    log.error(`读取消息失败 (${id}):`, error)
     return []
   }
 }
@@ -164,7 +167,7 @@ export function getRecentMessages(id: string, limit: number): RecentMessagesResu
     const messages = recentLines.map((line) => JSON.parse(line) as ChatMessage)
     return { messages, total, hasMore: true }
   } catch (error) {
-    console.error(`[对话管理] 读取最近消息失败 (${id}):`, error)
+    log.error(`读取最近消息失败 (${id}):`, error)
     return { messages: [], total: 0, hasMore: false }
   }
 }
@@ -194,7 +197,7 @@ export function appendMessage(id: string, message: ChatMessage): void {
       writeIndex(index)
     }
   } catch (error) {
-    console.error(`[对话管理] 追加消息失败 (${id}):`, error)
+    log.error(`追加消息失败 (${id}):`, error)
     throw new Error('追加消息失败')
   }
 }
@@ -214,7 +217,7 @@ export function saveConversationMessages(id: string, messages: ChatMessage[]): v
     const content = messages.map((msg) => JSON.stringify(msg)).join('\n') + (messages.length > 0 ? '\n' : '')
     writeFileSync(filePath, content, 'utf-8')
   } catch (error) {
-    console.error(`[对话管理] 保存消息失败 (${id}):`, error)
+    log.error(`保存消息失败 (${id}):`, error)
     throw new Error('保存消息失败')
   }
 }
@@ -250,7 +253,7 @@ export function updateConversationMeta(
   index.conversations[idx] = updated
   writeIndex(index)
 
-  console.log(`[对话管理] 已更新对话: ${updated.title} (${updated.id})`)
+  log.info(`已更新对话: ${updated.title} (${updated.id})`)
   return updated
 }
 
@@ -266,7 +269,7 @@ export function deleteConversation(id: string): void {
   const idx = index.conversations.findIndex((c) => c.id === id)
 
   if (idx === -1) {
-    console.warn(`[对话管理] 对话不存在，跳过删除: ${id}`)
+    log.warn(`对话不存在，跳过删除: ${id}`)
     return
   }
 
@@ -279,11 +282,11 @@ export function deleteConversation(id: string): void {
     try {
       unlinkSync(filePath)
     } catch (error) {
-      console.warn(`[对话管理] 删除消息文件失败 (${id}):`, error)
+      log.warn(`删除消息文件失败 (${id}):`, error)
     }
   }
 
-  console.log(`[对话管理] 已删除对话: ${removed.title} (${removed.id})`)
+  log.info(`已删除对话: ${removed.title} (${removed.id})`)
 
   // 删除对话附件目录
   deleteConversationAttachments(id)
@@ -304,7 +307,7 @@ export function deleteMessage(conversationId: string, messageId: string): ChatMe
   const filtered = messages.filter((msg) => msg.id !== messageId)
 
   if (filtered.length === messages.length) {
-    console.warn(`[对话管理] 消息不存在: ${messageId}`)
+    log.warn(`消息不存在: ${messageId}`)
     return messages
   }
 
@@ -316,7 +319,7 @@ export function deleteMessage(conversationId: string, messageId: string): ChatMe
   }
 
   saveConversationMessages(conversationId, filtered)
-  console.log(`[对话管理] 已删除消息: ${messageId} (对话 ${conversationId})`)
+  log.info(`已删除消息: ${messageId} (对话 ${conversationId})`)
   return filtered
 }
 
@@ -340,7 +343,7 @@ export function truncateMessagesFrom(
   const startIndex = messages.findIndex((msg) => msg.id === messageId)
 
   if (startIndex === -1) {
-    console.warn(`[对话管理] 截断起点消息不存在: ${messageId}`)
+    log.warn(`截断起点消息不存在: ${messageId}`)
     return messages
   }
 
@@ -359,7 +362,7 @@ export function truncateMessagesFrom(
   })
 
   saveConversationMessages(conversationId, kept)
-  console.log(`[对话管理] 已从消息截断: ${messageId} (对话 ${conversationId})`)
+  log.info(`已从消息截断: ${messageId} (对话 ${conversationId})`)
   return kept
 }
 
@@ -396,7 +399,7 @@ export function autoArchiveConversations(daysThreshold: number): number {
 
   if (count > 0) {
     writeIndex(index)
-    console.log(`[对话管理] 自动归档 ${count} 个对话（阈值: ${daysThreshold} 天）`)
+    log.info(`自动归档 ${count} 个对话（阈值: ${daysThreshold} 天）`)
   }
 
   return count

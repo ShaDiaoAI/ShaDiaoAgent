@@ -45,7 +45,9 @@ import type {
   CreateAutomationInput,
   UpdateAutomationInput,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 
+const log = createLogger('AutomationFormView')
 
 function formatTime(ts?: number): string {
   if (!ts) return '—'
@@ -353,7 +355,7 @@ export function AutomationFormView(): React.ReactElement | null {
           return created.id
         }
       } catch (err) {
-        console.error('[定时任务] 自动保存失败:', err)
+        log.error('自动保存失败:', err)
         if (isMountedRef.current) {
           setSaveStatus('error')
           toast.error('自动保存失败')
@@ -459,7 +461,7 @@ export function AutomationFormView(): React.ReactElement | null {
       const sessions = await window.electronAPI.listAgentSessions()
       setAgentSessions(sessions)
     } catch (err) {
-      console.error('[定时任务] 立即运行失败:', err)
+      log.error('立即运行失败:', err)
       toast.error('立即运行失败')
     } finally {
       if (isMountedRef.current) setRunningNow(false)

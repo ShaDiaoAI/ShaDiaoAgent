@@ -1,5 +1,8 @@
 import { getAgentSessionMeta, getAgentSessionSDKMessages } from './agent-session-manager'
 import { getBundledCliPath, getConfigDirName } from './config-paths'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('agent-session-context-prompt')
 
 /** 最大回填消息条数 */
 export const MAX_CONTEXT_MESSAGES = 20
@@ -138,7 +141,7 @@ export function buildContextPrompt(sessionId: string, currentUserMessage: string
       `恢复时先确认「已经完成了哪些工作、进行到哪一步」，然后从中断处继续，切勿重复执行已完成的步骤。\n</session_info>\n`
     : ''
 
-  console.log(`[Agent 编排] buildContextPrompt: 读取 ${allMessages.length} 条消息，注入 ${lines.length} 条历史${sessionHint ? '（含 session 元信息）' : ''}`)
+  log.debug(`buildContextPrompt: 读取 ${allMessages.length} 条消息，注入 ${lines.length} 条历史${sessionHint ? '（含 session 元信息）' : ''}`)
   return `<conversation_history>${sessionInfoBlock}\n${lines.join('\n')}\n</conversation_history>\n\n${currentUserMessage}`
 }
 
@@ -168,7 +171,7 @@ export function buildRecoveryPrompt(
     `${buildCurrentSessionHistoryInstruction(sessionId, sessionHint.workspaceSlug)}\n` +
     `</session_recovery>`
 
-  console.log(`[Agent 编排] buildRecoveryPrompt: 注入 session 自引用 → ${historyPath}`)
+  log.debug(`buildRecoveryPrompt: 注入 session 自引用 → ${historyPath}`)
   return `${recoveryBlock}\n\n${currentUserMessage}`
 }
 

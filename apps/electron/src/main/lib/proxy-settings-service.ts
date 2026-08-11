@@ -7,8 +7,11 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { ProxyConfig } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { getProxySettingsPath } from './config-paths'
 import { detectSystemProxy } from './system-proxy-detector'
+
+const log = createLogger('proxy-settings-service')
 
 /**
  * 默认代理配置
@@ -28,7 +31,7 @@ export async function getProxySettings(): Promise<ProxyConfig> {
   const configPath = getProxySettingsPath()
 
   if (!existsSync(configPath)) {
-    console.log('[代理配置] 配置文件不存在，使用默认配置')
+    log.info('配置文件不存在，使用默认配置')
     return DEFAULT_PROXY_CONFIG
   }
 
@@ -36,7 +39,7 @@ export async function getProxySettings(): Promise<ProxyConfig> {
     const raw = readFileSync(configPath, 'utf-8')
     return JSON.parse(raw) as ProxyConfig
   } catch (error) {
-    console.error('[代理配置] 读取配置失败:', error)
+    log.error('读取配置失败:', error)
     return DEFAULT_PROXY_CONFIG
   }
 }
@@ -51,9 +54,9 @@ export async function saveProxySettings(config: ProxyConfig): Promise<void> {
 
   try {
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
-    console.log('[代理配置] 配置已保存:', config)
+    log.info('配置已保存:', config)
   } catch (error) {
-    console.error('[代理配置] 保存配置失败:', error)
+    log.error('保存配置失败:', error)
     throw new Error('保存代理配置失败')
   }
 }
@@ -78,16 +81,16 @@ export async function getEffectiveProxyUrl(): Promise<string | undefined> {
   if (config.mode === 'system') {
     const result = await detectSystemProxy()
     if (result.success && result.proxyUrl) {
-      console.log('[代理配置] 使用系统代理:', result.proxyUrl)
+      log.info('使用系统代理:', result.proxyUrl)
       return result.proxyUrl
     }
-    console.log('[代理配置] 系统代理检测失败:', result.message)
+    log.info('系统代理检测失败:', result.message)
     return undefined
   }
 
   // 手动模式
   if (config.manualUrl.trim()) {
-    console.log('[代理配置] 使用手动配置代理:', config.manualUrl)
+    log.info('使用手动配置代理:', config.manualUrl)
     return config.manualUrl.trim()
   }
 

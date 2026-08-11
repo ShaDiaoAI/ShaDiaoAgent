@@ -17,6 +17,9 @@ import {
   isNodeJsOkAtom,
 } from '@/atoms/environment'
 import { useAtomValue } from 'jotai'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('EnvironmentCheckPanel')
 
 interface EnvironmentCheckPanelProps {
   /** 首次挂载时是否自动跑一次检测（Onboarding 用），Dialog 场景可设 false */
@@ -42,7 +45,7 @@ export function EnvironmentCheckPanel({
       setRuntime(status)
       setManifest(manifest)
     } catch (error) {
-      console.error('[EnvironmentCheckPanel] 检测失败:', error)
+      log.error('检测失败:', error)
     } finally {
       setIsChecking(false)
     }

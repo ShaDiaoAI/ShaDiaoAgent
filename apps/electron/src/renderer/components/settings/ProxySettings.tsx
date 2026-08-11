@@ -17,6 +17,9 @@ import {
 import { proxyConfigAtom, loadProxyConfigAtom, updateProxyConfigAtom } from '@/atoms/proxy-atoms'
 import { cn } from '@/lib/utils'
 import type { ProxyMode } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ProxySettings')
 
 export function ProxySettings(): React.ReactElement {
   const [config, setConfig] = useAtom(proxyConfigAtom)
@@ -47,7 +50,7 @@ export function ProxySettings(): React.ReactElement {
     try {
       await updateProxyConfig(updated)
     } catch (error) {
-      console.error('[代理设置] 更新失败:', error)
+      log.error('更新失败:', error)
     }
   }
 

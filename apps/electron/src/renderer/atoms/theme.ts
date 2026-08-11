@@ -12,6 +12,9 @@
 
 import { atom } from 'jotai'
 import { DEFAULT_INTERFACE_VARIANT, THEME_STYLES, type InterfaceVariant, type ThemeMode, type ThemeStyle } from '../../types'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('theme')
 
 /** localStorage 缓存键 */
 const THEME_CACHE_KEY = 'shadiao-theme-mode'
@@ -162,8 +165,8 @@ export function applyThemeToDOM(themeMode: ThemeMode, themeStyle: ThemeStyle = '
   }
 
   // [FLASH-DEBUG] 仅在真正发生 DOM 变更时打印
-  console.log(
-    `[FLASH-DEBUG] applyThemeToDOM apply: mode=${themeMode}, style=${themeStyle}, systemIsDark=${systemIsDark}, diff={dark: ${currentIsDark}→${targetIsDark}, style: ${currentStyleClass}→${targetStyleClass}}`
+  log.debug(
+    `applyThemeToDOM apply: mode=${themeMode}, style=${themeStyle}, systemIsDark=${systemIsDark}, diff={dark: ${currentIsDark}→${targetIsDark}, style: ${currentStyleClass}→${targetStyleClass}}`
   )
 
   // 只修改确实需要变的 class

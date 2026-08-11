@@ -11,7 +11,9 @@ import { Paperclip, FolderPlus, Loader2 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { fileToBase64, formatFileNames } from '@/lib/file-utils'
-import { MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { MAX_ATTACHMENT_SIZE, createLogger } from '@shadiao/shared'
+
+const log = createLogger('FileDropZone')
 
 interface FileDropZoneProps {
   workspaceSlug: string
@@ -32,7 +34,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
   const saveFiles = React.useCallback(async (files: globalThis.File[]): Promise<void> => {
     if (files.length === 0) return
     if (!isWorkspace && !sessionId) {
-      console.error('[FileDropZone] session 模式下 sessionId 不能为空')
+      log.error('session 模式下 sessionId 不能为空')
       return
     }
 
@@ -95,7 +97,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
         toast.success(`已添加 ${okFiles.length} 个文件`)
       }
     } catch (error) {
-      console.error('[FileDropZone] 文件上传失败:', error)
+      log.error('文件上传失败:', error)
       toast.error('文件上传失败')
     } finally {
       setIsUploading(false)
@@ -159,7 +161,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
           }
         }
       } catch (error) {
-        console.error('[FileDropZone] 路径检测失败，回退处理:', error)
+        log.error('路径检测失败，回退处理:', error)
         if (side === 'left') {
           await saveFiles(droppedFiles)
         } else {
@@ -252,7 +254,7 @@ export function FileDropZone({ workspaceSlug, sessionId, target = 'session', onF
       onFilesUploaded()
       toast.success(`已添加 ${okFiles.length} 个文件`)
     } catch (error) {
-      console.error('[FileDropZone] 选择文件失败:', error)
+      log.error('选择文件失败:', error)
       toast.error('文件上传失败')
     } finally {
       setIsUploading(false)

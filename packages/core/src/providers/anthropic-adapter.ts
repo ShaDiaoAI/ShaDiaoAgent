@@ -23,7 +23,7 @@
  * - UA 格式：`ShaDiaoAgent/<version> (+https://github.com/ErlichLiu/Proma)`
  */
 
-import { extractZhipuCodingTeamApiToken, type ProviderType } from '@shadiao/shared'
+import { extractZhipuCodingTeamApiToken, type ProviderType, createLogger } from '@shadiao/shared'
 import type {
   ProviderAdapter,
   ProviderRequest,
@@ -254,6 +254,8 @@ function appendContinuationMessages(
 
 // ===== 适配器实现 =====
 
+const adLog = createLogger('Anthropic 适配器')
+
 export class AnthropicAdapter implements ProviderAdapter {
   readonly providerType: ProviderType
 
@@ -371,11 +373,8 @@ export class AnthropicAdapter implements ProviderAdapter {
 
     const requestBody = JSON.stringify(body)
 
-    // 调试：开启 SHADIAO_DEBUG_REQUEST 时打印请求体，便于排查思考+工具场景的消息结构
-    const procReq = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    if (procReq?.env?.SHADIAO_DEBUG_REQUEST) {
-      console.log('[Request]', this.providerType, input.modelId, '→', requestBody.slice(0, 4000))
-    }
+    // 调试：可通过 SHADIAO_LOG_LEVEL=debug 开启请求体日志，便于排查思考+工具场景的消息结构
+    adLog.debug(this.providerType, input.modelId, '→', requestBody.slice(0, 4000))
 
     return {
       url,
@@ -389,11 +388,8 @@ export class AnthropicAdapter implements ProviderAdapter {
       const event = JSON.parse(jsonLine) as AnthropicSSEEvent
       const events: StreamEvent[] = []
 
-      // 调试：开启 SHADIAO_DEBUG_SSE 时打印原始事件，便于排查 Provider 的 SSE 格式差异
-      const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-      if (proc?.env?.SHADIAO_DEBUG_SSE) {
-        console.log('[SSE]', jsonLine.slice(0, 400))
-      }
+      // 调试：可通过 SHADIAO_LOG_LEVEL=debug 开启 SSE 原始事件日志
+      adLog.debug(jsonLine.slice(0, 400))
 
       // 内容块开始
       if (event.type === 'content_block_start') {

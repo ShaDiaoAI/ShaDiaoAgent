@@ -28,6 +28,7 @@ import {
   extractZhipuCodingTeamApiToken,
   parseZhipuTeamCredentials,
   PROVIDER_DEFAULT_URLS,
+  createLogger,
 } from '@shadiao/shared'
 import { getFetchFn } from './proxy-fetch'
 import { getEffectiveProxyUrl } from './proxy-settings-service'
@@ -43,6 +44,8 @@ import { normalizeHttpResponse, normalizeRequestError } from './channel-test-err
 import { getAuthState } from './django-client'
 import { getSettings, updateSettings } from './settings-service'
 import pkg from '../../../package.json' with { type: 'json' }
+
+const log = createLogger('渠道管理')
 
 /** 当前配置版本 */
 const CONFIG_VERSION = 2
@@ -172,8 +175,8 @@ function migrateConfig(config: ChannelsConfig): { config: ChannelsConfig; change
       return channel
     }
     mutated = true
-    console.log(
-      `[渠道管理] v${version}→v${CONFIG_VERSION} 迁移渠道 ${channel.name} (${channel.provider}) Base URL: ${channel.baseUrl} → ${migratedUrl}`,
+    log.info(
+      `v${version}→v${CONFIG_VERSION} 迁移渠道 ${channel.name} (${channel.provider}) Base URL: ${channel.baseUrl} → ${migratedUrl}`,
     )
     return { ...channel, baseUrl: migratedUrl }
   })
@@ -199,11 +202,11 @@ function readConfig(): ChannelsConfig {
     const { config, changed } = migrateConfig(parsed)
     if (changed) {
       writeConfig(config)
-      console.log('[渠道管理] 渠道配置已迁移并持久化')
+      log.info('渠道配置已迁移并持久化')
     }
     return config
   } catch (error) {
-    console.error('[渠道管理] 读取配置文件失败:', error)
+    log.error('读取配置文件失败:', error)
     return { version: CONFIG_VERSION, channels: [] }
   }
 }
@@ -217,7 +220,7 @@ function writeConfig(config: ChannelsConfig): void {
   try {
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
   } catch (error) {
-    console.error('[渠道管理] 写入配置文件失败:', error)
+    log.error('写入配置文件失败:', error)
     throw new Error('写入渠道配置失败')
   }
 }
@@ -234,7 +237,7 @@ function writeConfig(config: ChannelsConfig): void {
  */
 function encryptApiKey(plainKey: string): string {
   if (!safeStorage.isEncryptionAvailable()) {
-    console.warn('[渠道管理] safeStorage 加密不可用，将以明文存储')
+    log.warn('safeStorage 加密不可用，将以明文存储')
     return plainKey
   }
 
@@ -258,7 +261,7 @@ function decryptKey(encryptedKey: string): string {
     const buffer = Buffer.from(encryptedKey, 'base64')
     return safeStorage.decryptString(buffer)
   } catch (error) {
-    console.error('[渠道管理] 解密 API Key 失败:', error)
+    log.error('解密 API Key 失败:', error)
     throw new Error('解密 API Key 失败')
   }
 }
@@ -327,10 +330,10 @@ export async function refreshDjangoChannelModels(): Promise<void> {
     djangoChannel.models = [...models, ...manualModels]
     djangoChannel.modelsRefreshedAt = Date.now()
     writeConfig(config)
-    console.log('[渠道管理] Django 渠道模型列表已刷新:', models.length, '个模型')
+    log.info('Django 渠道模型列表已刷新:', models.length, '个模型')
   } catch (e) {
     // 静默失败：网络问题或后端异常时保留现有列表
-    console.warn('[渠道管理] 后台刷新 Django 模型列表失败:', e)
+    log.warn('后台刷新 Django 模型列表失败:', e)
   }
 }
 
@@ -350,7 +353,7 @@ export function listChannels(): Channel[] {
   if (config.channels.length < allIdsBefore.size) {
     const keptIds = new Set(config.channels.map(c => c.id))
     writeConfig(config)
-    console.log(`[渠道管理] 已清理 ${allIdsBefore.size - config.channels.length} 个不兼容的 Proma 渠道`)
+    log.info(`已清理 ${allIdsBefore.size - config.channels.length} 个不兼容的 Proma 渠道`)
 
     // 同步清理 settings.json 中指向已删除渠道的引用
     const settings = getSettings()
@@ -368,7 +371,7 @@ export function listChannels(): Channel[] {
     }
     if (settingsChanged) {
       updateSettings(settings)
-      console.log('[渠道管理] 已清理 settings.json 中的无效渠道引用')
+      log.info('已清理 settings.json 中的无效渠道引用')
     }
   }
 
@@ -393,7 +396,7 @@ export function listChannels(): Channel[] {
     }
     config.channels.unshift(presetChannel)
     writeConfig(config)
-    console.log('[渠道管理] 已自动创建沙雕后端代理渠道')
+    log.info('已自动创建沙雕后端代理渠道')
     // 首次创建后异步拉取真实模型列表（不阻塞返回）
     refreshDjangoChannelModels().catch(() => {})
     return config.channels
@@ -425,13 +428,13 @@ export function listChannels(): Channel[] {
         c.baseUrl = expectedBaseUrl
         c.updatedAt = Date.now()
         changed = true
-        console.log('[渠道管理] 已同步 Django 渠道 baseUrl:', c.baseUrl)
+        log.info('已同步 Django 渠道 baseUrl:', c.baseUrl)
       }
     }
 
     if (changed) {
       writeConfig(config)
-      console.log('[渠道管理] 已清理/同步旧渠道配置')
+      log.info('已清理/同步旧渠道配置')
     }
   }
 
@@ -485,7 +488,7 @@ export function createChannel(input: ChannelCreateInput): Channel {
   config.channels.push(channel)
   writeConfig(config)
 
-  console.log(`[渠道管理] 已创建渠道: ${channel.name} (${channel.id})`)
+  log.info(`已创建渠道: ${channel.name} (${channel.id})`)
   return channel
 }
 
@@ -520,7 +523,7 @@ export function updateChannel(id: string, input: ChannelUpdateInput): Channel {
   config.channels[index] = updated
   writeConfig(config)
 
-  console.log(`[渠道管理] 已更新渠道: ${updated.name} (${updated.id})`)
+  log.info(`已更新渠道: ${updated.name} (${updated.id})`)
   return updated
 }
 
@@ -538,7 +541,7 @@ export function deleteChannel(id: string): void {
   const removed = config.channels.splice(index, 1)[0]!
   writeConfig(config)
 
-  console.log(`[渠道管理] 已删除渠道: ${removed.name} (${removed.id})`)
+  log.info(`已删除渠道: ${removed.name} (${removed.id})`)
 }
 
 /**
@@ -1711,7 +1714,7 @@ export async function fetchModels(input: FetchModelsInput): Promise<FetchModelsR
         return { success: false, message: `不支持的供应商: ${provider}`, models: [] }
     }
   } catch (error) {
-    console.error('[渠道管理] 拉取模型列表失败:', error)
+    log.error('拉取模型列表失败:', error)
     const result = normalizeRequestError(error)
     return { success: false, message: result.message, models: [] }
   }

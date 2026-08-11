@@ -1,6 +1,9 @@
 import type { AgentSessionMeta, PromaPermissionMode } from '@shadiao/shared'
 import { injectAutomationMcpServer } from '../automation-agent-tools'
 import { isBuiltinMcpUserEnabled } from './settings'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('builtin-mcp/registry')
 export interface BuiltinMcpInjectContext { sdk: typeof import('@anthropic-ai/claude-agent-sdk'); mcpServers: Record<string, Record<string, unknown>>; sessionId: string; channelId: string; modelId?: string; workspaceId?: string; workspaceSlug?: string; agentCwd?: string; permissionMode?: PromaPermissionMode; triggeredBy?: 'user' | 'automation' | 'delegation'; sessionMeta?: AgentSessionMeta }
-async function injectBuiltinSafely(name: string, task: () => Promise<void>) { try { await task() } catch (e) { console.error('MCP inject failed:', name, e) } }
+async function injectBuiltinSafely(name: string, task: () => Promise<void>) { try { await task() } catch (e) { log.error('MCP inject failed:', name, e) } }
 export async function injectBuiltinMcpServers(ctx: BuiltinMcpInjectContext): Promise<{ collaborationAvailable: boolean }> { if (isBuiltinMcpUserEnabled('automation')) { await injectBuiltinSafely('automation', () => injectAutomationMcpServer(ctx.sdk, ctx.mcpServers, { sessionId: ctx.sessionId, channelId: ctx.channelId, modelId: ctx.modelId, workspaceId: ctx.workspaceId, triggeredBy: ctx.triggeredBy })) } return { collaborationAvailable: false } }

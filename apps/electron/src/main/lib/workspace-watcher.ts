@@ -14,8 +14,10 @@
 import { watch, existsSync } from 'node:fs'
 import type { FSWatcher } from 'node:fs'
 import type { BrowserWindow } from 'electron'
-import { AGENT_IPC_CHANNELS } from '@shadiao/shared'
+import { AGENT_IPC_CHANNELS, createLogger } from '@shadiao/shared'
 import { getAgentWorkspacesDir } from './config-paths'
+
+const log = createLogger('工作区监听')
 
 /** debounce 延迟（ms） */
 const DEBOUNCE_MS = 300
@@ -52,7 +54,7 @@ export function startWorkspaceWatcher(win: BrowserWindow): void {
   const watchDir = getAgentWorkspacesDir()
 
   if (!existsSync(watchDir)) {
-    console.warn('[工作区监听] 目录不存在，跳过:', watchDir)
+    log.warn('目录不存在，跳过:', watchDir)
     return
   }
 
@@ -105,7 +107,7 @@ export function startWorkspaceWatcher(win: BrowserWindow): void {
     // EventEmitter 在 'error' 事件无监听器时会抛出未捕获异常并终止 Electron 主进程，
     // 当目录被删除/权限变更/iCloud 同步异常等运行时错误发生时即触发。必须显式监听并降级。
     watcher.on('error', (err) => {
-      console.error('[工作区监听] 运行时错误，将尝试自愈重启:', err)
+      log.error('运行时错误，将尝试自愈重启:', err)
       try { watcher?.close() } catch { /* watcher 可能已自动关闭 */ }
       watcher = null
       setTimeout(() => {
@@ -113,9 +115,9 @@ export function startWorkspaceWatcher(win: BrowserWindow): void {
       }, WATCHER_RESTART_DELAY_MS)
     })
 
-    console.log('[工作区监听] 已启动文件监听:', watchDir)
+    log.info('已启动文件监听:', watchDir)
   } catch (error) {
-    console.error('[工作区监听] 启动失败:', error)
+    log.error('启动失败:', error)
   }
 }
 
@@ -126,12 +128,12 @@ export function stopWorkspaceWatcher(): void {
   if (watcher) {
     watcher.close()
     watcher = null
-    console.log('[工作区监听] 已停止')
+    log.info('已停止')
   }
   // 同时清理所有附加目录监听器
   for (const [dirPath, w] of attachedWatchers) {
     w.close()
-    console.log('[附加目录监听] 已停止:', dirPath)
+    log.info('已停止:', dirPath)
   }
   attachedWatchers.clear()
   mainWin = null
@@ -144,7 +146,7 @@ export function stopWorkspaceWatcher(): void {
 export function watchAttachedDirectory(dirPath: string): void {
   if (attachedWatchers.has(dirPath)) return
   if (!existsSync(dirPath)) {
-    console.warn('[附加目录监听] 目录不存在，跳过:', dirPath)
+    log.warn('目录不存在，跳过:', dirPath)
     return
   }
 
@@ -165,15 +167,15 @@ export function watchAttachedDirectory(dirPath: string): void {
     // 同主 watcher：监听 'error' 防止运行时异常拖死主进程。
     // 附加目录通常是用户外接的项目目录，断电/挂载/权限变化更易触发。
     w.on('error', (err) => {
-      console.error('[附加目录监听] 运行时错误，移除监听器:', dirPath, err)
+      log.error('运行时错误，移除监听器:', dirPath, err)
       try { w.close() } catch { /* 已关闭 */ }
       attachedWatchers.delete(dirPath)
     })
 
     attachedWatchers.set(dirPath, w)
-    console.log('[附加目录监听] 已启动:', dirPath)
+    log.info('已启动:', dirPath)
   } catch (error) {
-    console.error('[附加目录监听] 启动失败:', dirPath, error)
+    log.error('启动失败:', dirPath, error)
   }
 }
 
@@ -185,6 +187,6 @@ export function unwatchAttachedDirectory(dirPath: string): void {
   if (w) {
     w.close()
     attachedWatchers.delete(dirPath)
-    console.log('[附加目录监听] 已停止:', dirPath)
+    log.info('已停止:', dirPath)
   }
 }

@@ -32,6 +32,9 @@ import {
   inferAgentSdkContextWindow,
 } from '@shadiao/shared'
 import type { PromaPermissionMode, AskUserRequest, ExitPlanModeRequest, SDKSystemMessage } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('Agent 编排')
 import type { ClaudeAgentQueryOptions } from './adapters/claude-agent-adapter'
 import { isPromptTooLongError, isThinkingSignatureError, friendlyErrorMessage, mapSDKErrorToTypedError, extractErrorDetails, shouldKeepChannelOpen } from './adapters/claude-agent-adapter'
 import { isTransientNetworkError, isMalformedResponseError, isSessionNotFoundError } from './error-patterns'
@@ -258,14 +261,14 @@ function resolveSDKCliPath(): string {
     // anthropicDir:  .../@anthropic-ai
     const anthropicDir = dirname(dirname(sdkEntryPath))
     binaryPath = join(anthropicDir, subpkg, binaryName)
-    console.log(`[Agent 编排] SDK binary 路径 (createRequire): ${binaryPath}`)
+    log.info(`SDK binary 路径 (createRequire): ${binaryPath}`)
     if (!existsSync(binaryPath)) {
       const subpkgPackagePath = cjsRequire.resolve(`${scopedSubpkg}/package.json`)
       binaryPath = join(dirname(subpkgPackagePath), binaryName)
-      console.log(`[Agent 编排] SDK binary 路径 (platform package): ${binaryPath}`)
+      log.info(`SDK binary 路径 (platform package): ${binaryPath}`)
     }
   } catch (e) {
-    console.warn('[Agent 编排] createRequire 解析 SDK 路径失败:', e)
+    log.warn('createRequire 解析 SDK 路径失败:', e)
   }
 
   // 策略 2：全局 require（esbuild CJS bundle 可能保留）
@@ -275,15 +278,15 @@ function resolveSDKCliPath(): string {
       const sdkEntryPath = require.resolve('@anthropic-ai/claude-agent-sdk')
       const anthropicDir = dirname(dirname(sdkEntryPath))
       binaryPath = join(anthropicDir, subpkg, binaryName)
-      console.log(`[Agent 编排] SDK binary 路径 (require.resolve): ${binaryPath}`)
+      log.info(`SDK binary 路径 (require.resolve): ${binaryPath}`)
       if (!existsSync(binaryPath)) {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const subpkgPackagePath = require.resolve(`${scopedSubpkg}/package.json`)
         binaryPath = join(dirname(subpkgPackagePath), binaryName)
-        console.log(`[Agent 编排] SDK binary 路径 (require platform package): ${binaryPath}`)
+        log.info(`SDK binary 路径 (require platform package): ${binaryPath}`)
       }
     } catch (e) {
-      console.warn('[Agent 编排] require.resolve 解析 SDK 路径失败:', e)
+      log.warn('require.resolve 解析 SDK 路径失败:', e)
     }
   }
 
@@ -292,13 +295,13 @@ function resolveSDKCliPath(): string {
   // 或用户主目录，与 app 安装目录无关。
   if (!binaryPath || !existsSync(binaryPath)) {
     binaryPath = join(__dirname, '..', 'node_modules', '@anthropic-ai', subpkg, binaryName)
-    console.log(`[Agent 编排] SDK binary 路径 (手动): ${binaryPath}`)
+    log.info(`SDK binary 路径 (手动): ${binaryPath}`)
   }
 
   // 打包环境：将 .asar/ 路径转换为 .asar.unpacked/
   if (app.isPackaged && binaryPath.includes('.asar')) {
     binaryPath = binaryPath.replace(/\.asar([/\\])/, '.asar.unpacked$1')
-    console.log(`[Agent 编排] 转换为 asar.unpacked 路径: ${binaryPath}`)
+    log.info(`转换为 asar.unpacked 路径: ${binaryPath}`)
   }
 
   return binaryPath
@@ -486,12 +489,12 @@ export class AgentOrchestrator {
       if (shellStatus) {
         if (shellStatus.gitBash?.available && shellStatus.gitBash.path) {
           sdkEnv.CLAUDE_CODE_SHELL = shellStatus.gitBash.path
-          console.log(`[Agent 编排] 配置 Shell 环境: Git Bash (${shellStatus.gitBash.path})`)
+          log.info(`配置 Shell 环境: Git Bash (${shellStatus.gitBash.path})`)
         } else if (shellStatus.wsl?.available) {
           sdkEnv.CLAUDE_CODE_SHELL = 'wsl'
-          console.log(`[Agent 编排] 配置 Shell 环境: WSL ${shellStatus.wsl.version} (${shellStatus.wsl.defaultDistro})`)
+          log.info(`配置 Shell 环境: WSL ${shellStatus.wsl.version} (${shellStatus.wsl.defaultDistro})`)
         } else {
-          console.warn('[Agent 编排] Windows 平台未检测到可用的 Shell 环境（Git Bash / WSL）')
+          log.warn('Windows 平台未检测到可用的 Shell 环境（Git Bash / WSL）')
         }
         sdkEnv.CLAUDE_BASH_NO_LOGIN = '1'
       }
@@ -545,12 +548,12 @@ export class AgentOrchestrator {
           required: false,
         }
       } else {
-        console.warn(`[Agent 编排] MCP 服务器 "${name}" 配置不完整，已跳过（type=${entry.type}, command=${entry.command ?? '无'}, url=${entry.url ?? '无'}）`)
+        log.warn(`MCP 服务器 "${name}" 配置不完整，已跳过（type=${entry.type}, command=${entry.command ?? '无'}, url=${entry.url ?? '无'}）`)
       }
     }
 
     if (Object.keys(mcpServers).length > 0) {
-      console.log(`[Agent 编排] 已加载 ${Object.keys(mcpServers).length} 个 MCP 服务器`)
+      log.info(`已加载 ${Object.keys(mcpServers).length} 个 MCP 服务器`)
     }
 
     return mcpServers
@@ -564,7 +567,7 @@ export class AgentOrchestrator {
    */
   async generateTitle(input: AgentGenerateTitleInput): Promise<string | null> {
     const { userMessage, channelId, modelId } = input
-    console.log('[ShaDiao] [标题] 开始生成:', { channelId, modelId, msg: userMessage.slice(0, 50) })
+    log.info('开始生成:', { channelId, modelId, msg: userMessage.slice(0, 50) })
 
     try {
       const authState = getAuthState()
@@ -583,8 +586,8 @@ export class AgentOrchestrator {
         max_tokens: 50,
       })
 
-      console.log('[ShaDiao] [标题] 请求 URL:', titleUrl)
-      console.log('[ShaDiao] [标题] 请求 body:', titleBody.slice(0, 200))
+      log.debug('请求 URL:', titleUrl)
+      log.debug('请求 body:', titleBody.slice(0, 200))
 
       const proxyUrl = await getEffectiveProxyUrl()
       const fetchFn = getFetchFn(proxyUrl)
@@ -600,22 +603,22 @@ export class AgentOrchestrator {
 
       if (!response.ok) {
         const errText = await response.text().catch(() => '')
-        console.warn('[ShaDiao] [标题] HTTP', response.status, errText.slice(0, 300))
+        log.warn('HTTP', response.status, errText.slice(0, 300))
         return null
       }
 
       const json = await response.json() as { content?: string }
       const content = json?.content
       if (!content || typeof content !== 'string') {
-        console.warn('[ShaDiao] [标题] 响应无内容:', JSON.stringify(json).slice(0, 200))
+        log.warn('响应无内容:', JSON.stringify(json).slice(0, 200))
         return null
       }
 
       const result = sanitizeGeneratedTitle(content.trim())
-      console.log(`[ShaDiao] [标题] 成功: "${result}"`)
+      log.info(`成功: "${result}"`)
       return result
     } catch (error) {
-      console.warn('[ShaDiao] [标题] 失败:', error)
+      log.warn('失败:', error)
       return null
     }
   }
@@ -641,9 +644,9 @@ export class AgentOrchestrator {
 
       updateAgentSessionMeta(sessionId, { title })
       callbacks.onTitleUpdated(title)
-      console.log(`[Agent 编排] 自动标题生成完成: "${title}"`)
+      log.info(`自动标题生成完成: "${title}"`)
     } catch (error) {
-      console.warn('[Agent 编排] 自动标题生成失败:', error)
+      log.warn('自动标题生成失败:', error)
     }
   }
 
@@ -703,7 +706,7 @@ export class AgentOrchestrator {
     retryReason: string,
     clearPersistedSession = false,
   ): string {
-    console.log(`[Agent 编排] ${logMessage}`)
+    log.info(`${logMessage}`)
     // 先持久化当前已累积的消息，确保 JSONL 文件包含最新内容
     this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
     accumulatedMessages.length = 0
@@ -812,7 +815,7 @@ export class AgentOrchestrator {
       ],
     } as unknown as SDKMessage
     appendSDKMessages(sessionId, [errorSDKMsg])
-    console.warn(`[Agent 编排] 本轮没有收到可展示内容: sessionId=${sessionId}, resultSubtype=${subtype}`)
+    log.warn(`本轮没有收到可展示内容: sessionId=${sessionId}, resultSubtype=${subtype}`)
     return errorContent
   }
 
@@ -837,11 +840,11 @@ export class AgentOrchestrator {
 
     // 0. 并发保护
     if (this.activeSessions.has(sessionId)) {
-      console.warn(`[Agent 编排] 会话 ${sessionId} 正在处理中，拒绝新请求`)
+      log.warn(`会话 ${sessionId} 正在处理中，拒绝新请求`)
       try {
         persistInitialUserMessage()
       } catch (error) {
-        console.error('[Agent 编排] 持久化被拒绝的用户消息失败:', error)
+        log.error('持久化被拒绝的用户消息失败:', error)
       }
       callbacks.onError('上一条消息仍在处理中，请稍候再试')
       callbacks.onComplete([], { startedAt: streamStartedAt })
@@ -852,7 +855,7 @@ export class AgentOrchestrator {
       persistInitialUserMessage()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error('[Agent 编排] 持久化用户消息失败:', error)
+      log.error('持久化用户消息失败:', error)
       callbacks.onError(`消息保存失败：${message}`)
       callbacks.onComplete([], { startedAt: streamStartedAt })
       return
@@ -881,7 +884,7 @@ export class AgentOrchestrator {
         _errorActions: typedError.actions,
       } as unknown as SDKMessage
       try { appendSDKMessages(sessionId, [errorSDKMsg]) } catch (e) {
-        console.error('[Agent 编排] 持久化 preflight error 失败:', e)
+        log.error('持久化 preflight error 失败:', e)
       }
       callbacks.onError(errorContent)
       callbacks.onComplete([], { startedAt: streamStartedAt })
@@ -949,7 +952,7 @@ export class AgentOrchestrator {
     const authState = getAuthState()
     if (authState.token && channel.baseUrl && channel.baseUrl.startsWith(authState.baseUrl)) {
       apiKey = authState.token
-      console.log('[ShaDiao] [认证] 使用 Django JWT token 认证')
+      log.info('使用 Django JWT token 认证')
     }
 
     const appSettings = getSettings()
@@ -969,7 +972,7 @@ export class AgentOrchestrator {
         // 新会话索引异常时继续运行，后续错误路径会正常暴露。
       }
     }
-    console.log(`[Agent 编排] Agent runtime: ${agentRuntime}`)
+    log.info(`Agent runtime: ${agentRuntime}`)
 
     // 2.1 立即抢占会话槽位（在所有同步检查通过后、第一个 await 之前）
     // 防止 buildSdkEnv 等 await 期间并发调用绕过上方的检查，导致多条重复消息写入 JSONL
@@ -1042,7 +1045,7 @@ export class AgentOrchestrator {
           : charHeader
         // 同步 process.env（SDK in-process 代码可能直接读 process.env）
         process.env.ANTHROPIC_CUSTOM_HEADERS = sdkEnv.ANTHROPIC_CUSTOM_HEADERS
-        console.log(`[ShaDiao] [人物] 注入 X-Character-Id: ${charId} → ANTHROPIC_CUSTOM_HEADERS`)
+        log.info(`注入 X-Character-Id: ${charId} → ANTHROPIC_CUSTOM_HEADERS`)
       }
     }
 
@@ -1055,10 +1058,10 @@ export class AgentOrchestrator {
       rewindResumeAt = sessionMeta.resumeAtMessageUuid
       // 消费一次后清除
       updateAgentSessionMeta(sessionId, { resumeAtMessageUuid: undefined })
-      console.log(`[Agent 编排] 检测到回退 resume: resumeSessionAt=${rewindResumeAt}`)
+      log.info(`检测到回退 resume: resumeSessionAt=${rewindResumeAt}`)
     }
 
-    console.log(`[Agent 编排] Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, shadiao-agent sessionId=${sessionId}`)
+    log.info(`Resume 状态: sdkSessionId=${existingSdkSessionId || '无'}, shadiao-agent sessionId=${sessionId}`)
 
     // 5. 状态初始化
     const accumulatedMessages: SDKMessage[] = []
@@ -1076,7 +1079,7 @@ export class AgentOrchestrator {
 
       if (agentRuntime === 'claude' && cliPath && !existsSync(cliPath)) {
         const subpkg = `@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}`
-        console.error(`[Agent 编排] SDK native binary 不存在: ${cliPath}`)
+        log.error(`SDK native binary 不存在: ${cliPath}`)
         reportPreflightError({
           code: 'claude_binary_not_found',
           title: 'Claude 核心未就绪',
@@ -1105,8 +1108,8 @@ export class AgentOrchestrator {
         return
       }
 
-      console.log(
-        `[Agent 编排] 启动 ${agentRuntime} runtime — ${cliPath ? `binary: ${cliPath}, ` : ''}模型: ${modelId || DEFAULT_MODEL_ID}, resume: ${existingSdkSessionId ?? '无'}`,
+      log.info(
+        `启动 ${agentRuntime} runtime — ${cliPath ? `binary: ${cliPath}, ` : ''}模型: ${modelId || DEFAULT_MODEL_ID}, resume: ${existingSdkSessionId ?? '无'}`,
       )
 
       // 确定 Agent 工作目录
@@ -1119,16 +1122,16 @@ export class AgentOrchestrator {
           agentCwd = getAgentSessionWorkspacePath(ws.slug, sessionId)
           workspaceSlug = ws.slug
           workspace = ws
-          console.log(`[Agent 编排] 使用 session 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
+          log.info(`使用 session 级别 cwd: ${agentCwd} (${ws.name}/${sessionId})`)
 
           if (agentRuntime === 'claude') {
             ensurePluginManifest(ws.slug, ws.name)
           }
 
           if (existingSdkSessionId) {
-            console.log(`[Agent 编排] 将尝试 resume: ${existingSdkSessionId}`)
+            log.info(`将尝试 resume: ${existingSdkSessionId}`)
           } else {
-            console.log(`[Agent 编排] 无 sdkSessionId，将作为新会话启动（回填历史上下文）`)
+            log.info(`无 sdkSessionId，将作为新会话启动（回填历史上下文）`)
           }
         }
       }
@@ -1167,7 +1170,7 @@ export class AgentOrchestrator {
         }
         if (needsWrite) {
           writeFileSync(settingsPath, JSON.stringify(sdkProjectSettings, null, 2))
-          console.log(`[Agent 编排] 已设置 SDK settings (plansDirectory, skipWebFetchPreflight, autoMemoryDirectory, autoCompact)`)
+          log.info(`已设置 SDK settings (plansDirectory, skipWebFetchPreflight, autoMemoryDirectory, autoCompact)`)
         }
       }
 
@@ -1177,7 +1180,7 @@ export class AgentOrchestrator {
       // 导致 listSessions 始终返回 0 个会话，误杀有效的 resume。
       // SDK 本身会优雅处理无效的 resume ID（回退为新会话），无需预验证。
       if (existingSdkSessionId) {
-        console.log(`[Agent 编排] 将直接使用已保存的 sdkSessionId 进行 resume: ${existingSdkSessionId}`)
+        log.info(`将直接使用已保存的 sdkSessionId 进行 resume: ${existingSdkSessionId}`)
       }
 
       // 10. 构建 MCP 服务器配置 + 记忆工具 + 生图工具 + 自定义工具
@@ -1202,7 +1205,7 @@ export class AgentOrchestrator {
       // 合并外部注入的自定义 MCP 服务器（如飞书群聊工具）
       if (customMcpServers) {
         Object.assign(mcpServers, customMcpServers)
-        console.log(`[Agent 编排] 已合并 ${Object.keys(customMcpServers).length} 个自定义 MCP 服务器`)
+        log.info(`已合并 ${Object.keys(customMcpServers).length} 个自定义 MCP 服务器`)
       }
 
       // 11. 构建动态上下文和最终 prompt
@@ -1217,7 +1220,7 @@ export class AgentOrchestrator {
       const referencedSessionsBlock = buildReferencedSessionsPrompt(sessionId, mentionedSessionIds, workspaceId, workspaceSlug)
       if (referencedSessionsBlock) {
         enrichedMessage = `${referencedSessionsBlock}\n\n${enrichedMessage}`
-        console.log(`[Agent 编排] 注入 referenced_sessions: ${mentionedSessionIds?.length ?? 0} sessions`)
+        log.info(`注入 referenced_sessions: ${mentionedSessionIds?.length ?? 0} sessions`)
       }
       if (mentionedSkills?.length || mentionedMcpServers?.length) {
         const toolLines: string[] = ['用户在消息中明确引用了以下工具，请在本次回复中主动调用：']
@@ -1231,7 +1234,7 @@ export class AgentOrchestrator {
           toolLines.push(`- MCP 服务器: ${name}（请使用此 MCP 服务器的工具来完成任务）`)
         }
         enrichedMessage = `<mentioned_tools>\n${toolLines.join('\n')}\n</mentioned_tools>\n\n${enrichedMessage}`
-        console.log(`[Agent 编排] 注入 mentioned_tools: ${mentionedSkills?.length ?? 0} skills, ${mentionedMcpServers?.length ?? 0} MCP`)
+        log.info(`注入 mentioned_tools: ${mentionedSkills?.length ?? 0} skills, ${mentionedMcpServers?.length ?? 0} MCP`)
       }
 
       const contextualMessage = `${dynamicCtx}\n\n${enrichedMessage}`
@@ -1244,9 +1247,9 @@ export class AgentOrchestrator {
           : buildContextPrompt(sessionId, contextualMessage, { agentCwd, workspaceSlug })
 
       if (existingSdkSessionId) {
-        console.log(`[Agent 编排] 使用 resume 模式，SDK session ID: ${existingSdkSessionId}`)
+        log.info(`使用 resume 模式，SDK session ID: ${existingSdkSessionId}`)
       } else if (finalPrompt !== contextualMessage) {
-        console.log(`[Agent 编排] 无 resume，已回填历史上下文（最近 ${MAX_CONTEXT_MESSAGES} 条消息）`)
+        log.info(`无 resume，已回填历史上下文（最近 ${MAX_CONTEXT_MESSAGES} 条消息）`)
       }
 
       // 12. 读取应用设置并确定权限模式
@@ -1255,7 +1258,7 @@ export class AgentOrchestrator {
         ?? SHADIAO_DEFAULT_PERMISSION_MODE
       // 注册到 Map，支持运行中动态切换
       this.sessionPermissionModes.set(sessionId, initialPermissionMode)
-      console.log(`[Agent 编排] 权限模式: ${initialPermissionMode}${permissionModeOverride ? '（外部覆盖）' : ''}`)
+      log.info(`权限模式: ${initialPermissionMode}${permissionModeOverride ? '（外部覆盖）' : ''}`)
 
       const emitPlanModeChanged = (active: boolean, source: 'initial' | 'tool' | 'permission'): void => {
         this.eventBus.emit(sessionId, {
@@ -1349,7 +1352,7 @@ export class AgentOrchestrator {
         // ── 参数校验守卫（所有模式、所有工具，优先于权限检查） ──
         const validationFailure = validateToolInput(toolName, input)
         if (validationFailure) {
-          console.warn(`[Agent 工具验证] 参数缺失: tool=${toolName}, mode=${currentMode}`)
+          log.warn(`参数缺失: tool=${toolName}, mode=${currentMode}`)
           return validationFailure
         }
 
@@ -1357,8 +1360,8 @@ export class AgentOrchestrator {
         if (toolName === 'Write' && typeof input.content === 'string') {
           const estimatedTokens = estimateTokenCount(input.content)
           if (estimatedTokens > WRITE_CONTENT_TOKEN_THRESHOLD) {
-            console.warn(
-              `[Agent 工具验证] Write 内容过大: tokens≈${estimatedTokens}, chars=${input.content.length}, file=${String(input.file_path)}`,
+            log.warn(
+              `Write 内容过大: tokens≈${estimatedTokens}, chars=${input.content.length}, file=${String(input.file_path)}`,
             )
             return {
               behavior: 'deny' as const,
@@ -1381,7 +1384,7 @@ export class AgentOrchestrator {
 
         // ExitPlanMode：plan 模式下必须让用户确认计划。
         if (toolName === 'ExitPlanMode') {
-          console.log(`[canUseTool] ExitPlanMode: signal.aborted=${options.signal.aborted}, planModeEntered=${planModeEntered}, mode=${currentMode}`)
+          log.debug(`ExitPlanMode: signal.aborted=${options.signal.aborted}, planModeEntered=${planModeEntered}, mode=${currentMode}`)
           const result = await handleExitPlanMode(input, options.signal)
           if (result.behavior === 'allow' && 'targetMode' in result && result.targetMode) {
             // 更新 Map，后续 canUseTool 调用使用新模式
@@ -1391,7 +1394,7 @@ export class AgentOrchestrator {
             // 同步通知 SDK 侧切换权限模式
             if (this.adapter.setPermissionMode) {
               this.adapter.setPermissionMode(sessionId, sdkPermissionModeForPromaMode(result.targetMode)).catch((err: unknown) => {
-                console.warn(`[Agent 编排] SDK 权限模式切换失败:`, err)
+                log.warn(`SDK 权限模式切换失败:`, err)
               })
             }
           }
@@ -1484,7 +1487,7 @@ export class AgentOrchestrator {
           const char = chars.find(c => c.id === charId)
           if (char?.system_prompt?.trim()) {
             charPrompt = `## 人物设定\n\n${char.system_prompt.trim()}\n\n`
-            console.log(`[ShaDiao] [人物] 已注入人物 ${char.name}（ID: ${charId}）的 system_prompt（${char.system_prompt.length} 字符）`)
+            log.info(`已注入人物 ${char.name}（ID: ${charId}）的 system_prompt（${char.system_prompt.length} 字符）`)
           }
         }
         return charPrompt + basePrompt + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')
@@ -1497,28 +1500,28 @@ export class AgentOrchestrator {
         if (isNewSessionId) {
           try {
             updateAgentSessionMeta(sessionId, { sdkSessionId })
-            console.log(`[Agent 编排] 已保存 SDK session_id: ${sdkSessionId}`)
+            log.info(`已保存 SDK session_id: ${sdkSessionId}`)
           } catch (err) {
-            console.error(`[Agent 编排] 保存 SDK session_id 失败:`, err)
+            log.error(`保存 SDK session_id 失败:`, err)
           }
         }
 
         if (!titleGenerationStarted) {
           titleGenerationStarted = true
           this.autoGenerateTitle(sessionId, userMessage, channelId, resolvedModel, callbacks)
-            .catch((err) => console.error('[Agent 编排] 标题生成未捕获异常:', err))
+            .catch((err) => log.error('标题生成未捕获异常:', err))
         }
       }
       const handleModelResolved = (model: string): void => {
         // `[1m]` 是 SDK 内部上下文变体，不应泄漏到标题生成或用户可见的模型名。
         resolvedModel = model.replace(/\[1m\]$/i, '')
-        console.log(`[Agent 编排] SDK 确认模型: ${resolvedModel}`)
+        log.info(`SDK 确认模型: ${resolvedModel}`)
         this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'model_resolved', model: resolvedModel } })
       }
       const handleContextWindow = (cw: number): void => {
         const inferredWindow = inferAgentSdkContextWindow(modelId, channel.provider)
         const contextWindow = Math.max(cw, inferredWindow ?? 0) || cw
-        console.log(`[Agent 编排] 缓存 contextWindow: ${contextWindow}`)
+        log.info(`缓存 contextWindow: ${contextWindow}`)
         // result 消息里的真实 contextWindow 透传到 renderer，
         // 覆盖流式过程中按模型名推断的 fallback 值（智谱等端点会把 [1m] 等后缀剥掉，导致 fallback 不准）
         this.eventBus.emit(sessionId, {
@@ -1574,14 +1577,14 @@ export class AgentOrchestrator {
         disallowedTools: ['Agent', 'Task'],
         onStderr: (data: string) => {
           stderrChunks.push(data)
-          console.error(`[Agent SDK stderr] ${data}`)
+          log.error(`${data}`)
         },
         onSessionId: handleSessionId,
         onModelResolved: handleModelResolved,
         onContextWindow: handleContextWindow,
       }
 
-      console.log(`[Agent 编排] 开始通过 Adapter 遍历事件流...`)
+      log.info(`开始通过 Adapter 遍历事件流...`)
 
       // 14. 遍历 Adapter 产出的 AgentEvent 流（含自动重试）
       let lastRetryableError: string | undefined
@@ -1611,12 +1614,12 @@ export class AgentOrchestrator {
         if (attempt > 1) {
           if (skipNextRetryDelay) {
             skipNextRetryDelay = false
-            console.log(`[Agent 编排] 已切换到上下文回填模式，立即重试`)
+            log.info(`已切换到上下文回填模式，立即重试`)
           } else {
             const retryAttempt = Math.max(1, attempt - 1 - invisibleRecoveryAttempts)
             const delayMs = getRetryDelayMs(retryAttempt, retryDelayElapsedMs)
             if (delayMs <= 0) {
-              console.log(`[Agent 编排] 自动重试等待预算已耗尽 (${MAX_AUTO_RETRY_WAIT_MS}ms)，停止重试`)
+              log.info(`自动重试等待预算已耗尽 (${MAX_AUTO_RETRY_WAIT_MS}ms)，停止重试`)
               break
             }
             retryDelayElapsedMs += delayMs
@@ -1642,7 +1645,7 @@ export class AgentOrchestrator {
               })
             }
 
-            console.log(`[Agent 编排] 第 ${retryAttempt} 次重试${retryAttempt <= RETRY_VISIBILITY_THRESHOLD ? '(静默)' : ''}，等待 ${delaySec}s...`)
+            log.info(`第 ${retryAttempt} 次重试${retryAttempt <= RETRY_VISIBILITY_THRESHOLD ? '(静默)' : ''}，等待 ${delaySec}s...`)
             await new Promise((r) => setTimeout(r, delayMs))
 
             // 等待期间如果会话被中止，退出
@@ -1698,7 +1701,7 @@ export class AgentOrchestrator {
 
             if (raceResult.kind === 'drain_timeout') {
               // 安全网：channel.close() 后 SDK 仍未在超时内关闭 iterator，强制退出
-              console.warn(`[Agent 编排] drain timeout: SDK iterator 在 result 后 ${RESULT_DRAIN_TIMEOUT_MS}ms 内未关闭，强制退出`)
+              log.warn(`drain timeout: SDK iterator 在 result 后 ${RESULT_DRAIN_TIMEOUT_MS}ms 内未关闭，强制退出`)
               pendingNext?.catch(() => {})
               pendingNext = null
               queryIterator.return?.(undefined as never).catch(() => {})
@@ -1825,7 +1828,7 @@ export class AgentOrchestrator {
                   lastRetryableError = typedError.title
                     ? `${typedError.title}: ${typedError.message}`
                     : typedError.message
-                  console.log(`[Agent 编排] 可重试错误 (assistant error): ${typedError.code} - ${lastRetryableError}`)
+                  log.info(`可重试错误 (assistant error): ${typedError.code} - ${lastRetryableError}`)
                   this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
                   accumulatedMessages.length = 0
                   // 与 catch 路径（isAutoRetryableCatchError）和思考签名回填路径保持一致：
@@ -1861,7 +1864,7 @@ export class AgentOrchestrator {
                   _errorActions: typedError.actions,
                 } as unknown as SDKMessage
                 appendSDKMessages(sessionId, [errorSDKMsg])
-                console.log(`[Agent 编排] 已保存 TypedError 消息: ${typedError.code} - ${typedError.title}`)
+                log.info(`已保存 TypedError 消息: ${typedError.code} - ${typedError.title}`)
 
                 // 如果之前有可见重试记录，发送 retry_failed
                 if (retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD && lastRetryableError) {
@@ -1874,7 +1877,9 @@ export class AgentOrchestrator {
                 // 透传归一化后的错误消息到前端，避免 SDK 原始 API Error 直接暴露给用户。
                 this.eventBus.emit(sessionId, { kind: 'sdk_message', message: errorSDKMsg })
                 try { updateAgentSessionMeta(sessionId, {}) } catch { /* 忽略 */ }
-                completeRun(getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
+                // 不可重试的 assistant error → failRun，触发 onError → STREAM_ERROR IPC
+                // 确保左侧栏人物能切换到 error 动画（如 402 余额不足等业务错误）
+                failRun(errorContent, getAgentSessionMessages(sessionId), { startedAt: streamStartedAt })
                 return
               }
             }
@@ -1939,8 +1944,8 @@ export class AgentOrchestrator {
               const keepChannelOpen = shouldKeepChannelOpen(resultTerminalReason) || keptOpenForTasks
               // 分类打点：跟踪线上哪种 terminal_reason 最常见，配合 deferred_tool_use 回填决策
               const hasDeferredTool = (msg as { deferred_tool_use?: unknown }).deferred_tool_use != null
-              console.log(
-                `[Agent 编排] result 到达: sessionId=${sessionId}, subtype=${capturedResultSubtype ?? 'unknown'}, ` +
+              log.info(
+                `result 到达: sessionId=${sessionId}, subtype=${capturedResultSubtype ?? 'unknown'}, ` +
                 `terminal_reason=${resultTerminalReason ?? 'undefined'}, keepChannelOpen=${keepChannelOpen}` +
                 (keptOpenForTasks ? ', keptOpenForTasks=true' : '') +
                 (hasDeferredTool ? ', hasDeferredTool=true' : '') +
@@ -1972,7 +1977,7 @@ export class AgentOrchestrator {
                 canAutoRetry(attempt)
               ) {
                 lastRetryableError = capturedResultErrors[0]
-                console.log(`[Agent 编排] 可重试错误 (result error_during_execution, attempt ${attempt}/${MAX_AUTO_RETRIES}): ${lastRetryableError}`)
+                log.info(`可重试错误 (result error_during_execution, attempt ${attempt}/${MAX_AUTO_RETRIES}): ${lastRetryableError}`)
                 // 与 assistant.error / catch 重试路径保持一致：清空已累积 stderr，避免重试上限内无限增长
                 stderrChunks.length = 0
                 shouldRetryFromError = true
@@ -2022,7 +2027,7 @@ export class AgentOrchestrator {
           // 正常完成 — 如果之前有可见重试，发送 retry_cleared
           if (!wasStoppedByUser && retryAttemptsScheduled > RETRY_VISIBILITY_THRESHOLD) {
             this.eventBus.emit(sessionId, { kind: 'shadiao_event', event: { type: 'retry', status: 'cleared' } })
-            console.log(`[Agent 编排] 重试成功，已在第 ${attempt} 次尝试后恢复`)
+            log.info(`重试成功，已在第 ${attempt} 次尝试后恢复`)
           }
           retrySucceeded = true
 
@@ -2047,7 +2052,7 @@ export class AgentOrchestrator {
               kind: 'sdk_message',
               message: { type: 'prompt_suggestion', suggestion: '请执行该计划' } as unknown as SDKMessage,
             })
-            console.log(`[Agent 编排] Plan 模式：已注入计划确认建议`)
+            log.info(`Plan 模式：已注入计划确认建议`)
           }
 
           // 发送完成信号
@@ -2059,16 +2064,16 @@ export class AgentOrchestrator {
           // 打印 stderr
           const fullStderr = stderrChunks.join('').trim()
           if (fullStderr) {
-            console.error(`[Agent 编排] 完整 stderr 输出 (${fullStderr.length} 字符):`)
-            console.error(fullStderr)
+            log.error(`完整 stderr 输出 (${fullStderr.length} 字符):`)
+            log.error(fullStderr)
           } else {
-            console.error(`[Agent 编排] stderr 为空`)
+            log.error(`stderr 为空`)
           }
 
           // 用户主动中止
           if (!this.activeSessions.has(sessionId)) {
             const wasStoppedByUser = this.consumeStoppedByUser(sessionId)
-            console.log(`[Agent 编排] 会话 ${sessionId} 已被用户中止`)
+            log.info(`会话 ${sessionId} 已被用户中止`)
             this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
             // 持久化中断状态到会话 meta
             try { updateAgentSessionMeta(sessionId, { stoppedByUser: wasStoppedByUser }) } catch { /* 会话可能已删除 */ }
@@ -2151,7 +2156,7 @@ export class AgentOrchestrator {
             lastRetryableError = apiError
               ? `API Error ${apiError.statusCode}: ${apiError.message}`
               : (error instanceof Error ? error.message : '未知错误')
-            console.log(`[Agent 编排] 可重试错误 (catch, attempt ${attempt}/${MAX_AUTO_RETRIES}): ${lastRetryableError}`)
+            log.info(`可重试错误 (catch, attempt ${attempt}/${MAX_AUTO_RETRIES}): ${lastRetryableError}`)
             // 保存部分内容
             this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
             accumulatedMessages.length = 0
@@ -2161,15 +2166,15 @@ export class AgentOrchestrator {
 
           // 不可重试 — 走原有终止逻辑
           const errorMessage = error instanceof Error ? error.message : '未知错误'
-          console.error(`[Agent 编排] 执行失败:`, error)
+          log.error(`执行失败:`, error)
 
           // 保存已累积的部分内容
           if (accumulatedMessages.length > 0) {
             try {
               this.persistSDKMessages(sessionId, accumulatedMessages, Date.now() - queryStartedAt)
-              console.log(`[Agent 编排] 已保存部分执行结果 (${accumulatedMessages.length} 条消息)`)
+              log.info(`已保存部分执行结果 (${accumulatedMessages.length} 条消息)`)
             } catch (saveError) {
-              console.error('[Agent 编排] 保存部分内容失败:', saveError)
+              log.error('保存部分内容失败:', saveError)
             }
           }
 
@@ -2234,9 +2239,9 @@ export class AgentOrchestrator {
               _errorActions: errorActions,
             } as unknown as SDKMessage
             appendSDKMessages(sessionId, [errMsg])
-            console.log(`[Agent 编排] 已保存错误消息到 JSONL`)
+            log.info(`已保存错误消息到 JSONL`)
           } catch (saveError) {
-            console.error('[Agent 编排] 保存错误消息失败:', saveError)
+            log.error('保存错误消息失败:', saveError)
           }
 
           // 如果之前有可见重试记录，发送 retry_failed
@@ -2257,7 +2262,7 @@ export class AgentOrchestrator {
           // 此前这里对 `!apiError`（如普通断连解析不出状态码）一律清除指针，导致下一轮
           // 退化为「仅回填最近 N 条」的冷启动，上下文从满载骤降（#903）。
           if (existingSdkSessionId) {
-            console.log(`[Agent 编排] 保留 sdkSessionId 以便下一轮 resume（错误未表明会话失效）`)
+            log.info(`保留 sdkSessionId 以便下一轮 resume（错误未表明会话失效）`)
           }
 
           return
@@ -2318,7 +2323,7 @@ export class AgentOrchestrator {
     this.stoppedBySessions.add(sessionId)
     this.queuedMessageUuids.delete(sessionId)
     this.adapter.abort(sessionId)
-    console.log(`[Agent 编排] 已中止会话: ${sessionId}`)
+    log.info(`已中止会话: ${sessionId}`)
   }
 
   /** 检查指定会话是否正在处理中 */
@@ -2343,7 +2348,7 @@ export class AgentOrchestrator {
     if (this.adapter.setPermissionMode) {
       await this.adapter.setPermissionMode(sessionId, sdkPermissionModeForPromaMode(mode))
     }
-    console.log(`[Agent 编排] 运行中权限模式已切换: sessionId=${sessionId}, mode=${mode}`)
+    log.info(`运行中权限模式已切换: sessionId=${sessionId}, mode=${mode}`)
   }
 
   // ===== 快照回退 =====
@@ -2383,13 +2388,13 @@ export class AgentOrchestrator {
       }
     }
     const userMessageUuid = resolveUserUuidFromSDK(sessionMeta.sdkSessionId, assistantMessageUuid, projectDir, sessionMeta.forkSourceSdkSessionId)
-    console.log(`[Agent 编排] 回退: 解析 user uuid=${userMessageUuid || '未找到'} (assistant uuid=${assistantMessageUuid}, forkSource=${sessionMeta.forkSourceSdkSessionId ?? 'none'})`)
+    log.info(`回退: 解析 user uuid=${userMessageUuid || '未找到'} (assistant uuid=${assistantMessageUuid}, forkSource=${sessionMeta.forkSourceSdkSessionId ?? 'none'})`)
 
     // 1. 文件恢复：直接从 SDK JSONL 的 file-history-snapshot 恢复，无需临时 Query
     let fileRewindResult: { canRewind: boolean; error?: string; filesChanged?: string[]; insertions?: number; deletions?: number } | undefined
     if (userMessageUuid === '__LAST_TURN__') {
       // 最后一个 turn：当前文件系统已是该 turn 完成后的状态，无需回退文件
-      console.log(`[Agent 编排] 回退: 最后一个 turn，跳过文件恢复`)
+      log.info(`回退: 最后一个 turn，跳过文件恢复`)
       fileRewindResult = { canRewind: true, filesChanged: [] }
     } else if (userMessageUuid) {
       try {
@@ -2399,12 +2404,12 @@ export class AgentOrchestrator {
         // 收集附加目录（必须与 sendMessage 中传给 SDK 的 additionalDirectories 一致，
         // 否则会话级 attachedDirectories 内的文件会因路径越界检查被静默跳过）
         const rewindAttachedDirs = collectAttachedDirectories({ sessionMeta, workspaceSlug })
-        console.log(`[Agent 编排] 回退: 直接从 snapshot 恢复文件 (cwd=${cwd}, forkSource=${sessionMeta.forkSourceSdkSessionId ?? 'none'}, attachedDirs=${rewindAttachedDirs.length})`)
+        log.info(`回退: 直接从 snapshot 恢复文件 (cwd=${cwd}, forkSource=${sessionMeta.forkSourceSdkSessionId ?? 'none'}, attachedDirs=${rewindAttachedDirs.length})`)
         fileRewindResult = rewindFilesFromSnapshot(sessionMeta.sdkSessionId, userMessageUuid, cwd, projectDir, sessionMeta.forkSourceSdkSessionId, rewindAttachedDirs)
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err)
-        console.warn('[Agent 编排] 文件恢复失败，继续截断对话:', errMsg)
-        if (err instanceof Error && err.stack) console.warn('[Agent 编排] 文件恢复错误堆栈:', err.stack)
+        log.warn('文件恢复失败，继续截断对话:', errMsg)
+        if (err instanceof Error && err.stack) log.warn('文件恢复错误堆栈:', err.stack)
         fileRewindResult = { canRewind: false, error: errMsg }
       }
     } else {
@@ -2417,7 +2422,7 @@ export class AgentOrchestrator {
     // 3. 记录 resumeAtMessageUuid，下次发消息时 SDK 从此点继续
     updateAgentSessionMeta(sessionId, { resumeAtMessageUuid: assistantMessageUuid })
 
-    console.log(`[Agent 编排] 回退完成: sessionId=${sessionId}, 保留 ${kept.length} 条消息, 文件恢复=${fileRewindResult?.canRewind ?? '跳过'}`)
+    log.info(`回退完成: sessionId=${sessionId}, 保留 ${kept.length} 条消息, 文件恢复=${fileRewindResult?.canRewind ?? '跳过'}`)
 
     return {
       remainingMessages: kept.length,
@@ -2428,7 +2433,7 @@ export class AgentOrchestrator {
   /** 中止所有活跃的 Agent 会话（应用退出时调用） */
   stopAll(): void {
     if (this.activeSessions.size > 0) {
-      console.log(`[Agent 编排] 正在中止所有活跃会话 (${this.activeSessions.size} 个)...`)
+      log.info(`正在中止所有活跃会话 (${this.activeSessions.size} 个)...`)
     }
     // 即便 activeSessions 为空，也要调 dispose 清理可能残留的 pidMap / 子进程
     this.adapter.dispose()
@@ -2516,12 +2521,12 @@ export class AgentOrchestrator {
         try {
           await this.adapter.interruptQuery(sessionId)
         } catch (error) {
-          console.warn(`[Agent 编排] 软中断失败（将继续追加消息）:`, error)
+          log.warn(`软中断失败（将继续追加消息）:`, error)
         }
       }
 
       await this.adapter.sendQueuedMessage(sessionId, sdkMessage)
-      console.log(`[Agent 编排] 追加消息已注入: sessionId=${sessionId}, uuid=${uuid}, interrupt=${!!opts?.interrupt}`)
+      log.info(`追加消息已注入: sessionId=${sessionId}, uuid=${uuid}, interrupt=${!!opts?.interrupt}`)
 
       // 立即持久化到 JSONL — 仅存原始文本，不含 prompt 工程块（与 sendMessage 路径一致）
       const persistMsg: SDKMessage = {
@@ -2537,7 +2542,7 @@ export class AgentOrchestrator {
     } catch (error) {
       uuids.delete(uuid)
       if (isMissingActiveQueueChannelError(error)) {
-        console.warn(`[Agent 编排] 队列注入失败且消息通道已失效，释放陈旧运行状态: sessionId=${sessionId}`)
+        log.warn(`队列注入失败且消息通道已失效，释放陈旧运行状态: sessionId=${sessionId}`)
         this.activeSessions.delete(sessionId)
         this.sessionPermissionModes.delete(sessionId)
         this.queuedMessageUuids.delete(sessionId)

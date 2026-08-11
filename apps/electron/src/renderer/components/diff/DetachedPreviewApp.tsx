@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils'
 import { DiffTabContent } from './DiffTabContent'
 import { DefaultAppOpenButton } from './DefaultAppOpenButton'
 import { getDefaultAppTargetPath, getPreviewFileAccess } from './preview-open-path'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('DetachedPreviewApp')
 
 function getPreviewId(): string | null {
   return new URLSearchParams(window.location.search).get('previewId')
@@ -46,7 +49,7 @@ export function DetachedPreviewApp(): React.ReactElement {
         document.title = payload.title || getFileName(payload.filePath)
       })
       .catch((err) => {
-        console.error('[DetachedPreviewApp] 加载预览数据失败:', err)
+        log.error('加载预览数据失败:', err)
         setError('加载预览数据失败')
       })
       .finally(() => setLoading(false))

@@ -8,6 +8,7 @@ import type {
   Automation,
   AutomationRun,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { getAgentSessionSDKMessages } from './agent-session-manager'
 const _feishuRemoved = { sendMessageToFeishuGroups: () => {} } as any; // feishu bridge removed
 import {
@@ -15,6 +16,8 @@ import {
   extractAssistantText,
   shouldNotifyAutomationTarget,
 } from './automation-notification-format'
+
+const log = createLogger('automation-notification-service')
 
 interface AutomationNotificationPayload {
   automation: Automation
@@ -39,7 +42,7 @@ export async function notifyAutomationRunFinished(payload: AutomationNotificatio
           buildAutomationFeishuCard({ ...payload, summary }),
         )
       } catch (error) {
-        console.error(`[定时任务] 飞书通知发送失败: automation=${payload.automation.id}, chat=${target.chatId}`, error)
+        log.error(`飞书通知发送失败: automation=${payload.automation.id}, chat=${target.chatId}`, error)
       }
     }
   }

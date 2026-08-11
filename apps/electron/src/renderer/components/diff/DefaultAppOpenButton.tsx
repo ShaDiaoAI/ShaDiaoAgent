@@ -11,6 +11,9 @@ import type { FileAccessOptions } from '@shadiao/shared'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDefaultAppForFile } from '@/hooks/useDefaultAppForFile'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('DefaultAppOpenButton')
 
 interface DefaultAppOpenButtonProps {
   filePath: string
@@ -31,7 +34,7 @@ export function DefaultAppOpenButton({
 
   const handleClick = React.useCallback(() => {
     window.electronAPI.systemOpenFile(filePath, undefined, access).catch((err) => {
-      console.error('[DefaultAppOpenButton] 打开文件失败:', err)
+      log.error('打开文件失败:', err)
     })
   }, [filePath, access])
 

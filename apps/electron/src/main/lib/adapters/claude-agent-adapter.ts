@@ -19,6 +19,7 @@ import type {
   PromaPermissionMode,
 } from '@shadiao/shared'
 import {
+  createLogger,
   THINKING_SIGNATURE_ERROR_MESSAGE,
   THINKING_SIGNATURE_ERROR_TITLE,
   isThinkingSignatureError as matchesThinkingSignatureError,
@@ -26,6 +27,8 @@ import {
 import type { CanUseToolOptions, PermissionResult } from '../agent-permission-service'
 import { TRANSIENT_NETWORK_PATTERN, isMalformedResponseError } from '../error-patterns'
 import { spawn as spawnChild, execFileSync } from 'node:child_process'
+
+const log = createLogger('claude-agent-adapter')
 
 /** SDK Query 对象类型（从动态导入中推断） */
 type SDKQuery = ReturnType<typeof import('@anthropic-ai/claude-agent-sdk').query>
@@ -602,9 +605,9 @@ export function forceKillClaudeProcess(pid: number): void {
     } else {
       process.kill(pid, 'SIGKILL')
     }
-    console.warn(`[Claude 适配器] force-killed residual claude pid=${pid}`)
+    log.warn(`force-killed residual claude pid=${pid}`)
   } catch (error) {
-    console.warn(`[Claude 适配器] force-kill pid=${pid} 失败:`, error)
+    log.warn(`force-kill pid=${pid} 失败:`, error)
   }
 }
 
@@ -669,9 +672,9 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
     if (!query) return
     try {
       await query.interrupt()
-      console.log(`[Claude 适配器] 已软中断当前 turn: sessionId=${sessionId}`)
+      log.info(`已软中断当前 turn: sessionId=${sessionId}`)
     } catch (error) {
-      console.warn(`[Claude 适配器] 软中断失败: sessionId=${sessionId}`, error)
+      log.warn(`软中断失败: sessionId=${sessionId}`, error)
     }
   }
 
@@ -741,7 +744,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
       const armIdleTimer = (): void => {
         clearIdleTimer()
         idleTimer = setTimeout(() => {
-          console.warn(`[Claude 适配器] 后台任务空闲超时 (${BACKGROUND_IDLE_TIMEOUT_MS}ms)，释放子进程: ${options.sessionId}`)
+          log.warn(`后台任务空闲超时 (${BACKGROUND_IDLE_TIMEOUT_MS}ms)，释放子进程: ${options.sessionId}`)
           channel.close()
         }, BACKGROUND_IDLE_TIMEOUT_MS)
         idleTimer.unref?.()
@@ -1022,7 +1025,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
     }
     // 通过消息通道入队，generator 会自动 yield 给 SDK
     channel.enqueue(message as import('@anthropic-ai/claude-agent-sdk').SDKUserMessage)
-    console.log(`[Claude 适配器] 队列消息已注入: sessionId=${sessionId}, uuid=${message.uuid}, priority=${message.priority}`)
+    log.debug(`队列消息已注入: sessionId=${sessionId}, uuid=${message.uuid}, priority=${message.priority}`)
   }
 
   /**
@@ -1038,7 +1041,7 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
     // SDK Query 对象本身没有直接的 cancel 方法，但 streamInput 接受 SDKUserMessage
     // 此处我们通过重新注入一个 'now' 优先级的空消息来间接触发
     // 实际上 SDK 的 cancel_async_message 是 control_request，暂时在 orchestrator 层管理
-    console.log(`[Claude 适配器] 队列消息取消请求: sessionId=${sessionId}, uuid=${messageUuid}`)
+    log.debug(`队列消息取消请求: sessionId=${sessionId}, uuid=${messageUuid}`)
   }
 
   /**
@@ -1050,13 +1053,13 @@ export class ClaudeAgentAdapter implements AgentProviderAdapter {
   async setPermissionMode(sessionId: string, mode: string): Promise<void> {
     const query = activeQueries.get(sessionId)
     if (!query) {
-      console.warn(`[Claude 适配器] 无活跃查询，跳过权限模式切换: ${sessionId}`)
+      log.warn(`无活跃查询，跳过权限模式切换: ${sessionId}`)
       return
     }
     await (query as ReturnType<typeof import('@anthropic-ai/claude-agent-sdk').query>).setPermissionMode(
       mode as import('@anthropic-ai/claude-agent-sdk').PermissionMode,
     )
-    console.log(`[Claude 适配器] 权限模式已切换: sessionId=${sessionId}, mode=${mode}`)
+    log.info(`权限模式已切换: sessionId=${sessionId}, mode=${mode}`)
   }
 }
 
@@ -1108,7 +1111,7 @@ export function scanAndKillOrphanedClaudeSubprocesses(): void {
           })
           if (cmd.includes('claude-agent-sdk')) {
             process.kill(pid, 'SIGKILL')
-            console.warn(`[Claude 适配器] 退出扫描: 强杀孤儿 claude 子进程 pid=${pid}`)
+            log.warn(`退出扫描: 强杀孤儿 claude 子进程 pid=${pid}`)
           }
         } catch {
           // ps 失败 / 进程已退出 / 超时，跳过
@@ -1116,6 +1119,6 @@ export function scanAndKillOrphanedClaudeSubprocesses(): void {
       }
     }
   } catch (error) {
-    console.warn('[Claude 适配器] 退出扫描执行失败:', error)
+    log.warn('退出扫描执行失败:', error)
   }
 }

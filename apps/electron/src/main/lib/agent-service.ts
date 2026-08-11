@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path'
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { BrowserWindow } from 'electron'
 import type { WebContents } from 'electron'
-import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { AGENT_IPC_CHANNELS, MAX_ATTACHMENT_SIZE, createLogger } from '@shadiao/shared'
 import type {
   AgentSendInput,
   AgentGenerateTitleInput,
@@ -34,6 +34,8 @@ import { AgentOrchestrator } from './agent-orchestrator'
 import { getAgentSessionWorkspacePath, getWorkspaceFilesDir } from './config-paths'
 import { getAgentSessionMeta, updateAgentSessionMeta } from './agent-session-manager'
 import { setAgentStopper, setHeadlessAgentRunner } from './agent-headless-runner-registry'
+
+const log = createLogger('Agent')
 
 // ===== 实例创建 =====
 
@@ -81,7 +83,7 @@ eventBus.use((sessionId, payload, next) => {
     try {
       wc.send(AGENT_IPC_CHANNELS.STREAM_EVENT, { sessionId, payload } as AgentStreamEvent)
     } catch (err) {
-      console.error(`[EventBus] wc.send 失败: ${sessionId}`, err)
+      log.error(`wc.send 失败: ${sessionId}`, err)
     }
   }
   next()
@@ -138,7 +140,7 @@ export async function runAgent(
       },
     })
   } catch (err) {
-    console.error('[Agent 服务] runAgent 异常:', err)
+    log.error('runAgent 异常:', err)
     const errorMessage = err instanceof Error ? err.message : '未知错误'
     if (!webContents.isDestroyed()) {
       webContents.send(AGENT_IPC_CHANNELS.STREAM_ERROR, { sessionId: input.sessionId, error: errorMessage })
@@ -200,7 +202,7 @@ export async function runAgentHeadless(
       },
     })
   } catch (err) {
-    console.error('[Agent 服务] runAgentHeadless 异常:', err)
+    log.error('runAgentHeadless 异常:', err)
     const errorMessage = err instanceof Error ? err.message : '未知错误'
     callbacks.onError(errorMessage)
     callbacks.onComplete()
@@ -272,7 +274,7 @@ export function saveFilesToAgentSession(input: AgentSaveFilesInput): AgentSavedF
     }
     usedPaths.add(targetPath)
     mkdirSync(dirname(targetPath), { recursive: true })
-    if (file.data.length * 0.75 > MAX_ATTACHMENT_SIZE) { console.warn(`[Agent] 文件过大，跳过: ${file.filename}`); continue }
+    if (file.data.length * 0.75 > MAX_ATTACHMENT_SIZE) { log.warn(`文件过大，跳过: ${file.filename}`); continue }
     const buffer = Buffer.from(file.data, 'base64')
     writeFileSync(targetPath, buffer)
     const actualFilename = targetPath.slice(sessionDir.length + 1)
@@ -299,7 +301,7 @@ export function saveFilesToWorkspaceFiles(input: AgentSaveWorkspaceFilesInput): 
     }
     usedPaths.add(targetPath)
     mkdirSync(dirname(targetPath), { recursive: true })
-    if (file.data.length * 0.75 > MAX_ATTACHMENT_SIZE) { console.warn(`[Agent] 工作区文件过大，跳过: ${file.filename}`); continue }
+    if (file.data.length * 0.75 > MAX_ATTACHMENT_SIZE) { log.warn(`工作区文件过大，跳过: ${file.filename}`); continue }
     const buffer = Buffer.from(file.data, 'base64')
     writeFileSync(targetPath, buffer)
     const actualFilename = targetPath.slice(wsFilesDir.length + 1)

@@ -16,7 +16,10 @@ import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { GitBashStatus } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { getGitForWindowsInstallPath } from './windows-env'
+
+const log = createLogger('Git Bash 检测')
 
 /**
  * 获取 Git for Windows 常见安装路径列表
@@ -140,7 +143,7 @@ export async function detectGitBash(): Promise<GitBashStatus> {
   for (const path of getCommonGitBashPaths()) {
     const version = verifyBashPath(path)
     if (version) {
-      console.log(`[Git Bash 检测] 找到 Git Bash (常见路径): ${path} (${version})`)
+      log.info(`找到 Git Bash (常见路径): ${path} (${version})`)
       return {
         available: true,
         path,
@@ -161,7 +164,7 @@ export async function detectGitBash(): Promise<GitBashStatus> {
     for (const path of candidatePaths) {
       const version = verifyBashPath(path)
       if (version) {
-        console.log(`[Git Bash 检测] 找到 Git Bash (注册表): ${path} (${version})`)
+        log.info(`找到 Git Bash (注册表): ${path} (${version})`)
         return {
           available: true,
           path,
@@ -177,7 +180,7 @@ export async function detectGitBash(): Promise<GitBashStatus> {
   if (pathBash) {
     const version = verifyBashPath(pathBash)
     if (version) {
-      console.log(`[Git Bash 检测] 找到 Git Bash (PATH): ${pathBash} (${version})`)
+      log.info(`找到 Git Bash (PATH): ${pathBash} (${version})`)
       return {
         available: true,
         path: pathBash,
@@ -188,7 +191,7 @@ export async function detectGitBash(): Promise<GitBashStatus> {
   }
 
   // 所有策略失败
-  console.warn('[Git Bash 检测] 未找到可用的 Git Bash 环境')
+  log.warn('未找到可用的 Git Bash 环境')
   return {
     available: false,
     path: null,

@@ -8,6 +8,9 @@
 import { mkdirSync, writeFileSync, readdirSync } from 'node:fs'
 import { join, resolve, basename, relative } from 'node:path'
 import { getAgentSessionWorkspacePath, resolveAgentSessionWorkspacePath } from './config-paths'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('bridge-attachment-utils')
 
 /** 图片大小警告阈值 */
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024
@@ -91,7 +94,7 @@ export function saveImageToSession(
 
   mkdirSync(sessionDir, { recursive: true })
   writeFileSync(targetPath, data)
-  console.log(`[Bridge 附件] 图片已保存: ${targetPath} (${data.length} bytes)`)
+  log.info(`图片已保存: ${targetPath} (${data.length} bytes)`)
 
   return targetPath
 }
@@ -113,7 +116,7 @@ export function saveFileToSession(
 
   mkdirSync(sessionDir, { recursive: true })
   writeFileSync(targetPath, data)
-  console.log(`[Bridge 附件] 文件已保存: ${targetPath} (${data.length} bytes)`)
+  log.info(`文件已保存: ${targetPath} (${data.length} bytes)`)
 
   return targetPath
 }

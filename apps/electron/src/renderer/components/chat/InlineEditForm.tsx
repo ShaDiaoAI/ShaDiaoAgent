@@ -14,9 +14,11 @@ import { MessageAction } from '@/components/ai-elements/message'
 import { AttachmentPreviewItem } from './AttachmentPreviewItem'
 import { cn } from '@/lib/utils'
 import type { ChatMessage, FileAttachment } from '@shadiao/shared'
-import { MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { MAX_ATTACHMENT_SIZE, createLogger } from '@shadiao/shared'
 import { fileToBase64, formatFileNames } from '@/lib/file-utils'
 import { toast } from 'sonner'
+
+const log = createLogger('InlineEditForm')
 
 interface NewInlineAttachment {
   filename: string
@@ -149,7 +151,7 @@ export function InlineEditForm({ message, onSubmit, onCancel }: InlineEditFormPr
         data: file.data,
       })))
     } catch (error) {
-      console.error('[InlineEditForm] 选择附件失败:', error)
+      log.error('选择附件失败:', error)
     }
   }, [addPendingAttachments])
 
@@ -177,7 +179,7 @@ export function InlineEditForm({ message, onSubmit, onCancel }: InlineEditFormPr
           data: base64,
         })
       } catch (error) {
-        console.error('[InlineEditForm] 处理附件失败:', error)
+        log.error('处理附件失败:', error)
       }
     }
     addPendingAttachments(converted)

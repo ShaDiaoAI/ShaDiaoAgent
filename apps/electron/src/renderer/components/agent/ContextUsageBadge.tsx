@@ -3,7 +3,7 @@
  *
  * 输入框工具栏上的一个 36×36 按钮：
  * - 内部为 16px 圆环，按 displayTokens / displayWindow 比例渲染
- * - hover / click 弹出 Popover，内含 token 明细 + 手动压缩按钮
+ * - hover / click 弹出 Popover，内含词元明细 + 手动压缩按钮
  * - 压缩中时按钮位置显示 Loader2 旋转图标
  * - 占用接近压缩阈值（窗口 × 0.775 × 80%）时圆环变琥珀色
  * - 无数据时不显示
@@ -39,14 +39,14 @@ interface ContextUsageBadgeProps {
   onCompact: () => void
   /**
    * 当前会话 ID，用于在切换会话时清空 stableRef，
-   * 避免新会话尚未发消息时仍显示上一个会话的 token 数。
+   * 避免新会话尚未发消息时仍显示上一个会话的词元数。
    */
   sessionId?: string
   /** 当前 Agent 渠道 ID，用于 hover 时查询订阅 Plan 剩余额度 */
   channelId?: string | null
 }
 
-/** 格式化 token 数为可读字符串（如 1234 → "1.2k"） */
+/** 格式化词元数为可读字符串（如 1234 → "1.2k"） */
 function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) {
     return `${(tokens / 1_000_000).toFixed(1)}M`

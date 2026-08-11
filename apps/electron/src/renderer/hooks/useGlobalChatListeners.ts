@@ -26,6 +26,9 @@ import type {
   StreamToolActivityEvent,
   GenerateTitleInput,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('GlobalChatListeners')
 
 /** 待生成标题的队列（按 conversationId 跟踪） */
 const pendingTitles = new Map<string, GenerateTitleInput>()
@@ -117,14 +120,14 @@ export function useGlobalChatListeners(): void {
         const titleInput = pendingTitles.get(event.conversationId)
         if (titleInput) {
           pendingTitles.delete(event.conversationId)
-          console.log('[GlobalChatListeners] 开始生成标题:', titleInput)
+          log.info('开始生成标题:', titleInput)
           window.electronAPI.generateTitle(titleInput).then((title) => {
-            console.log('[GlobalChatListeners] 标题生成结果:', title)
+            log.info('标题生成结果:', title)
             if (!title) return
             window.electronAPI
               .updateConversationTitle(event.conversationId, title)
               .then((updated) => {
-                console.log('[GlobalChatListeners] 标题更新成功:', updated.title)
+                log.info('标题更新成功:', updated.title)
                 store.set(conversationsAtom, (prev) =>
                   prev.map((c) => (c.id === updated.id ? updated : c))
                 )
@@ -133,7 +136,7 @@ export function useGlobalChatListeners(): void {
               })
               .catch(console.error)
           }).catch((error) => {
-            console.error('[GlobalChatListeners] 标题生成失败:', error)
+            log.error('标题生成失败:', error)
           })
         }
       }
@@ -142,7 +145,7 @@ export function useGlobalChatListeners(): void {
     // ===== 4. 流式错误 =====
     const cleanupError = window.electronAPI.onStreamError(
       (event: StreamErrorEvent) => {
-        console.error('[GlobalChatListeners] 流式错误:', event.error)
+        log.error('流式错误:', event.error)
 
         // 标记 streaming=false，保留内容作为过渡（与完成逻辑一致）
         updateState(event.conversationId, (s) => ({ ...s, streaming: false }))

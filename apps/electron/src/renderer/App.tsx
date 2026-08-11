@@ -5,12 +5,13 @@ import { AppShell } from './components/app-shell/AppShell'
 import { SettingsDialog } from './components/settings/SettingsDialog'
 import { DjangoLoginPage } from './components/onboarding/DjangoLoginPage'
 import { DjangoRegisterPage } from './components/onboarding/DjangoRegisterPage'
-import { agentSettingsReadyAtom } from './atoms/agent-atoms'
+import { agentSettingsReadyAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom, currentAgentSessionIdAtom } from './atoms/agent-atoms'
 import { settingsOpenAtom } from './atoms/settings-tab'
 import { channelsLoadedAtom } from './atoms/chat-atoms'
-import { charactersAtom, charactersLoadingAtom } from './atoms/character-atoms'
+import { charactersAtom, charactersLoadingAtom, selectedCharacterAtom } from './atoms/character-atoms'
 import { isAuthenticatedAtom } from './atoms/auth-atoms'
 import { userProfileAtom } from './atoms/user-profile'
+import { tabsAtom, activeTabIdAtom } from './atoms/tab-atoms'
 
 export default function App(): React.ReactElement {
   const agentReady = useAtomValue(agentSettingsReadyAtom)
@@ -20,6 +21,13 @@ export default function App(): React.ReactElement {
   const setCharactersLoading = useSetAtom(charactersLoadingAtom)
   const [, setCharacters] = useAtom(charactersAtom)
   const [, setUserProfile] = useAtom(userProfileAtom)
+  const [, setAgentWorkspaces] = useAtom(agentWorkspacesAtom)
+  const [, setCurrentWorkspaceId] = useAtom(currentAgentWorkspaceIdAtom)
+  const setTabs = useSetAtom(tabsAtom)
+  const setActiveTabId = useSetAtom(activeTabIdAtom)
+  const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
+  const setSelectedCharacter = useSetAtom(selectedCharacterAtom)
 
   // Django 认证状态（Jotai atom，跨组件共享，登出时不需要 reload）
   const [isAuthenticated, setIsAuthenticated] = useAtom(isAuthenticatedAtom)
@@ -46,6 +54,14 @@ export default function App(): React.ReactElement {
   }, [setIsAuthenticated, setUserProfile])
 
   const handleLoginSuccess = React.useCallback(() => {
+    // 清空上一个账号的会话/tab/persona 状态，避免新账号看到旧数据
+    setTabs([])
+    setActiveTabId(null)
+    setCurrentAgentSessionId(null)
+    setAgentSessions([])
+    setSelectedCharacter(null)
+    setSettingsOpen(false)
+
     setIsAuthenticated(true)
     // 同步 Django 用户名到用户档案
     window.electronAPI.getAuthStatus()
@@ -62,10 +78,20 @@ export default function App(): React.ReactElement {
     window.electronAPI.listCharacters()
       .then((r: any) => {
         if (r?.success && r.data) setCharacters(r.data)
+        // listCharacters 在主进程侧会为每个人物创建/补全 char-{id} workspace，
+        // 这里必须重新拉取 workspace 列表，否则渲染进程的 atom 里只有 default workspace，
+        // 左侧栏项目列表（过滤掉 default 后）为空。
+        return window.electronAPI.listAgentWorkspaces()
+      })
+      .then((workspaces: any[]) => {
+        setAgentWorkspaces(workspaces)
+        // 新用户首次登录时，切换到人物 workspace（非 default 的第一个）
+        const charWs = workspaces.find((w: any) => w.slug !== 'default')
+        if (charWs) setCurrentWorkspaceId(charWs.id)
       })
       .catch(() => {})
       .finally(() => setCharactersLoading(false))
-  }, [setIsAuthenticated, setCharactersLoading, setCharacters])
+  }, [setIsAuthenticated, setCharactersLoading, setCharacters, setAgentWorkspaces, setCurrentWorkspaceId, setTabs, setActiveTabId, setCurrentAgentSessionId, setAgentSessions, setSelectedCharacter, setSettingsOpen])
 
   // 未检查认证（atom 初始为 null）/ 正在加载应用设置
   if (isAuthenticated === null || !agentReady || !channelsLoaded) {

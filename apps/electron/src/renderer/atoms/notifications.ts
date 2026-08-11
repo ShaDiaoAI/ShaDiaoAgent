@@ -19,6 +19,9 @@ import soundSillyLaugh from '@/assets/sound/silly-laugh.mp3'
 import soundHeng from '@/assets/sound/heng.mp3'
 import soundLightInjuryFemale from '@/assets/sound/light-injury-female.mp3'
 import soundFart from '@/assets/sound/fart.mp3'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('notifications')
 
 // ===== 音频资源注册表 =====
 
@@ -76,7 +79,7 @@ export async function initializeNotifications(
     setSoundEnabled(settings.notificationSoundEnabled ?? true)
     setSounds(settings.notificationSounds ?? {})
   } catch (error) {
-    console.error('[通知] 初始化失败:', error)
+    log.error('初始化失败:', error)
   }
   // 后台预加载所有通知音到 AudioBuffer，不阻塞设置加载
   void preloadAllSounds()
@@ -91,7 +94,7 @@ export async function updateNotificationsEnabled(enabled: boolean): Promise<void
   try {
     await window.electronAPI.updateSettings({ notificationsEnabled: enabled })
   } catch (error) {
-    console.error('[通知] 更新设置失败:', error)
+    log.error('更新设置失败:', error)
   }
 }
 
@@ -102,7 +105,7 @@ export async function updateNotificationSoundEnabled(enabled: boolean): Promise<
   try {
     await window.electronAPI.updateSettings({ notificationSoundEnabled: enabled })
   } catch (error) {
-    console.error('[通知] 更新提示音设置失败:', error)
+    log.error('更新提示音设置失败:', error)
   }
 }
 
@@ -118,7 +121,7 @@ export async function updateNotificationSound(
   try {
     await window.electronAPI.updateSettings({ notificationSounds: newSounds })
   } catch (error) {
-    console.error('[通知] 更新通知音设置失败:', error)
+    log.error('更新通知音设置失败:', error)
   }
   return newSounds
 }
@@ -203,7 +206,7 @@ async function preloadSound(soundId: string, url: string): Promise<void> {
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
     audioBufferCache.set(soundId, audioBuffer)
   } catch (error) {
-    console.error(`[通知] 预加载音频失败 ${soundId}:`, error)
+    log.error(`预加载音频失败 ${soundId}:`, error)
   }
 }
 
@@ -223,7 +226,7 @@ async function decodeSoundOnTheFly(url: string): Promise<AudioBuffer | undefined
     ])
     return await ctx.decodeAudioData(arrayBuffer)
   } catch (error) {
-    console.error('[通知] 即时解码音频失败:', error)
+    log.error('即时解码音频失败:', error)
     return undefined
   }
 }
@@ -264,7 +267,7 @@ export async function playNotificationSound(soundId: NotificationSoundId): Promi
     source.onended = () => { activeSources.delete(source) }
     source.start(0)
   } catch (error) {
-    console.warn('[通知] 播放通知音失败:', soundId, error)
+    log.warn('播放通知音失败:', soundId, error)
   }
 }
 

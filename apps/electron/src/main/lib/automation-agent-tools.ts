@@ -6,6 +6,7 @@
  */
 
 import {
+  createLogger,
   type Automation,
   type AutomationScheduleType,
   type CreateAutomationInput,
@@ -23,6 +24,8 @@ import {
   runAutomationNow,
 } from './automation-scheduler'
 import { getAgentSessionMeta } from './agent-session-manager'
+
+const log = createLogger('automation-agent-tools')
 
 interface AutomationAgentToolContext {
   sessionId: string
@@ -320,5 +323,5 @@ export async function injectAutomationMcpServer(
   })
 
   mcpServers.automation = server as unknown as Record<string, unknown>
-  console.log('[Agent 编排] 已注入内置定时任务工具 (automation)')
+  log.info('已注入内置定时任务工具 (automation)')
 }

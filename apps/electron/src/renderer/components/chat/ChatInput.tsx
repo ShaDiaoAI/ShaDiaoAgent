@@ -48,9 +48,11 @@ import {
 } from '@/hooks/useConversationSettings'
 import { cn } from '@/lib/utils'
 import { fileToBase64, formatFileNames } from '@/lib/file-utils'
-import { MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { MAX_ATTACHMENT_SIZE, createLogger } from '@shadiao/shared'
 import { sendWithCmdEnterAtom } from '@/atoms/shortcut-atoms'
 import { toast } from 'sonner'
+
+const log = createLogger('ChatInput')
 
 interface ChatInputProps {
   /** 当前对话 ID */
@@ -147,7 +149,7 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
 
         setPendingAttachments((prev) => [...prev, pendingAttachment])
       } catch (error) {
-        console.error('[ChatInput] 添加附件失败:', error)
+        log.error('添加附件失败:', error)
       }
     }
   }, [setPendingAttachments])
@@ -199,7 +201,7 @@ export function ChatInput({ conversationId, streaming, pendingAttachments, onSet
         toast.error(`以下文件超过 100MB，Chat 附件暂不支持，已跳过：${formatFileNames(oversized)}`)
       }
     } catch (error) {
-      console.error('[ChatInput] 文件选择对话框失败:', error)
+      log.error('文件选择对话框失败:', error)
     }
   }, [setPendingAttachments])
 

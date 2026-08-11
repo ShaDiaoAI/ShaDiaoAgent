@@ -1,5 +1,8 @@
 import * as React from 'react'
 import { AlertTriangle, RotateCw } from 'lucide-react'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('TabErrorBoundary')
 
 interface TabErrorBoundaryProps {
   sessionId: string
@@ -26,7 +29,7 @@ export class TabErrorBoundary extends React.Component<
   }
 
   override componentDidCatch(error: unknown, info: React.ErrorInfo): void {
-    console.error('[TabErrorBoundary] 渲染异常:', error, info.componentStack)
+    log.error('渲染异常:', error, info.componentStack)
   }
 
   private handleReset = (): void => {

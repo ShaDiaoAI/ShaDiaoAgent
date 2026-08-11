@@ -53,6 +53,9 @@ import type {
   FileAttachment,
   AttachmentSaveInput,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ChatView')
 
 interface ChatViewProps {
   conversationId: string
@@ -243,9 +246,9 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
     // 判断是否为第一条消息（发送前历史为空）
     const messageCountBeforeSend = options?.messageCountBeforeSend ?? messages.length
     const isFirstMessage = messageCountBeforeSend === 0
-    console.log('[ChatView] 发送消息 - isFirstMessage:', isFirstMessage, 'messageCountBeforeSend:', messageCountBeforeSend, 'conversationId:', conversationId)
+    log.info('发送消息 - isFirstMessage:', isFirstMessage, 'messageCountBeforeSend:', messageCountBeforeSend, 'conversationId:', conversationId)
     if (isFirstMessage && content) {
-      console.log('[ChatView] 设置待生成标题:', { conversationId, userMessage: content.slice(0, 50) })
+      log.info('设置待生成标题:', { conversationId, userMessage: content.slice(0, 50) })
       registerPendingTitle(conversationId, {
         userMessage: content,
         channelId: selectedModel.channelId,
@@ -282,7 +285,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
           const result = await window.electronAPI.saveAttachment(input)
           savedAttachments.push(result.attachment)
         } catch (error) {
-          console.error('[ChatView] 保存附件失败:', error)
+          log.error('保存附件失败:', error)
         }
       }
 
@@ -362,7 +365,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
     ])
 
     window.electronAPI.sendMessage(input).catch((error) => {
-      console.error('[ChatView] 发送消息失败:', error)
+      log.error('发送消息失败:', error)
       setStreamingStates((prev) => {
         if (!prev.has(conversationId)) return prev
         const map = new Map(prev)
@@ -489,7 +492,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
       }
       await syncContextDividers(conversationId, updatedMessages, contextDividers)
     } catch (error) {
-      console.error('[ChatView] 删除消息失败:', error)
+      log.error('删除消息失败:', error)
     }
   }, [conversationId, contextDividers, inlineEditingMessageId, syncContextDividers])
 
@@ -506,7 +509,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
         contextDividersOverride: truncated.contextDividersAfterTruncate,
       })
     } catch (error) {
-      console.error('[ChatView] 重新发送失败:', error)
+      log.error('重新发送失败:', error)
     }
   }, [isStreaming, truncateFromMessage, handleSend])
 
@@ -560,7 +563,7 @@ function ChatViewInner({ conversationId }: ChatViewProps): React.ReactElement {
       })
       setInlineEditingMessageId(null)
     } catch (error) {
-      console.error('[ChatView] 原地编辑重发失败:', error)
+      log.error('原地编辑重发失败:', error)
     }
   }, [conversationId, isStreaming, truncateFromMessage, handleSend])
 

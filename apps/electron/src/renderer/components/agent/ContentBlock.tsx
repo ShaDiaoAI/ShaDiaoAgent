@@ -179,7 +179,7 @@ function SubAgentFooter({
             <span>{formatDuration(effectiveMeta.durationMs)}</span>
           )}
           {effectiveMeta.totalTokens > 0 && (
-            <span>{effectiveMeta.totalTokens.toLocaleString()} tokens</span>
+            <span>{effectiveMeta.totalTokens.toLocaleString()} 词元</span>
           )}
           {effectiveMeta.toolUses > 0 && (
             <span>{effectiveMeta.toolUses} 次工具调用</span>

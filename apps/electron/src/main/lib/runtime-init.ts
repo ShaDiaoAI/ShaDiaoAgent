@@ -10,12 +10,15 @@
  */
 
 import type { RuntimeStatus, RuntimeInitOptions, ShellEnvironmentStatus } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { loadShellEnv } from './shell-env'
 import { detectNodeRuntime } from './node-detector'
 import { detectBunRuntime } from './bun-finder'
 import { detectGitRuntime, getGitRepoStatus } from './git-detector'
 import { detectGitBash } from './git-bash-detector'
 import { detectWsl } from './wsl-detector'
+
+const log = createLogger('运行时初始化')
 
 /** 运行时状态缓存 */
 let runtimeStatusCache: RuntimeStatus | null = null
@@ -38,7 +41,7 @@ let isInitialized = false
  */
 export async function initializeRuntime(options: RuntimeInitOptions = {}): Promise<RuntimeStatus> {
   const startTime = Date.now()
-  console.log('[运行时初始化] 开始初始化运行时环境...')
+  log.info('开始初始化运行时环境...')
 
   // 1. 加载 Shell 环境
   let envLoaded = false
@@ -48,7 +51,7 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
       const shellEnvResult = await loadShellEnv()
       envLoaded = shellEnvResult.success
     } catch (error) {
-      console.error('[运行时初始化] Shell 环境加载失败:', error)
+      log.error('Shell 环境加载失败:', error)
       envLoaded = false
     }
   }
@@ -106,7 +109,7 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
         recommended,
       }
 
-      console.log('[运行时初始化] Shell 环境检测完成:', {
+      log.debug('Shell 环境检测完成:', {
         gitBash: gitBashStatus.available ? `✅ ${gitBashStatus.version}` : `❌ ${gitBashStatus.error}`,
         wsl: wslStatus.available
           ? `✅ WSL ${wslStatus.version} (${wslStatus.defaultDistro})`
@@ -114,7 +117,7 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
         recommended: recommended || '⚠️ 无可用环境',
       })
     } catch (error) {
-      console.error('[运行时初始化] Shell 环境检测失败:', error)
+      log.error('Shell 环境检测失败:', error)
     }
   }
 
@@ -133,8 +136,8 @@ export async function initializeRuntime(options: RuntimeInitOptions = {}): Promi
   isInitialized = true
 
   const duration = Date.now() - startTime
-  console.log(`[运行时初始化] 初始化完成 (耗时 ${duration}ms)`)
-  console.log('[运行时初始化] 状态:', {
+  log.info(`初始化完成 (耗时 ${duration}ms)`)
+  log.debug('状态:', {
     node: nodeStatus.available ? `✅ ${nodeStatus.version}` : `❌ ${nodeStatus.error}`,
     bun: bunStatus.available ? `✅ ${bunStatus.version} (${bunStatus.source})` : `❌ ${bunStatus.error}`,
     git: gitStatus.available ? `✅ ${gitStatus.version}` : `❌ ${gitStatus.error}`,

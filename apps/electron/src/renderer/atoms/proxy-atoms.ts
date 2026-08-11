@@ -5,7 +5,9 @@
  */
 
 import { atom } from 'jotai'
-import type { ProxyConfig } from '@shadiao/shared'
+import { createLogger, type ProxyConfig } from '@shadiao/shared'
+
+const log = createLogger('proxy-atoms')
 
 /**
  * 代理配置 Atom
@@ -22,7 +24,7 @@ export const loadProxyConfigAtom = atom(null, async (get, set) => {
     const config = await window.electronAPI.getProxySettings()
     set(proxyConfigAtom, config)
   } catch (error) {
-    console.error('[代理配置] 加载失败:', error)
+    log.error('加载失败:', error)
   }
 })
 
@@ -36,7 +38,7 @@ export const updateProxyConfigAtom = atom(
       await window.electronAPI.updateProxySettings(config)
       set(proxyConfigAtom, config)
     } catch (error) {
-      console.error('[代理配置] 更新失败:', error)
+      log.error('更新失败:', error)
       throw error
     }
   }

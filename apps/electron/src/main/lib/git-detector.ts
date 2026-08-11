@@ -8,7 +8,10 @@ import { execSync, spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import type { GitRuntimeStatus, GitRepoStatus } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { getGitForWindowsInstallPath } from './windows-env'
+
+const log = createLogger('Git 检测')
 
 /**
  * 从系统 PATH 查找 Git
@@ -121,12 +124,12 @@ function getGitVersion(gitPath: string): string | null {
  * @returns Git 运行时状态
  */
 export async function detectGitRuntime(): Promise<GitRuntimeStatus> {
-  console.log('[Git 检测] 开始检测 Git 运行时...')
+  log.debug('开始检测 Git 运行时...')
 
   const gitPath = findGitPath()
 
   if (!gitPath) {
-    console.warn('[Git 检测] 未找到 Git')
+    log.warn('未找到 Git')
     return {
       available: false,
       version: null,
@@ -138,7 +141,7 @@ export async function detectGitRuntime(): Promise<GitRuntimeStatus> {
   const version = getGitVersion(gitPath)
 
   if (!version) {
-    console.warn(`[Git 检测] Git 无法执行: ${gitPath}`)
+    log.warn(`Git 无法执行: ${gitPath}`)
     return {
       available: false,
       version: null,
@@ -147,7 +150,7 @@ export async function detectGitRuntime(): Promise<GitRuntimeStatus> {
     }
   }
 
-  console.log(`[Git 检测] 找到 Git: ${gitPath} (${version})`)
+  log.info(`找到 Git: ${gitPath} (${version})`)
   return {
     available: true,
     version,

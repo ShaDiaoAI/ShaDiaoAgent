@@ -5,6 +5,9 @@
  */
 
 import { atom } from 'jotai'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ui-preferences')
 
 // ===== Jotai Atoms =====
 
@@ -33,7 +36,7 @@ export async function initializeUiPreferences(
     setLongTextPasteAsAttachmentEnabled?.(settings.longTextPasteAsAttachmentEnabled ?? false)
     setRichTextRenderingEnabled?.(settings.richTextRenderingEnabled ?? false)
   } catch (error) {
-    console.error('[UI偏好] 初始化失败:', error)
+    log.error('初始化失败:', error)
   }
 }
 
@@ -46,7 +49,7 @@ export async function updateStickyUserMessageEnabled(enabled: boolean): Promise<
   try {
     await window.electronAPI.updateSettings({ stickyUserMessageEnabled: enabled })
   } catch (error) {
-    console.error('[UI偏好] 更新悬浮置顶条设置失败:', error)
+    log.error('更新悬浮置顶条设置失败:', error)
   }
 }
 
@@ -57,7 +60,7 @@ export async function updateLongTextPasteAsAttachmentEnabled(enabled: boolean): 
   try {
     await window.electronAPI.updateSettings({ longTextPasteAsAttachmentEnabled: enabled })
   } catch (error) {
-    console.error('[UI偏好] 更新长文本粘贴附件设置失败:', error)
+    log.error('更新长文本粘贴附件设置失败:', error)
   }
 }
 
@@ -68,6 +71,6 @@ export async function updateRichTextRenderingEnabled(enabled: boolean): Promise<
   try {
     await window.electronAPI.updateSettings({ richTextRenderingEnabled: enabled })
   } catch (error) {
-    console.error('[UI偏好] 更新输入框 Markdown 渲染设置失败:', error)
+    log.error('更新输入框 Markdown 渲染设置失败:', error)
   }
 }

@@ -15,6 +15,9 @@ import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { app } from 'electron'
 import type { ShellEnvResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('Windows 环境')
 
 /**
  * Windows PATH 分隔符
@@ -159,7 +162,7 @@ export async function loadWindowsEnv(): Promise<ShellEnvResult> {
     return { success: true, loadedCount: 0, error: null }
   }
 
-  console.log('[Windows 环境] 正在从注册表加载 PATH...')
+  log.debug('正在从注册表加载 PATH...')
 
   try {
     let totalAdded = 0
@@ -172,7 +175,7 @@ export async function loadWindowsEnv(): Promise<ShellEnvResult> {
     if (systemPath) {
       const added = mergeRegistryPath(systemPath)
       totalAdded += added
-      console.log(`[Windows 环境] 系统 PATH: 新增 ${added} 个路径`)
+      log.info(`系统 PATH: 新增 ${added} 个路径`)
     }
 
     // 读取用户 PATH
@@ -180,14 +183,14 @@ export async function loadWindowsEnv(): Promise<ShellEnvResult> {
     if (userPath) {
       const added = mergeRegistryPath(userPath)
       totalAdded += added
-      console.log(`[Windows 环境] 用户 PATH: 新增 ${added} 个路径`)
+      log.info(`用户 PATH: 新增 ${added} 个路径`)
     }
 
-    console.log(`[Windows 环境] PATH 加载完成，共新增 ${totalAdded} 个路径`)
+    log.info(`PATH 加载完成，共新增 ${totalAdded} 个路径`)
     return { success: true, loadedCount: totalAdded, error: null }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.warn(`[Windows 环境] PATH 加载失败: ${errorMessage}`)
+    log.warn(`PATH 加载失败: ${errorMessage}`)
     return { success: false, loadedCount: 0, error: errorMessage }
   }
 }

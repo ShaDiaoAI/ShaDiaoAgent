@@ -10,6 +10,9 @@
  */
 
 import type { AgentStreamPayload } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AgentEventBus')
 
 /** 事件监听器 */
 export type AgentEventHandler = (sessionId: string, payload: AgentStreamPayload) => void
@@ -37,7 +40,7 @@ export class AgentEventBus {
         try {
           handler(sessionId, payload)
         } catch (error) {
-          console.error(`[AgentEventBus] 事件处理器错误:`, error)
+          log.error('事件处理器错误:', error)
         }
       }
     }
@@ -58,7 +61,7 @@ export class AgentEventBus {
         try {
           mw(sessionId, payload, next)
         } catch (error) {
-          console.error(`[AgentEventBus] 中间件错误:`, error)
+          log.error('中间件错误:', error)
           next()
         }
       }
@@ -68,7 +71,7 @@ export class AgentEventBus {
     try {
       chain()
     } catch (error) {
-      console.error(`[AgentEventBus] 事件分发错误:`, error)
+      log.error('事件分发错误:', error)
     }
   }
 

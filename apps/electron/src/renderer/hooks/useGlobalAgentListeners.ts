@@ -66,11 +66,13 @@ import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import type { NotificationSoundType } from '@/types/settings'
 import { toast } from 'sonner'
 import type { AgentStreamEvent, AgentStreamCompletePayload, AgentEvent, AgentStreamPayload, SDKAssistantMessage, SDKUserMessage, SDKSystemMessage, SDKContentBlock, SDKUserContentBlock, PromaEvent, AgentSessionMeta, ProviderType } from '@shadiao/shared'
-import { inferAgentSdkContextWindow, inferContextWindow } from '@shadiao/shared'
+import { createLogger, inferAgentSdkContextWindow, inferContextWindow } from '@shadiao/shared'
 import { buildExternalAgentRunActivation } from '@/lib/external-agent-run'
 import { upsertAgentSession, mergeFetchedAgentSessions } from '@/lib/agent-session-list'
 import { getAgentCompletionMarkers } from '@/lib/agent-completion-presence'
 import { getPlanModeChangeFromToolName, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
+
+const log = createLogger('GlobalAgentListeners')
 
 /** 触发右侧文件浏览器自动定位的写入类工具集合 */
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit', 'Update'])
@@ -609,7 +611,7 @@ export function useGlobalAgentListeners(): void {
         eventCount++
         const now = Date.now()
         if (now - lastLogTime >= 2000) {
-          console.log(`[FLASH-DEBUG] GlobalListener: ${eventCount} events in ${((now - lastLogTime) / 1000).toFixed(1)}s (${(eventCount / ((now - lastLogTime) / 1000)).toFixed(1)} evt/s)`)
+          log.debug(`GlobalListener: ${eventCount} events in ${((now - lastLogTime) / 1000).toFixed(1)}s (${(eventCount / ((now - lastLogTime) / 1000)).toFixed(1)} evt/s)`)
           eventCount = 0
           lastLogTime = now
         }
@@ -852,7 +854,7 @@ export function useGlobalAgentListeners(): void {
             })
           } else if (event.type === 'prompt_suggestion') {
             // 存储提示建议到 atom
-            console.log(`[GlobalAgentListeners] 收到建议: sessionId=${sessionId}, suggestion="${event.suggestion.slice(0, 50)}..."`)
+            log.info(`收到建议: sessionId=${sessionId}, suggestion="${event.suggestion.slice(0, 50)}..."`)
             store.set(agentPromptSuggestionsAtom, (prev) => {
               const map = new Map(prev)
               map.set(sessionId, event.suggestion)
@@ -943,7 +945,7 @@ export function useGlobalAgentListeners(): void {
             )
           } else if (event.type === 'permission_mode_changed') {
             // 权限模式变更（如 Plan 模式退出后切换到完全自动）
-            console.log(`[GlobalAgentListeners] 权限模式变更: ${event.mode}`)
+            log.info(`权限模式变更: ${event.mode}`)
             store.set(agentPermissionModeMapAtom, (prev: Map<string, import('@shadiao/shared').PromaPermissionMode>) => {
               const next = new Map(prev)
               next.set(sessionId, event.mode)
@@ -970,7 +972,7 @@ export function useGlobalAgentListeners(): void {
     // ===== 2. 流式完成 =====
     const cleanupComplete = window.electronAPI.onAgentStreamComplete(
       (data: AgentStreamCompletePayload) => {
-        console.log(`[FLASH-DEBUG] STREAM_COMPLETE for session=${data.sessionId.slice(0, 8)}, stoppedByUser=${data.stoppedByUser}, resultSubtype=${data.resultSubtype}`)
+        log.debug(`STREAM_COMPLETE for session=${data.sessionId.slice(0, 8)}, stoppedByUser=${data.stoppedByUser}, resultSubtype=${data.resultSubtype}`)
         unstable_batchedUpdates(() => {
         // 后台任务等待态：turn 主体结束但仍有后台任务在飞行，UI 进入"空闲可输入"。
         // 不发"任务已完成"通知（任务并未真正完成）、不清后台任务列表、不重载消息——
@@ -1205,7 +1207,7 @@ export function useGlobalAgentListeners(): void {
     const cleanupError = window.electronAPI.onAgentStreamError(
       (data: { sessionId: string; error: string }) => {
         unstable_batchedUpdates(() => {
-        console.error('[GlobalAgentListeners] 流式错误:', data.error)
+        log.error('流式错误:', data.error)
 
         // 存储错误消息
         store.set(agentStreamErrorsAtom, (prev) => {

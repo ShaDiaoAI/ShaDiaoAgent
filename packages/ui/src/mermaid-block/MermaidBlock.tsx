@@ -18,6 +18,9 @@
 
 import * as React from 'react'
 import type { DiagramColors, RenderOptions } from 'beautiful-mermaid'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('MermaidBlock')
 
 interface MermaidBlockProps {
   /** mermaid 源码 */
@@ -190,7 +193,7 @@ export function MermaidBlock({ code }: MermaidBlockProps): React.ReactElement {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('[MermaidBlock] 复制失败:', error)
+      log.error('复制失败:', error)
     }
   }, [code])
 

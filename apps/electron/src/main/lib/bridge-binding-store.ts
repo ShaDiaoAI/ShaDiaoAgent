@@ -7,6 +7,9 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { BridgeChatBinding } from './bridge-command-handler'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('bridge-binding-store')
 
 export interface BridgeChatBindingStore {
   load(): BridgeChatBinding[]
@@ -27,13 +30,13 @@ export function loadBridgeChatBindings(filePath: string, logPrefix: string): Bri
     const raw = readFileSync(filePath, 'utf-8')
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) {
-      console.warn(`[${logPrefix}] 绑定文件格式无效，已忽略`)
+      log.warn('绑定文件格式无效，已忽略')
       return []
     }
 
     return parsed.filter(isBridgeChatBinding)
   } catch (error) {
-    console.error(`[${logPrefix}] 加载聊天绑定失败:`, error)
+    log.error('加载聊天绑定失败:', error)
     return []
   }
 }
@@ -42,7 +45,7 @@ export function saveBridgeChatBindings(filePath: string, bindings: BridgeChatBin
   try {
     writeFileSync(filePath, JSON.stringify(bindings, null, 2), 'utf-8')
   } catch (error) {
-    console.error(`[${logPrefix}] 保存聊天绑定失败:`, error)
+    log.error('保存聊天绑定失败:', error)
   }
 }
 

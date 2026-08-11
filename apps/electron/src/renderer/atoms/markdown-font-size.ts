@@ -9,6 +9,9 @@
 import { atom } from 'jotai'
 import { DEFAULT_MARKDOWN_FONT_SIZE } from '../../types'
 import type { MarkdownFontSize } from '../../types'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('markdown-font-size')
 
 /** 各档位对应的根字号（px） */
 const FONT_SIZE_PX: Record<MarkdownFontSize, number> = {
@@ -45,7 +48,7 @@ export async function initializeMarkdownFontSize(
     setSize(size)
     applyMarkdownFontSizeToDOM(size)
   } catch (error) {
-    console.error('[Markdown字号] 初始化失败:', error)
+    log.error('初始化失败:', error)
     applyMarkdownFontSizeToDOM(DEFAULT_MARKDOWN_FONT_SIZE)
   }
 }
@@ -58,6 +61,6 @@ export async function updateMarkdownFontSize(size: MarkdownFontSize): Promise<vo
   try {
     await window.electronAPI.updateSettings({ markdownFontSize: size })
   } catch (error) {
-    console.error('[Markdown字号] 持久化失败:', error)
+    log.error('持久化失败:', error)
   }
 }

@@ -129,6 +129,9 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import type { ConversationMeta, AgentSessionMeta, AgentWorkspace, WorkspaceCapabilities } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('侧边栏')
 
 function formatAutomationCount(count: number): string {
   return count > 99 ? '99+' : String(count)
@@ -1127,7 +1130,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         setSelectedPromptId(promptConfig.defaultPromptId)
       }
     } catch (error) {
-      console.error('[侧边栏] 创建对话失败:', error)
+      log.error('创建对话失败:', error)
     }
   }
 
@@ -1152,7 +1155,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       // 同步更新标签页标题
       setTabs((prev) => updateTabTitle(prev, id, newTitle))
     } catch (error) {
-      console.error('[侧边栏] 重命名对话失败:', error)
+      log.error('重命名对话失败:', error)
     }
   }, [setConversations, setTabs])
 
@@ -1169,7 +1172,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         toast.success('已取消归档并置顶')
       }
     } catch (error) {
-      console.error('[侧边栏] 切换置顶失败:', error)
+      log.error('切换置顶失败:', error)
     }
   }, [store, setConversations])
 
@@ -1200,7 +1203,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       }
       toast.success(updated.archived ? '已归档' : '已取消归档')
     } catch (error) {
-      console.error('[侧边栏] 切换归档失败:', error)
+      log.error('切换归档失败:', error)
     }
   }, [store, setConversations, setTabs, setActiveTabId, cleanupMapAtoms, syncActiveTabSideEffects])
 
@@ -1258,7 +1261,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             try {
               await window.electronAPI.deleteAgentSession(childId)
             } catch (error) {
-              console.error(`[侧边栏] 级联删除子会话失败 (${childId}):`, error)
+              log.error(`级联删除子会话失败 (${childId}):`, error)
               failedChildIds.push(childId)
             }
           }
@@ -1281,7 +1284,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         const sessions = await window.electronAPI.listAgentSessions()
         setAgentSessions(sessions)
       } catch (error) {
-        console.error('[侧边栏] 删除 Agent 会话失败:', error)
+        log.error('删除 Agent 会话失败:', error)
         // 即使后端报错，也从本地列表移除（可能是会话已不存在）
         setAgentSessions((prev) => prev.filter((s) => s.id !== pendingDeleteId))
       } finally {
@@ -1303,7 +1306,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const conversations = await window.electronAPI.listConversations()
       setConversations(conversations)
     } catch (error) {
-      console.error('[侧边栏] 删除对话失败:', error)
+      log.error('删除对话失败:', error)
       // 即使后端报错，也从本地列表移除（可能是对话已不存在）
       setConversations((prev) => prev.filter((c) => c.id !== pendingDeleteId))
     } finally {
@@ -1348,7 +1351,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       openSession('agent', meta.id, meta.title)
       setActiveView('conversations')
     } catch (error) {
-      console.error('[侧边栏] 创建 Agent 会话失败:', error)
+      log.error('创建 Agent 会话失败:', error)
     }
   }, [agentChannelId, agentModelId, currentWorkspaceId, openSession, setActiveView, setAgentSessions, setCurrentWorkspaceId, setSessionChannelMap, setSessionModelMap])
 
@@ -1504,7 +1507,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         description: `已删除「${workspace.name}」及其绑定资源`,
       })
     } catch (error) {
-      console.error('[侧边栏] 删除项目失败:', error)
+      log.error('删除项目失败:', error)
       const msg = error instanceof Error ? error.message : '删除项目失败'
       toast.error(msg)
     } finally {
@@ -1665,7 +1668,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         .reorderAgentWorkspaces(newWorkspaceIds)
         .then(setWorkspaces)
         .catch((error) => {
-          console.error('[侧边栏] 项目排序失败:', error)
+          log.error('项目排序失败:', error)
           setWorkspaces(workspaces)
           toast.error('项目排序失败')
         })
@@ -1930,11 +1933,11 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             }
           }
         } catch (e) {
-          console.warn('[侧边栏] 同步人物名称失败:', e)
+          log.warn('同步人物名称失败:', e)
         }
       }
     } catch (error) {
-      console.error('[侧边栏] 重命名工作区失败:', error)
+      log.error('重命名工作区失败:', error)
       const msg = error instanceof Error ? error.message : '重命名失败'
       toast.error(msg)
     }
@@ -1948,7 +1951,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       // 同步更新标签页标题
       setTabs((prev) => updateTabTitle(prev, id, newTitle))
     } catch (error) {
-      console.error('[侧边栏] 重命名 Agent 会话失败:', error)
+      log.error('重命名 Agent 会话失败:', error)
     }
   }, [setAgentSessions, setTabs])
 
@@ -2012,14 +2015,14 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )
       }
     } catch (error) {
-      console.error('[侧边栏] 切换 Agent 会话置顶失败:', error)
+      log.error('切换 Agent 会话置顶失败:', error)
       // 级联可能在中途失败，导致部分子会话已切换、部分未切换。
       // 重新拉取磁盘真实状态，避免侧边栏与磁盘不一致直到下次重载。
       if (delegatedChildren.length > 0) {
         try {
           setAgentSessions(await window.electronAPI.listAgentSessions())
         } catch (refreshError) {
-          console.error('[侧边栏] 置顶失败后刷新会话列表失败:', refreshError)
+          log.error('置顶失败后刷新会话列表失败:', refreshError)
         }
       }
     }
@@ -2047,7 +2050,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
             const childUpdated = await window.electronAPI.toggleArchiveAgentSession(child.id)
             changedChildIds.push(childUpdated.id)
           } catch (childError) {
-            console.error(`[侧边栏] 级联归档子会话失败 (${child.id}):`, childError)
+            log.error(`级联归档子会话失败 (${child.id}):`, childError)
             failedChildIds.push(child.id)
           }
         }
@@ -2077,7 +2080,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         )
       }
     } catch (error) {
-      console.error('[侧边栏] 切换 Agent 会话归档失败:', error)
+      log.error('切换 Agent 会话归档失败:', error)
       // 父会话操作本身失败。已成功归档的子会话仍需关闭标签并全量刷新。
       if (cascaded) {
         if (changedChildIds.length > 0) {
@@ -2086,7 +2089,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
         try {
           setAgentSessions(await window.electronAPI.listAgentSessions())
         } catch (refreshError) {
-          console.error('[侧边栏] 归档失败后刷新会话列表失败:', refreshError)
+          log.error('归档失败后刷新会话列表失败:', refreshError)
         }
       }
     }
@@ -2107,7 +2110,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
       const sessions = await window.electronAPI.listAgentSessions()
       setAgentSessions(sessions)
     } catch (error) {
-      console.error('[侧边栏] 迁移后刷新 Agent 会话列表失败:', error)
+      log.error('迁移后刷新 Agent 会话列表失败:', error)
       setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updatedSession))
     }
     const hasMovedOpenTab = tabs.some((tab) => (

@@ -9,6 +9,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { getUserProfilePath } from './config-paths'
 import { DEFAULT_USER_AVATAR, DEFAULT_USER_NAME } from '../../types'
 import type { UserProfile } from '../../types'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('user-profile-service')
 
 /**
  * 获取用户档案
@@ -33,7 +36,7 @@ export function getUserProfile(): UserProfile {
       avatar: data.avatar || DEFAULT_USER_AVATAR,
     }
   } catch (error) {
-    console.error('[用户档案] 读取失败:', error)
+    log.error('读取失败:', error)
     return {
       userName: DEFAULT_USER_NAME,
       avatar: DEFAULT_USER_AVATAR,
@@ -57,9 +60,9 @@ export function updateUserProfile(updates: Partial<UserProfile>): UserProfile {
 
   try {
     writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8')
-    console.log(`[用户档案] 已更新: ${updated.userName}`)
+    log.info(`已更新: ${updated.userName}`)
   } catch (error) {
-    console.error('[用户档案] 写入失败:', error)
+    log.error('写入失败:', error)
     throw new Error('写入用户档案失败')
   }
 

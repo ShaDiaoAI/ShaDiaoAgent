@@ -12,7 +12,9 @@ import { join } from 'node:path'
 import { tmpdir, homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { PNG } from 'pngjs'
-import { SCREENSHOT_LIMITS } from '@shadiao/shared'
+import { SCREENSHOT_LIMITS, createLogger } from '@shadiao/shared'
+
+const log = createLogger('screenshot-service')
 
 const SCREENSHOT_SCALE_CANDIDATES = [4, 3, 2, 1.5, 1]
 const SCREENSHOT_MAX_SEGMENT = 4000
@@ -361,7 +363,7 @@ export function captureScreenshot(input: ScreenshotInput): Promise<ScreenshotRes
       return { success: true, message: '截图已保存', filePath }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '截图失败'
-      console.error('[截图服务]', err)
+      log.error('截图失败:', err)
       return { success: false, message: msg }
     } finally {
       scheduleIdleDestroy()

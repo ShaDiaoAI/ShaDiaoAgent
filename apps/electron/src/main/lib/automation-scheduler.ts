@@ -19,6 +19,7 @@ import {
   AUTOMATION_MAX_CONSECUTIVE_FAILURES,
   AUTOMATION_IPC_CHANNELS,
   AUTOMATION_DEFAULT_SESSION_MODE,
+  createLogger,
   type Automation,
   type AutomationRun,
 } from '@shadiao/shared'
@@ -35,6 +36,8 @@ import { createAgentSession, updateAgentSessionMeta, getAgentSessionMeta } from 
 import { getSessionContextUsageRatio } from './agent-session-usage'
 import { runAgentHeadless, isAgentSessionActive } from './agent-service'
 import { notifyAutomationRunFinished } from './automation-notification-service'
+
+const log = createLogger('定时任务')
 
 /** tick 周期：每 30s 检查一次到期任务（短轮询，抗休眠漂移） */
 const TICK_INTERVAL_MS = 30_000
@@ -105,7 +108,7 @@ export function broadcastChanged(): void {
  */
 export async function runAutomation(automation: Automation, manual = false): Promise<void> {
   if (runningAutomations.has(automation.id)) {
-    console.log(`[定时任务] ${automation.name} 上一轮尚未结束，跳过本轮`)
+    log.info(`${automation.name} 上一轮尚未结束，跳过本轮`)
     appendRun(automation.id, {
       runAt: Date.now(),
       sessionId: '',
@@ -130,7 +133,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
     const lastSessionMeta = automation.lastSessionId ? getAgentSessionMeta(automation.lastSessionId) : undefined
     // 已被用户手动接管（毕业）的会话不再复用，强制新建，避免把定时任务消息注入用户的私人会话
     if (lastSessionMeta?.automationGraduated) {
-      console.log(`[定时任务] ${automation.name} 上次会话已被用户接管，本次自动开新会话`)
+      log.info(`${automation.name} 上次会话已被用户接管，本次自动开新会话`)
     }
     if (automation.lastSessionId && lastSessionMeta && !lastSessionMeta.automationGraduated) {
       if (sessionMode === 'reuse') {
@@ -144,8 +147,8 @@ export async function runAutomation(automation: Automation, manual = false): Pro
         if (usageRatio === undefined || usageRatio < DAILY_CONTEXT_ROLLOVER_THRESHOLD) {
           reuseSessionId = automation.lastSessionId
         } else {
-          console.log(
-            `[定时任务] ${automation.name} 上下文占用 ${(usageRatio * 100).toFixed(1)}% 已达阈值 ${DAILY_CONTEXT_ROLLOVER_THRESHOLD * 100}%，本次自动开新会话`,
+          log.info(
+            `${automation.name} 上下文占用 ${(usageRatio * 100).toFixed(1)}% 已达阈值 ${DAILY_CONTEXT_ROLLOVER_THRESHOLD * 100}%，本次自动开新会话`,
           )
         }
       }
@@ -177,7 +180,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
         appendRun(automation.id, run)
         broadcastChanged()
         void notifyAutomationRunFinished({ automation, run }).catch((err) => {
-          console.error(`[定时任务] 发送完成通知失败: ${automation.name}`, err)
+          log.error(`发送完成通知失败: ${automation.name}`, err)
         })
         // 失败退避：连续失败达上限自动暂停
         const latest = getAutomation(automation.id)
@@ -187,7 +190,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
           (latest.consecutiveFailures ?? 0) >= AUTOMATION_MAX_CONSECUTIVE_FAILURES
         ) {
           updateAutomation({ id: automation.id, active: false })
-          console.warn(`[定时任务] ${automation.name} 连续失败 ${latest.consecutiveFailures} 次，已自动暂停`)
+          log.warn(`${automation.name} 连续失败 ${latest.consecutiveFailures} 次，已自动暂停`)
           broadcastChanged()
         }
         resolveRun()
@@ -196,7 +199,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
       // 超时保护：防止 runAgentHeadless 永远不回调导致 automation 永久卡死
       const timeoutTimer = setTimeout(() => {
         finish('error', `执行超时（超过 ${RUN_TIMEOUT_MS / 3600_000} 小时）`)
-        console.warn(`[定时任务] ${automation.name} 执行超时，强制结束`)
+        log.warn(`${automation.name} 执行超时，强制结束`)
       }, RUN_TIMEOUT_MS)
 
       runAgentHeadless(
@@ -222,7 +225,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
       })
     })
   } catch (err) {
-    console.error(`[定时任务] ${automation.name} 执行异常:`, err)
+    log.error(`${automation.name} 执行异常:`, err)
     const run: AutomationRun = {
       runAt,
       sessionId: '',
@@ -233,7 +236,7 @@ export async function runAutomation(automation: Automation, manual = false): Pro
     appendRun(automation.id, run)
     broadcastChanged()
     void notifyAutomationRunFinished({ automation, run }).catch((notifyError) => {
-      console.error(`[定时任务] 发送异常通知失败: ${automation.name}`, notifyError)
+      log.error(`发送异常通知失败: ${automation.name}`, notifyError)
     })
   } finally {
     runningAutomations.delete(automation.id)
@@ -284,7 +287,7 @@ export function startScheduler(): void {
     }
   }
   tickTimer = setInterval(tick, TICK_INTERVAL_MS)
-  console.log(`[定时任务] 调度器已启动，tick 周期 ${TICK_INTERVAL_MS / 1000}s`)
+  log.info(`调度器已启动，tick 周期 ${TICK_INTERVAL_MS / 1000}s`)
 }
 
 /** 停止调度器（before-quit 调用） */
@@ -292,6 +295,6 @@ export function stopScheduler(): void {
   if (tickTimer) {
     clearInterval(tickTimer)
     tickTimer = undefined
-    console.log('[定时任务] 调度器已停止')
+    log.info('调度器已停止')
   }
 }

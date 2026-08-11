@@ -17,6 +17,9 @@ import { join, dirname } from 'path'
 import { execSync, spawnSync } from 'child_process'
 import { app } from 'electron'
 import type { BunRuntimeStatus, PlatformArch } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('Bun 检测')
 
 /**
  * 获取当前平台架构标识
@@ -179,7 +182,7 @@ export function validateBunExecutable(bunPath: string): string | null {
  * @returns Bun 运行时状态
  */
 export async function detectBunRuntime(): Promise<BunRuntimeStatus> {
-  console.log('[Bun 检测] 开始检测 Bun 运行时（可选组件）...')
+  log.debug('开始检测 Bun 运行时（可选组件）...')
 
   const candidates: Array<{
     getPath: () => string | null
@@ -196,11 +199,11 @@ export async function detectBunRuntime(): Promise<BunRuntimeStatus> {
 
     const version = validateBunExecutable(bunPath)
     if (!version) {
-      console.warn(`[Bun 检测] ${source} 位置的 Bun 无法执行: ${bunPath}`)
+      log.warn(`${source} 位置的 Bun 无法执行: ${bunPath}`)
       continue
     }
 
-    console.log(`[Bun 检测] 找到 Bun (${source}): ${bunPath} (${version})`)
+    log.info(`找到 Bun (${source}): ${bunPath} (${version})`)
     return {
       available: true,
       path: bunPath,
@@ -210,7 +213,7 @@ export async function detectBunRuntime(): Promise<BunRuntimeStatus> {
     }
   }
 
-  console.log('[Bun 检测] 未找到 Bun（可选，不影响 Proma 核心功能）')
+  log.info('未找到 Bun（可选，不影响 Proma 核心功能）')
   return {
     available: false,
     path: null,

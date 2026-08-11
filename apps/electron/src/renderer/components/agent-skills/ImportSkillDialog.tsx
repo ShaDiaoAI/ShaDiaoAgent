@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SettingsCard } from '@/components/settings/primitives'
-import type { OtherWorkspaceSkillsGroup, SkillMeta } from '@shadiao/shared'
+import { createLogger, type OtherWorkspaceSkillsGroup, type SkillMeta } from '@shadiao/shared'
+
+const log = createLogger('ImportSkillDialog')
 
 interface ImportSkillDialogProps {
   open: boolean
@@ -34,7 +36,7 @@ export function ImportSkillDialog({ open, onOpenChange, workspaceSlug, installed
         const groups = await window.electronAPI.getOtherWorkspaceSkills(workspaceSlug)
         setOtherWorkspaces(groups)
       } catch (error) {
-        console.error('[Agent 技能] 加载其他工作区 Skill 失败:', error)
+        log.error('加载其他工作区 Skill 失败:', error)
       }
     })()
   }, [open, workspaceSlug])
@@ -75,7 +77,7 @@ export function ImportSkillDialog({ open, onOpenChange, workspaceSlug, installed
       onOpenChange(false)
       toast.success(`已导入 Skill：${imported.name}`)
     } catch (error) {
-      console.error('[Agent 技能] 导入 Skill 失败:', error)
+      log.error('导入 Skill 失败:', error)
       const message = error instanceof Error ? error.message : '未知错误'
       toast.error('导入 Skill 失败', { description: message })
     } finally {

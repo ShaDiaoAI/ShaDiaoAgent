@@ -2523,6 +2523,40 @@
 .theme-terminal-dark .gacha-deco-panel .gacha-eq-bar {
   display: none;
 }
+/* 沙雕币获得浮动 +N 文字 */
+@keyframes coin-float-up {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -4px) scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -28px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.coin-float-text {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 2px);
+  pointer-events: none;
+  font-weight: 700;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: hsl(42 92% 58%);
+  text-shadow: 0 0 8px rgba(251,191,36,0.5), 0 0 2px rgba(251,191,36,0.3);
+  animation: coin-float-up 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  white-space: nowrap;
+  z-index: 10;
+}
+
 .theme-terminal-dark .gacha-deco-panel {
   background: transparent !important;
   border: 1px solid hsl(var(--border));

@@ -14,6 +14,9 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { callQuotaAtom } from '@/atoms/quota-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('RechargeView')
 
 // ===== 类型 =====
 
@@ -116,7 +119,7 @@ export function RechargeView(): React.ReactElement {
       if (r?.success && r.data?.balance != null) {
         setBalance(r.data.balance)
       }
-    } catch (e) { console.error('fetchBalance:', e) }
+    } catch (e) { log.error('fetchBalance:', e) }
   }
 
   async function fetchProducts() {
@@ -126,7 +129,7 @@ export function RechargeView(): React.ReactElement {
         setProducts(r.data.products.map(toRechargeProduct))
       }
     } catch (e) {
-      console.error('fetchProducts:', e)
+      log.error('fetchProducts:', e)
       toast.error('获取充值档位失败')
     }
   }

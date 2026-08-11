@@ -9,7 +9,7 @@
 
 import { BrowserWindow } from 'electron'
 import type { AgentStreamPayload } from '@shadiao/shared'
-import { AGENT_IPC_CHANNELS } from '@shadiao/shared'
+import { AGENT_IPC_CHANNELS, createLogger } from '@shadiao/shared'
 import { createAgentSession, listAgentSessions, getAgentSessionMeta } from './agent-session-manager'
 import {
   listAgentWorkspacesByUpdatedAt,
@@ -30,6 +30,8 @@ import {
 import type { BridgeChatBindingStore } from './bridge-binding-store'
 import { filterExistingBridgeBindings } from './bridge-binding-store'
 import { extractFinalAssistantText } from './bridge-agent-message-utils'
+
+const log = createLogger('bridge-command-handler')
 
 // ===== 接口定义 =====
 
@@ -97,7 +99,7 @@ export class BridgeCommandHandler {
 
   constructor(config: BridgeCommandHandlerConfig) {
     this.config = config
-    this.log = (msg: string) => console.log(`[${config.platformName} Bridge] ${msg}`)
+    this.log = (msg: string) => log.info(msg)
     this.loadPersistedBindings()
   }
 

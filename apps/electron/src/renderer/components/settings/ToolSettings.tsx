@@ -15,6 +15,9 @@ import { Input } from '@/components/ui/input'
 import { SettingsSection, SettingsCard } from './primitives'
 import { chatToolsAtom } from '@/atoms/chat-tool-atoms'
 import { toolSettingsFocusAtom, type ToolSettingsFocus } from '@/atoms/settings-tab'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ToolSettings')
 
 /** 刷新全局工具列表 atom */
 async function refreshChatTools(setter: (tools: Awaited<ReturnType<typeof window.electronAPI.getChatTools>>) => void): Promise<void> {
@@ -22,7 +25,7 @@ async function refreshChatTools(setter: (tools: Awaited<ReturnType<typeof window
     const tools = await window.electronAPI.getChatTools()
     setter(tools)
   } catch (err) {
-    console.error('[ToolSettings] 刷新工具列表失败:', err)
+    log.error('刷新工具列表失败:', err)
   }
 }
 
@@ -54,7 +57,7 @@ function WebSearchSettings(): React.ReactElement {
         savedApiKeyRef.current = credentials.apiKey
       }
     }).catch((err: unknown) => {
-      console.error('[联网搜索设置] 加载失败:', err)
+      log.error('加载失败:', err)
     }).finally(() => {
       setLoading(false)
     })
@@ -71,7 +74,7 @@ function WebSearchSettings(): React.ReactElement {
       await refreshChatTools(setChatTools)
       toast.success('联网搜索设置已保存')
     } catch (error) {
-      console.error('[联网搜索设置] 保存失败:', error)
+      log.error('保存失败:', error)
     }
   }, [apiKey, setChatTools])
 
@@ -81,7 +84,7 @@ function WebSearchSettings(): React.ReactElement {
       setEnabled(checked)
       await refreshChatTools(setChatTools)
     } catch (error) {
-      console.error('[联网搜索设置] 切换失败:', error)
+      log.error('切换失败:', error)
     }
   }
 
@@ -94,7 +97,7 @@ function WebSearchSettings(): React.ReactElement {
         savedApiKeyRef.current = trimmed
         await refreshChatTools(setChatTools)
       } catch (error) {
-        console.error('[联网搜索设置] 保存失败:', error)
+        log.error('保存失败:', error)
       }
     }
 
@@ -224,7 +227,7 @@ function NanoBananaSettings(): React.ReactElement {
         model: credentials.model || '',
       }
     }).catch((err: unknown) => {
-      console.error('[Nano Banana 设置] 加载失败:', err)
+      log.error('加载失败:', err)
     }).finally(() => {
       setLoading(false)
     })
@@ -241,7 +244,7 @@ function NanoBananaSettings(): React.ReactElement {
       await refreshChatTools(setChatTools)
       toast.success('Nano Banana 设置已保存')
     } catch (error) {
-      console.error('[Nano Banana 设置] 保存失败:', error)
+      log.error('保存失败:', error)
     }
   }, [apiKey, baseUrl, model, setChatTools])
 
@@ -251,7 +254,7 @@ function NanoBananaSettings(): React.ReactElement {
       setEnabled(checked)
       await refreshChatTools(setChatTools)
     } catch (error) {
-      console.error('[Nano Banana 设置] 切换失败:', error)
+      log.error('切换失败:', error)
     }
   }
 
@@ -265,7 +268,7 @@ function NanoBananaSettings(): React.ReactElement {
         savedCredentialsRef.current = current
         await refreshChatTools(setChatTools)
       } catch (error) {
-        console.error('[Nano Banana 设置] 保存失败:', error)
+        log.error('保存失败:', error)
       }
     }
 
@@ -402,7 +405,7 @@ function CustomToolsSection(): React.ReactElement | null {
       await window.electronAPI.updateChatToolState(toolId, { enabled: checked })
       await refreshChatTools(setChatTools)
     } catch (error) {
-      console.error('[自定义工具] 切换失败:', error)
+      log.error('切换失败:', error)
     }
   }
 
@@ -412,7 +415,7 @@ function CustomToolsSection(): React.ReactElement | null {
       await refreshChatTools(setChatTools)
       toast.success(`已删除工具: ${toolName}`)
     } catch (error) {
-      console.error('[自定义工具] 删除失败:', error)
+      log.error('删除失败:', error)
       toast.error('删除工具失败')
     }
   }

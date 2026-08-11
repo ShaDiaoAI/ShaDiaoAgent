@@ -13,6 +13,9 @@ import { tabsAtom, updateTabTitle } from '@/atoms/tab-atoms'
 import { replaceAgentSessionInFreshnessOrder } from '@/lib/agent-session-list'
 import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AgentHeader')
 
 /** AgentHeader 属性接口 */
 interface AgentHeaderProps {
@@ -53,7 +56,7 @@ export function AgentHeader({ sessionId }: AgentHeaderProps): React.ReactElement
       // 同步更新侧边栏会话列表
       setAgentSessions((prev) => replaceAgentSessionInFreshnessOrder(prev, updated))
     } catch (error) {
-      console.error('[AgentHeader] 更新标题失败:', error)
+      log.error('更新标题失败:', error)
     }
     setEditing(false)
   }

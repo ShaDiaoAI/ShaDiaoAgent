@@ -5,6 +5,9 @@ import { useAtomValue } from 'jotai'
 import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('CharacterAnim')
 
 declare global {
   interface Window {
@@ -123,6 +126,12 @@ function Placeholder({ state }: { state: RiveAgentState }) {
 // ===== 主组件 =====
 interface CharacterAnimProps { className?: string; coins?: number }
 
+/** 浮动 +N 文字实例 */
+interface FloatingText {
+  id: string
+  amount: number
+}
+
 export function CharacterAnim({ className, coins }: CharacterAnimProps): React.ReactElement {
   const state = useRiveAgentState()
   const selectedChar = useAtomValue(selectedCharacterAtom)
@@ -139,7 +148,13 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
   const [phase, setPhase] = React.useState<'loading' | 'ready' | 'error'>('loading')
   const [skinFlash, setSkinFlash] = React.useState(false)
 
-  console.log('[Anim] render:', { charName: selectedChar?.name, animAssetId, skinId: currentSkinId, phase })
+  // ===== 沙雕币动画状态 =====
+  const prevCoinsRef = React.useRef<number | undefined>(undefined)
+  const animationFrameRef = React.useRef<number>(0)
+  const [displayCoins, setDisplayCoins] = React.useState<number | undefined>(coins)
+  const [floatingTexts, setFloatingTexts] = React.useState<FloatingText[]>([])
+
+  log.info('render:', { charName: selectedChar?.name, animAssetId, skinId: currentSkinId, phase })
 
   // ===== 初始化 =====
   // 只有当 selectedChar 就绪后才初始化 Canvas，跳过 fallback 竞态
@@ -236,7 +251,7 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
 
           exportRoot.gotoAndPlay('idle')
           setPhase('ready')
-          console.log('[Anim] phase=ready, compId=', found.id, 'assetId=', animAssetId)
+          log.info('phase=ready, compId=', found.id, 'assetId=', animAssetId)
         }
 
         if (manifest.some(e => !e.src.startsWith('data:'))) {
@@ -258,7 +273,7 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
           setupMovieClip()
         }
       } catch (err) {
-        console.error('[CharacterAnim] init error:', err, 'animAssetId=', animAssetId)
+        log.error('init error:', err, 'animAssetId=', animAssetId)
         if (!cancelled) setPhase('error')
       }
     }
@@ -289,6 +304,70 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
       return () => clearTimeout(timer)
     }
   }, [currentSkinId])
+
+  // ===== 沙雕币获得：浮动 +N + 数字翻滚 =====
+  // 首次加载时同步 displayCoins，避免页面刷新后残留 0
+  React.useEffect(() => {
+    if (coins !== undefined && prevCoinsRef.current === undefined) {
+      prevCoinsRef.current = coins
+      setDisplayCoins(coins)
+    }
+  }, [coins])
+
+  React.useEffect(() => {
+    if (coins === undefined) return
+    const prev = prevCoinsRef.current
+    if (prev === undefined) {
+      prevCoinsRef.current = coins
+      setDisplayCoins(coins)
+      return
+    }
+    if (coins <= prev) {
+      // 余额未增加（不变/减少）→ 直接更新，不加动画
+      prevCoinsRef.current = coins
+      setDisplayCoins(coins)
+      return
+    }
+
+    const delta = coins - prev
+    prevCoinsRef.current = coins
+
+    // 浮动 "+N" 文字
+    const id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)
+    setFloatingTexts((prevFloats) => [...prevFloats, { id, amount: delta }])
+    // 900ms 后清理（与 CSS animation 时长对齐）
+    setTimeout(() => {
+      setFloatingTexts((prevFloats) => prevFloats.filter((f) => f.id !== id))
+    }, 950)
+
+    // 数字翻滚动画
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+    const startValue = prev
+    const endValue = coins
+    const duration = 360 // ms
+    const startTime = performance.now()
+
+    const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3)
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = easeOutCubic(progress)
+      const current = Math.round(startValue + (endValue - startValue) * eased)
+      setDisplayCoins(current)
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate)
+      } else {
+        setDisplayCoins(endValue)
+      }
+    }
+    animationFrameRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+    }
+  }, [coins])
 
   // ===== 状态变化 — 方案 B：只需 gotoAndPlay，循环/归位由注入的 tickLoopCheck 自动处理 =====
   React.useEffect(() => {
@@ -347,12 +426,18 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
         {skinFlash ? `✨ 已更换：${selectedChar?.equipped_skin?.name ?? ''}` : RIVE_STATE_LABELS[state]}
       </div>
       {/* 沙雕币 — Canvas 内部下方 */}
-      {coins !== undefined && (
+      {displayCoins !== undefined && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none flex items-center gap-1">
+          {/* 浮动 +N 文字 */}
+          {floatingTexts.map((ft) => (
+            <span key={ft.id} className="coin-float-text">
+              +{ft.amount.toLocaleString()}
+            </span>
+          ))}
           {/* 币值展示 — 非交互 */}
           <span className="pointer-events-none flex items-center gap-1">
             <span>💰</span>
-            <span className="tabular-nums">{coins.toLocaleString()}</span>
+            <span className="tabular-nums">{displayCoins.toLocaleString()}</span>
           </span>
           {/* 帮助 tooltip — 交互 */}
           <Tooltip>
@@ -373,7 +458,7 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
                 与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
               </p>
               <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                消耗 token 即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
+                消耗词元即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
               </p>
             </TooltipContent>
           </Tooltip>

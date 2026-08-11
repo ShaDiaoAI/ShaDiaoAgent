@@ -18,8 +18,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SettingsCard } from '@/components/settings/primitives'
 import { SkillFilesPanel } from '@/components/settings/SkillFilesPanel'
 import { cn } from '@/lib/utils'
-import type { SkillMeta } from '@shadiao/shared'
+import { createLogger, type SkillMeta } from '@shadiao/shared'
 import { extractSkillBody, rebuildSkillMd } from './skillMdUtils'
+
+const log = createLogger('SkillDetailSheet')
 
 interface SkillDetailSheetProps {
   skill: SkillMeta | null
@@ -76,7 +78,7 @@ function SkillDetailBody({
     window.electronAPI.readSkillContent(workspaceSlug, skill.slug)
       .then((text) => setContent(text))
       .catch((err) => {
-        console.error('[SkillDetail] 加载内容失败:', err)
+        log.error('加载内容失败:', err)
         setContent(null)
       })
       .finally(() => setLoadingContent(false))
@@ -101,7 +103,7 @@ function SkillDetailBody({
       onChanged()
       toast.success('元数据已保存')
     } catch (err) {
-      console.error('[SkillDetail] 保存元数据失败:', err)
+      log.error('保存元数据失败:', err)
       toast.error('保存失败')
     } finally {
       setSaving(false)
@@ -119,7 +121,7 @@ function SkillDetailBody({
       onChanged()
       toast.success('说明已保存')
     } catch (err) {
-      console.error('[SkillDetail] 保存说明失败:', err)
+      log.error('保存说明失败:', err)
       toast.error('保存失败')
     } finally {
       setSaving(false)

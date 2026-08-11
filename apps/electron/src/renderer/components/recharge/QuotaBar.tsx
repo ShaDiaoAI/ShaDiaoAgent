@@ -70,10 +70,10 @@ export function QuotaBar(): React.ReactElement {
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-[220px]">
             <p className="text-xs leading-relaxed">
-              调用额度用于 AI 调用的 token 消耗，通过转账充值获得
+              调用额度用于 AI 调用的词元消耗，通过转账充值获得
             </p>
             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-              每次沙雕智能体的调用按实际 token 消耗扣减额度。支持微信扫码充值
+              每次沙雕智能体的调用按实际词元消耗扣减额度。支持微信扫码充值
             </p>
           </TooltipContent>
         </Tooltip>

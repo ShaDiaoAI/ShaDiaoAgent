@@ -12,10 +12,13 @@ import {
   getUpdateStatus,
   quitAndInstall,
 } from './auto-updater'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('更新IPC')
 
 /** 注册更新 IPC 处理器 */
 export function registerUpdaterIpc(): void {
-  console.log('[更新 IPC] 正在注册更新 IPC 处理器...')
+  log.info('正在注册更新 IPC 处理器...')
 
   ipcMain.handle(
     UPDATER_IPC_CHANNELS.CHECK_FOR_UPDATES,
@@ -38,5 +41,5 @@ export function registerUpdaterIpc(): void {
     }
   )
 
-  console.log('[更新 IPC] 更新 IPC 处理器注册完成')
+  log.info('更新 IPC 处理器注册完成')
 }

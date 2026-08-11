@@ -26,6 +26,9 @@ import {
   type AskUserRequestDraft,
 } from '@/atoms/agent-atoms'
 import type { AskUserQuestion } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AskUserBanner')
 
 const EMPTY_ANSWER: AskUserQuestionDraft = { selected: [], customText: '', showCustom: false }
 
@@ -256,7 +259,7 @@ export function AskUserBanner({ sessionId }: AskUserBannerProps): React.ReactEle
       })
       clearDrafts([request.requestId])
     } catch (error) {
-      console.error('[AskUserBanner] 响应失败:', error)
+      log.error('响应失败:', error)
     } finally {
       setSubmitting(false)
     }

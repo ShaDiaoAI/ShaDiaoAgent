@@ -26,6 +26,9 @@ import {
 } from '@/atoms/automation-atoms'
 import type { Automation } from '@shadiao/shared'
 import { activeViewAtom } from '@/atoms/active-view'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AutomationsListView')
 
 /** 把调度配置格式化为可读文案 */
 function formatSchedule(a: Automation): string {
@@ -168,7 +171,7 @@ function Section({ title, automations, onEdit, onRefresh, variant }: SectionProp
       await window.electronAPI.runAutomationNow(a.id)
     } catch (err) {
       toast.error('运行失败')
-      console.error('[定时任务] 立即运行失败:', err)
+      log.error('立即运行失败:', err)
     }
   }
 
@@ -186,7 +189,7 @@ function Section({ title, automations, onEdit, onRefresh, variant }: SectionProp
       toast.success(a.active ? '已暂停' : '已启用')
     } catch (err) {
       toast.error('操作失败')
-      console.error('[定时任务] 切换状态失败:', err)
+      log.error('切换状态失败:', err)
     }
   }
 
@@ -199,7 +202,7 @@ function Section({ title, automations, onEdit, onRefresh, variant }: SectionProp
       toast.success('已删除')
     } catch (err) {
       toast.error('删除失败')
-      console.error('[定时任务] 删除失败:', err)
+      log.error('删除失败:', err)
     }
   }
 

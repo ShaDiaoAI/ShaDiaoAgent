@@ -80,6 +80,7 @@ import type {
 } from '@shadiao/shared'
 import type { AgentPendingFile } from '@shadiao/shared'
 import {
+  createLogger,
   getSDKCompactStatus,
   inferAgentSdkContextWindow,
   inferContextWindow,
@@ -89,6 +90,8 @@ import {
   isThinkingSignatureError,
 } from '@shadiao/shared'
 import type { ToolActivity } from '@/atoms/agent-atoms'
+
+const log = createLogger('SDKMessageRenderer')
 
 // ===== SDKMessageRenderer Props =====
 
@@ -802,7 +805,7 @@ function AttachedImageThumb({ file, index, onOpen, onLoaded }: {
         setImageSrc(src)
         onLoaded(file.path, src)
       })
-      .catch((err) => console.error('[AttachedImageThumb] 读取附件失败:', err))
+      .catch((err) => log.error('读取附件失败:', err))
   }, [file.path, file.filename, onLoaded])
 
   const handleSave = React.useCallback((): void => {
@@ -1135,7 +1138,7 @@ function ErrorMessage({ message, onRetry, onRetryInNewSession, onCompact }: Erro
         onRetryInNewSession?.()
         break
       default:
-        console.warn('[ErrorMessage] 未处理的 recovery action:', action)
+        log.warn('未处理的 recovery action:', action)
     }
   }
 

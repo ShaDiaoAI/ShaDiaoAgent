@@ -22,6 +22,9 @@
 import * as React from 'react'
 import { getDisplayName, highlightToTokens, onHighlighterReady } from '@shadiao/core'
 import type { HighlightToken, HighlightTokensResult } from '@shadiao/core'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('CodeBlock')
 
 /** react-markdown 传入的 <code> 元素 props */
 interface CodeElementProps {
@@ -200,7 +203,7 @@ export function CodeBlock({ children }: CodeBlockProps): React.ReactElement {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('[CodeBlock] 复制失败:', error)
+      log.error('复制失败:', error)
     }
   }, [trimmedCode])
 

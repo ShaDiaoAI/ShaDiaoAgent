@@ -5,6 +5,9 @@ import { listAgentSessions } from './lib/agent-session-manager'
 import { listAgentWorkspaces } from './lib/agent-workspace-manager'
 import { isAgentSessionActive } from './lib/agent-service'
 import { createTrayMenuModel, type TrayRecentSessionItem } from './lib/tray-menu-model'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('系统托盘')
 
 let tray: Tray | null = null
 
@@ -136,7 +139,7 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
   const actions = { ...getDefaultTrayActions(), ...actionsInput }
 
   if (!existsSync(iconPath)) {
-    console.warn('Tray icon not found at:', iconPath)
+    log.warn('Tray icon not found at:', iconPath)
     return null
   }
 
@@ -169,10 +172,10 @@ export function createTray(actionsInput?: Partial<TrayActions>): Tray | null {
       updateTrayMenu(actions)
     })
 
-    console.log('System tray created')
+    log.info('System tray created')
     return tray
   } catch (error) {
-    console.error('Failed to create system tray:', error)
+    log.error('Failed to create system tray:', error)
     return null
   }
 }

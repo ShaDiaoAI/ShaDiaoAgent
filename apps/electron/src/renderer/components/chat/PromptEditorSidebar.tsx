@@ -22,6 +22,9 @@ import {
   promptSidebarOpenAtom,
 } from '@/atoms/system-prompt-atoms'
 import type { SystemPrompt, SystemPromptCreateInput, SystemPromptUpdateInput } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('PromptEditorSidebar')
 
 /** 防抖保存延迟 (ms) */
 const DEBOUNCE_DELAY = 500
@@ -65,7 +68,7 @@ export function PromptEditorSidebar(): React.ReactElement {
       }))
       setSelectedId(created.id)
     } catch (error) {
-      console.error('[提示词侧栏] 创建失败:', error)
+      log.error('创建失败:', error)
     }
   }
 
@@ -82,7 +85,7 @@ export function PromptEditorSidebar(): React.ReactElement {
         setSelectedId('builtin-default')
       }
     } catch (error) {
-      console.error('[提示词侧栏] 删除失败:', error)
+      log.error('删除失败:', error)
     }
   }
 
@@ -92,7 +95,7 @@ export function PromptEditorSidebar(): React.ReactElement {
       await window.electronAPI.setDefaultPrompt(id)
       setConfig((prev) => ({ ...prev, defaultPromptId: id }))
     } catch (error) {
-      console.error('[提示词侧栏] 设置默认失败:', error)
+      log.error('设置默认失败:', error)
     }
   }
 
@@ -108,7 +111,7 @@ export function PromptEditorSidebar(): React.ReactElement {
             prompts: prev.prompts.map((p) => (p.id === updated.id ? updated : p)),
           }))
         } catch (error) {
-          console.error('[提示词侧栏] 保存失败:', error)
+          log.error('保存失败:', error)
         }
       }, DEBOUNCE_DELAY)
     },
@@ -137,7 +140,7 @@ export function PromptEditorSidebar(): React.ReactElement {
       await window.electronAPI.updateAppendSetting(enabled)
       setConfig((prev) => ({ ...prev, appendDateTimeAndUserName: enabled }))
     } catch (error) {
-      console.error('[提示词侧栏] 更新追加设置失败:', error)
+      log.error('更新追加设置失败:', error)
     }
   }
 

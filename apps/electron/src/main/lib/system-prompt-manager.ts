@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { getSystemPromptsPath } from './config-paths'
 import {
+  createLogger,
   BUILTIN_DEFAULT_ID,
   BUILTIN_DEFAULT_PROMPT,
 } from '@shadiao/shared'
@@ -18,6 +19,8 @@ import type {
   SystemPromptCreateInput,
   SystemPromptUpdateInput,
 } from '@shadiao/shared'
+
+const log = createLogger('system-prompt-manager')
 
 /** 默认配置 */
 function getDefaultConfig(): SystemPromptConfig {
@@ -55,7 +58,7 @@ function readConfig(): SystemPromptConfig {
       appendDateTimeAndUserName: data.appendDateTimeAndUserName ?? true,
     }
   } catch (error) {
-    console.error('[系统提示词] 读取配置失败:', error)
+    log.error('读取配置失败:', error)
     return getDefaultConfig()
   }
 }
@@ -67,7 +70,7 @@ function writeConfig(config: SystemPromptConfig): void {
   try {
     writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8')
   } catch (error) {
-    console.error('[系统提示词] 写入配置失败:', error)
+    log.error('写入配置失败:', error)
     throw new Error('写入系统提示词配置失败')
   }
 }
@@ -97,7 +100,7 @@ export function createSystemPrompt(input: SystemPromptCreateInput): SystemPrompt
 
   config.prompts.push(prompt)
   writeConfig(config)
-  console.log(`[系统提示词] 已创建: ${prompt.name} (${prompt.id})`)
+  log.info(`已创建: ${prompt.name} (${prompt.id})`)
   return prompt
 }
 
@@ -124,7 +127,7 @@ export function updateSystemPrompt(id: string, input: SystemPromptUpdateInput): 
   prompt.updatedAt = Date.now()
 
   writeConfig(config)
-  console.log(`[系统提示词] 已更新: ${prompt.name} (${prompt.id})`)
+  log.info(`已更新: ${prompt.name} (${prompt.id})`)
   return prompt
 }
 
@@ -154,7 +157,7 @@ export function deleteSystemPrompt(id: string): void {
   }
 
   writeConfig(config)
-  console.log(`[系统提示词] 已删除: ${prompt.name} (${id})`)
+  log.info(`已删除: ${prompt.name} (${id})`)
 }
 
 /**
@@ -164,7 +167,7 @@ export function updateAppendSetting(enabled: boolean): void {
   const config = readConfig()
   config.appendDateTimeAndUserName = enabled
   writeConfig(config)
-  console.log(`[系统提示词] 追加设置已更新: ${enabled}`)
+  log.info(`追加设置已更新: ${enabled}`)
 }
 
 /**
@@ -184,5 +187,5 @@ export function setDefaultPrompt(id: string | null): void {
 
   config.defaultPromptId = id ?? BUILTIN_DEFAULT_ID
   writeConfig(config)
-  console.log(`[系统提示词] 默认提示词已设置: ${config.defaultPromptId}`)
+  log.info(`默认提示词已设置: ${config.defaultPromptId}`)
 }

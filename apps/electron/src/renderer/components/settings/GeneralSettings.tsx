@@ -1,7 +1,7 @@
 /**
  * GeneralSettings - 通用设置页
  *
- * 沙雕账户（头像 + 用户名 / 服务器 / 连接状态 / 登出）→ 通用设置（通知/音效/归档/输入偏好）
+ * 沙雕账户（头像 + 用户名 / 连接状态 / 登出）→ 通用设置（通知/音效/归档/输入偏好）
  */
 
 import * as React from 'react'
@@ -11,6 +11,10 @@ import Picker from '@emoji-mart/react'
 import data from '@emoji-mart/data'
 import { toast } from 'sonner'
 import { isAuthenticatedAtom } from '@/atoms/auth-atoms'
+import { settingsOpenAtom } from '@/atoms/settings-tab'
+import { tabsAtom, activeTabIdAtom } from '@/atoms/tab-atoms'
+import { agentSessionsAtom, currentAgentSessionIdAtom, agentWorkspacesAtom, currentAgentWorkspaceIdAtom } from '@/atoms/agent-atoms'
+import { charactersAtom, selectedCharacterAtom } from '@/atoms/character-atoms'
 import {
   SettingsSection,
   SettingsCard,
@@ -49,6 +53,9 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '../ui/button'
 import type { NotificationSoundId, NotificationSoundType, NotificationSoundSettings } from '@/types/settings'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('GeneralSettings')
 
 /** emoji-mart 选择回调的 emoji 对象类型 */
 interface EmojiMartEmoji {
@@ -63,6 +70,15 @@ interface EmojiMartEmoji {
 export function GeneralSettings(): React.ReactElement {
   const [userProfile, setUserProfile] = useAtom(userProfileAtom)
   const setIsAuthenticated = useSetAtom(isAuthenticatedAtom)
+  const setSettingsOpen = useSetAtom(settingsOpenAtom)
+  const setTabs = useSetAtom(tabsAtom)
+  const setActiveTabId = useSetAtom(activeTabIdAtom)
+  const setAgentSessions = useSetAtom(agentSessionsAtom)
+  const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
+  const setAgentWorkspaces = useSetAtom(agentWorkspacesAtom)
+  const setCurrentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
+  const setCharacters = useSetAtom(charactersAtom)
+  const setSelectedCharacter = useSetAtom(selectedCharacterAtom)
   const [notificationsEnabled, setNotificationsEnabled] = useAtom(notificationsEnabledAtom)
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useAtom(notificationSoundEnabledAtom)
   const [notificationSounds, setNotificationSounds] = useAtom(notificationSoundsAtom)
@@ -96,6 +112,17 @@ export function GeneralSettings(): React.ReactElement {
       const result = await window.electronAPI.djangoLogout()
       if (result.success) {
         toast.success('已登出')
+        // 关闭设置面板，避免注册新账号后设置面板仍然打开
+        setSettingsOpen(false)
+        // 清空所有与账号相关的渲染进程状态，避免新账号看到旧账号的会话/人物
+        setTabs([])
+        setActiveTabId(null)
+        setAgentSessions([])
+        setCurrentAgentSessionId(null)
+        setAgentWorkspaces([])
+        setCurrentWorkspaceId(null)
+        setCharacters([])
+        setSelectedCharacter(null)
         // 直接设置认证状态为 false，App 会自动切到登录页，无需 reload
         setIsAuthenticated(false)
       } else {
@@ -113,7 +140,7 @@ export function GeneralSettings(): React.ReactElement {
     try {
       await window.electronAPI.updateSettings({ archiveAfterDays: days })
     } catch (error) {
-      console.error('[通用设置] 更新归档天数失败:', error)
+      log.error('更新归档天数失败:', error)
     }
   }
 
@@ -124,7 +151,7 @@ export function GeneralSettings(): React.ReactElement {
       setUserProfile(updated)
       setShowEmojiPicker(false)
     } catch (error) {
-      console.error('[通用设置] 更新头像失败:', error)
+      log.error('更新头像失败:', error)
     }
   }
 
@@ -221,13 +248,6 @@ export function GeneralSettings(): React.ReactElement {
         {/* 账户信息 */}
         <SettingsCard>
           <SettingsRow
-            label="服务器"
-          >
-            <span className="text-[13px] text-muted-foreground font-mono max-w-[220px] truncate">
-              {authStatus?.baseUrl || '—'}
-            </span>
-          </SettingsRow>
-          <SettingsRow
             label="连接状态"
           >
             <span className="flex items-center gap-1.5 text-[13px]">
@@ -260,15 +280,20 @@ export function GeneralSettings(): React.ReactElement {
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive border-destructive/30 hover:bg-destructive/5"
-                onClick={() => setShowLogoutConfirm(true)}
-              >
-                <LogOut size={14} />
-                登出
-              </Button>
+              <div className="group/logout flex items-center">
+                <span className="text-[13px] text-muted-foreground group-hover/logout:hidden cursor-default select-none">
+                  登出
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden group-hover/logout:inline-flex text-destructive border-destructive/30 hover:bg-destructive/5"
+                  onClick={() => setShowLogoutConfirm(true)}
+                >
+                  <LogOut size={14} />
+                  登出
+                </Button>
+              </div>
             )}
           </SettingsRow>
         </SettingsCard>

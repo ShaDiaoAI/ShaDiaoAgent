@@ -15,6 +15,9 @@ import { PreviewTabContent } from '@/components/diff/PreviewTabContent'
 import { MarkdownRichEditor } from '@/components/diff/MarkdownRichEditor'
 import { MarkdownToc } from '@/components/diff/MarkdownToc'
 import { TabErrorBoundary } from './TabErrorBoundary'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('TabContent')
 
 export interface TabContentProps {
   tabId: string
@@ -27,7 +30,7 @@ export function TabContent({ tabId }: TabContentProps): React.ReactElement {
   // [FLASH-DEBUG] 监控 tab 查找失败（说明 tabId 指向了不存在的标签）
   React.useEffect(() => {
     if (!tab) {
-      console.warn(`[FLASH-DEBUG] TabContent: tab not found for tabId="${tabId}"`, { tabIds: tabs.map(t => t.id) })
+      log.debug(`tab not found for tabId="${tabId}"`, { tabIds: tabs.map(t => t.id) })
     }
   }, [tab, tabId, tabs])
 
@@ -87,7 +90,7 @@ function TutorialTabContent(): React.ReactElement {
         setLoadState('ready')
       })
       .catch((error) => {
-        console.error(error)
+        log.error(String(error))
         setLoadState('error')
       })
   }, [])

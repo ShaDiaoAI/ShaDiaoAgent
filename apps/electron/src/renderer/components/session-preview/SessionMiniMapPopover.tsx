@@ -26,7 +26,9 @@ import type {
   SDKUserContentBlock,
   SDKUserMessage,
 } from '@shadiao/shared'
-import { getSDKCompactStatus } from '@shadiao/shared'
+import { createLogger, getSDKCompactStatus } from '@shadiao/shared'
+
+const log = createLogger('SessionMiniMapPopover')
 
 export type SessionMiniMapType = 'chat' | 'agent'
 
@@ -407,7 +409,7 @@ function SessionMiniMapPopoverContent({
           return next
         })
       } catch (loadError) {
-        console.error('[会话迷你地图] 加载失败:', loadError)
+        log.error('加载失败:', loadError)
         if (!cancelled) setError('无法加载会话内容')
       } finally {
         if (!cancelled) setLoading(false)

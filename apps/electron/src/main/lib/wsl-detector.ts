@@ -13,6 +13,9 @@
 import { execSync } from 'node:child_process'
 import iconv from 'iconv-lite'
 import type { WslStatus } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('WSL 检测')
 
 /** WSL 不可用时返回的统一错误提示 */
 const WSL_NOT_READY_ERROR = 'WSL 未就绪，如已安装 Git Bash 可不安装'
@@ -164,12 +167,12 @@ export async function detectWsl(): Promise<WslStatus> {
 
     // 检查是否有可用的发行版
     if (parsed.distros.length === 0) {
-      console.warn('[WSL 检测] WSL 已安装但未安装任何发行版')
+      log.warn('WSL 已安装但未安装任何发行版')
       return createWslNotReadyResult()
     }
 
-    console.log(
-      `[WSL 检测] 找到 WSL ${parsed.version || '未知版本'}: ${parsed.distros.join(', ')} (默认: ${parsed.defaultDistro || '未设置'})`,
+    log.info(
+      `找到 WSL ${parsed.version || '未知版本'}: ${parsed.distros.join(', ')} (默认: ${parsed.defaultDistro || '未设置'})`,
     )
 
     return {
@@ -181,7 +184,7 @@ export async function detectWsl(): Promise<WslStatus> {
     }
   } catch (error) {
     // 所有异常场景统一返回 WSL 未就绪
-    console.warn('[WSL 检测] WSL 未就绪')
+    log.warn('WSL 未就绪')
     return createWslNotReadyResult()
   }
 }

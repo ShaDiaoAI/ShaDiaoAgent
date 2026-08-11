@@ -37,6 +37,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { PIERRE_FILE_CSS } from '@/components/agent/tool-result-renderers/pierre-styles'
 import { SelectionActionPopover } from '@/components/selection/SelectionActionPopover'
 import { SELECTION_ACTION_POPOVER_SELECTOR } from '@/lib/quoted-selection'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('DiffTabContent')
 
 const MD_EXTS = new Set(['.md', '.markdown'])
 const PLAIN_TEXT_EDIT_EXTS = new Set(['.txt', '.text', '.log'])
@@ -934,7 +937,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
       }
       return true
     } catch (err) {
-      console.error('[DiffTabContent] Markdown save failed:', err)
+      log.error('Markdown save failed:', err)
       setAutosaveStatus('error')
       return false
     }
@@ -1030,7 +1033,7 @@ export function DiffTabContent({ filePath, dirPath, sessionId, gitRoot, previewO
       window.getSelection()?.removeAllRanges()
       clearPreviewSelection()
     } catch (error) {
-      console.error('[DiffTabContent] 打开预览选区聊天标签失败:', error)
+      log.error('打开预览选区聊天标签失败:', error)
       toast.error('打开聊天标签失败')
     } finally {
       openSelectionChatPendingRef.current = false

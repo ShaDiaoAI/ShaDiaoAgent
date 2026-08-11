@@ -19,7 +19,10 @@ import {
   type InstallerDownloadResult,
   type InstallerProgressPayload,
   type InstallerSource,
+  createLogger,
 } from '@shadiao/shared'
+
+const log = createLogger('installer-downloader')
 
 /** 已注册的可取消下载：key -> cancel() */
 const activeDownloads = new Map<string, () => void>()
@@ -67,8 +70,8 @@ export async function downloadInstaller(
         )
       }
       if (!source.sha256) {
-        console.warn(
-          `[Installer] ${source.filename} 清单未提供 sha256，跳过校验`,
+        log.warn(
+          `${source.filename} 清单未提供 sha256，跳过校验`,
         )
       }
       return { filePath, sha256 }
@@ -80,8 +83,8 @@ export async function downloadInstaller(
         // 用户取消不降级到 fallback
         throw error
       }
-      console.warn(
-        `[Installer] 从 ${url} 下载失败，尝试下一个源：`,
+      log.warn(
+        `从 ${url} 下载失败，尝试下一个源：`,
         error,
       )
       await fsp.unlink(filePath).catch(() => {})

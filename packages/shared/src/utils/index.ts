@@ -36,3 +36,11 @@ export {
   isPersistableSDKSystemMessage,
   type SDKCompactStatus,
 } from './agent-system-message'
+export {
+  LogLevel,
+  setGlobalLogLevel,
+  getGlobalLogLevel,
+  parseLogLevel,
+  createLogger,
+} from './logger'
+export type { Logger } from './logger'

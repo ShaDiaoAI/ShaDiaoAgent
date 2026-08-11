@@ -14,7 +14,9 @@ import {
   currentAgentWorkspaceIdAtom,
   workspaceCapabilitiesVersionAtom,
 } from '@/atoms/agent-atoms'
-import type { BuiltinMcpServerSummary, SkillMeta, WorkspaceCapabilities, WorkspaceMcpConfig } from '@shadiao/shared'
+import { createLogger, type BuiltinMcpServerSummary, type SkillMeta, type WorkspaceCapabilities, type WorkspaceMcpConfig } from '@shadiao/shared'
+
+const log = createLogger('useAgentSkillsData')
 
 export interface AgentSkillsData {
   /** 当前工作区（未选中时为 null） */
@@ -79,7 +81,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       setCapabilities(capabilities)
       setBuiltinMcpServers(capabilities.builtinMcpServers)
     } catch (error) {
-      console.error('[Agent 技能] 加载工作区配置失败:', error)
+      log.error('加载工作区配置失败:', error)
     } finally {
       setLoading(false)
     }
@@ -97,7 +99,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       setSkills((prev) => prev.map((s) => (s.slug === slug ? { ...s, enabled } : s)))
       bumpCapabilitiesVersion((v) => v + 1)
     } catch (error) {
-      console.error('[Agent 技能] 切换 Skill 状态失败:', error)
+      log.error('切换 Skill 状态失败:', error)
       toast.error('切换 Skill 状态失败')
     }
   }, [workspaceSlug, bumpCapabilitiesVersion])
@@ -110,7 +112,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       toast.success(`已删除 Skill：${name}`)
       return true
     } catch (error) {
-      console.error('[Agent 技能] 删除 Skill 失败:', error)
+      log.error('删除 Skill 失败:', error)
       toast.error('删除 Skill 失败')
       return false
     }
@@ -125,7 +127,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       bumpCapabilitiesVersion((v) => v + 1)
       toast.success(`已同步更新 Skill：${updated.name}`)
     } catch (error) {
-      console.error('[Agent 技能] 更新 Skill 失败:', error)
+      log.error('更新 Skill 失败:', error)
       const message = error instanceof Error ? error.message : '未知错误'
       toast.error('更新 Skill 失败', { description: message })
     } finally {
@@ -144,7 +146,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       setMcpConfig(newConfig)
       bumpCapabilitiesVersion((v) => v + 1)
     } catch (error) {
-      console.error('[Agent 技能] 切换 MCP 服务器状态失败:', error)
+      log.error('切换 MCP 服务器状态失败:', error)
       toast.error('切换 MCP 状态失败')
     }
   }, [workspaceSlug, mcpConfig, bumpCapabilitiesVersion])
@@ -157,7 +159,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       bumpCapabilitiesVersion((v) => v + 1)
       toast.success(enabled ? '已启用内置 MCP' : '已关闭内置 MCP')
     } catch (error) {
-      console.error('[Agent 技能] 切换内置 MCP 状态失败:', error)
+      log.error('切换内置 MCP 状态失败:', error)
       toast.error('切换内置 MCP 状态失败')
     }
   }, [workspaceSlug, bumpCapabilitiesVersion])
@@ -174,7 +176,7 @@ export function useAgentSkillsData(): AgentSkillsData {
       bumpCapabilitiesVersion((v) => v + 1)
       toast.success(`已删除 MCP 服务器：${name}`)
     } catch (error) {
-      console.error('[Agent 技能] 删除 MCP 服务器失败:', error)
+      log.error('删除 MCP 服务器失败:', error)
       toast.error('删除 MCP 服务器失败')
     }
   }, [workspaceSlug, mcpConfig, bumpCapabilitiesVersion])

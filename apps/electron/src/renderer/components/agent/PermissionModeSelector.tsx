@@ -13,9 +13,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Button } from '@/components/ui/button'
 import { agentPermissionModeMapAtom, agentDefaultPermissionModeAtom, sessionPersistedPermissionModeAtom, sessionExistsAtom, agentPlanModeSessionsAtom } from '@/atoms/agent-atoms'
 import type { PromaPermissionMode } from '@shadiao/shared'
-import { SHADIAO_PERMISSION_MODE_CONFIG, SHADIAO_PERMISSION_MODE_ORDER } from '@shadiao/shared'
+import { SHADIAO_PERMISSION_MODE_CONFIG, SHADIAO_PERMISSION_MODE_ORDER, createLogger } from '@shadiao/shared'
 import { getDisplayedPermissionMode, updatePlanModeSessionSet } from '@/lib/agent-plan-mode'
 import { inputToolbarButtonClass } from '@/components/ai-elements/input-toolbar-styles'
+
+const log = createLogger('PermissionModeSelector')
 
 const MODE_ICONS: Record<PromaPermissionMode, React.ComponentType<{ className?: string }>> = {
   bypassPermissions: Zap,
@@ -74,7 +76,7 @@ export function PermissionModeSelector({ sessionId }: PermissionModeSelectorProp
     try {
       await window.electronAPI.updateSessionPermissionMode(sessionId, nextMode)
     } catch (error) {
-      console.error('[PermissionModeSelector] 运行中切换权限模式失败，回滚 UI:', error)
+      log.error('运行中切换权限模式失败，回滚 UI:', error)
       setModeMap((prev: Map<string, PromaPermissionMode>) => {
         const next = new Map(prev)
         next.set(sessionId, prevMode)

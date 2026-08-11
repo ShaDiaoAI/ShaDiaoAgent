@@ -12,7 +12,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { User, Shield, Edit3, Trash2, Gift, Check, ArrowLeft, Plus, AlertTriangle } from 'lucide-react'
+import { User, Shield, Edit3, Trash2, Gift, Check, ArrowLeft, Plus, AlertTriangle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCharacterSwitch } from '@/hooks/useCharacterSwitch'
 import { cn } from '@/lib/utils'
@@ -26,6 +26,13 @@ import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@
 import { GachaAnim, type GachaAnimHandle } from './GachaAnim'
 import { GachaResultModal, type DrawResultItem } from './GachaResultModal'
 import { GachaDecoPanel } from './GachaDecoPanel'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('CharacterPanelView')
 
 /** 计算人物槽位贡献：floor(level / 5) */
 function calcSlotContribution(level: number): number {
@@ -57,6 +64,10 @@ export function CharacterPanelView(): React.ReactElement {
   const [drawError, setDrawError] = React.useState<string | null>(null)
   const gachaAnimRef = React.useRef<GachaAnimHandle>(null)
   const animEndResolveRef = React.useRef<(() => void) | null>(null)
+  const [promptEditTarget, setPromptEditTarget] = React.useState<ShadiaoCharacter | null>(null)
+  const [promptEditValue, setPromptEditValue] = React.useState('')
+  const [promptEditSaving, setPromptEditSaving] = React.useState(false)
+  const [promptEditError, setPromptEditError] = React.useState('')
   const isMountedRef = React.useRef(true)
   const [animReady, setAnimReady] = React.useState(false)
   React.useEffect(() => {
@@ -115,9 +126,9 @@ export function CharacterPanelView(): React.ReactElement {
     // 2. 同步主进程 selectedCharacterId + 会话管理
     // 保存当前视图——switchCharacter 可能触发 openSession 将 activeView 改为 'conversations'
     const prevView = activeView
-    console.log('[handleSelectChar] 切换前 activeView:', prevView, '目标人物:', c.name)
+    log.info('切换前 activeView:', prevView, '目标人物:', c.name)
     try { await switchCharacter(c) } catch {}
-    console.log('[handleSelectChar] switchCharacter 返回, activeView 现在是:', activeView)
+    log.info('switchCharacter 返回, activeView 现在是:', activeView)
     if (prevView === 'character-panel') {
       setActiveView('character-panel')
     }
@@ -151,7 +162,7 @@ export function CharacterPanelView(): React.ReactElement {
         if (cr?.success && cr.data) setCreationLimit(cr.data)
       }).catch(() => {})
     } catch (e) {
-      console.error('删除失败:', e)
+      log.error('删除失败:', e)
       toast.error('删除失败')
     }
   }
@@ -163,7 +174,7 @@ export function CharacterPanelView(): React.ReactElement {
     try {
       const skinResult = await window.electronAPI.equipSkin?.(selected.id, skin.id)
       if (!skinResult?.success) {
-        console.error('[handleEquipSkin] equipSkin failed:', skinResult?.error)
+        log.error('equipSkin failed:', skinResult?.error)
         toast.error(`装备皮肤失败${skinResult?.error ? '：' + skinResult.error : ''}`)
         return
       }
@@ -243,6 +254,29 @@ export function CharacterPanelView(): React.ReactElement {
   const handleCloseResult = () => {
     setGachaPhase('idle')
     setDrawResults(null)
+  }
+
+  const handleSavePrompt = async () => {
+    if (!promptEditTarget) return
+    setPromptEditSaving(true)
+    setPromptEditError('')
+    try {
+      const r = await window.electronAPI.updateCharacter(promptEditTarget.id, {
+        system_prompt: promptEditValue.trim(),
+      })
+      if (r?.success && r.data) {
+        setCharacters(prev => prev.map(c => c.id === r.data.id ? r.data : c))
+        if (selected?.id === r.data.id) setSelected(r.data)
+        setPromptEditTarget(null)
+        toast.success(`已更新「${r.data.name}」的人物设定`)
+      } else {
+        setPromptEditError(r?.error || '保存失败')
+      }
+    } catch (e: any) {
+      setPromptEditError(e?.message || '保存失败')
+    } finally {
+      setPromptEditSaving(false)
+    }
   }
 
   // 稀有度
@@ -356,7 +390,7 @@ export function CharacterPanelView(): React.ReactElement {
                         if (lr?.success && lr.data) setCharacters(lr.data)
                       }).catch(() => {})
                     }
-                  } catch (e) { console.error('创建人物失败:', e) }
+                  } catch (e) { log.error('创建人物失败:', e) }
                 }}
                 className="mt-2 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
@@ -407,9 +441,10 @@ export function CharacterPanelView(): React.ReactElement {
                                   w.id === `char-${r.data.id}` ? { ...w, name: r.data.name, updatedAt: Date.now() } : w
                                 ))
                               }
-                            } catch (e) { console.error('重命名失败:', e) }
+                            } catch (e) { log.error('重命名失败:', e) }
                           }}
                           onDelete={() => { setDeleteTarget(c); setDeleteConfirmName('') }}
+                          onEditPrompt={() => { setPromptEditTarget(c); setPromptEditValue(c.system_prompt || ''); setPromptEditError('') }}
                         />
                       )
                     })}
@@ -442,7 +477,7 @@ export function CharacterPanelView(): React.ReactElement {
                               if (cr?.success && cr.data) setCreationLimit(cr.data)
                             }).catch(() => {})
                           }
-                        } catch (e) { console.error('创建人物失败:', e) }
+                        } catch (e) { log.error('创建人物失败:', e) }
                       }}
                       disabled={creationLimit?.can_create === false}
                     >
@@ -634,6 +669,52 @@ export function CharacterPanelView(): React.ReactElement {
               </div>
             </div>
           )}
+
+          {/* Prompt 编辑对话框 */}
+          <Dialog
+            open={!!promptEditTarget}
+            onOpenChange={(open) => { if (!open) setPromptEditTarget(null) }}
+          >
+            <DialogContent className="max-w-lg" hideClose>
+              <DialogHeader>
+                <DialogTitle>
+                  编辑人物设定 — {promptEditTarget?.name}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Textarea
+                  value={promptEditValue}
+                  onChange={e => { setPromptEditValue(e.target.value); setPromptEditError('') }}
+                  placeholder="为此人物设置独特的性格和行为方式..."
+                  className="min-h-[160px] resize-y"
+                  maxLength={2000}
+                  autoFocus
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-red-500">{promptEditError}</span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {promptEditValue.length}/2000
+                  </span>
+                </div>
+              </div>
+              <DialogFooter>
+                <button
+                  className="flex-1 rounded-md border px-4 py-2 text-sm hover:bg-muted transition-colors"
+                  onClick={() => setPromptEditTarget(null)}
+                  disabled={promptEditSaving}
+                >
+                  取消
+                </button>
+                <button
+                  className="flex-1 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  onClick={handleSavePrompt}
+                  disabled={promptEditSaving}
+                >
+                  {promptEditSaving ? '保存中...' : '保存'}
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
@@ -655,6 +736,7 @@ function CharacterCard({
   onSelect,
   onRename,
   onDelete,
+  onEditPrompt,
 }: {
   char: ShadiaoCharacter
   isSelected: boolean
@@ -663,6 +745,7 @@ function CharacterCard({
   onSelect: () => void
   onRename: (newName: string) => Promise<void>
   onDelete: () => void
+  onEditPrompt: () => void
 }): React.ReactElement {
   const [imgSrc, setImgSrc] = React.useState<string | null>(localPreviewPath)
   const [imgFallback, setImgFallback] = React.useState(0) // 0=local, 1=django, 2=icon
@@ -777,6 +860,13 @@ function CharacterCard({
                 <Edit3 className="size-2.5" />
               </button>
             )}
+            <button
+              className="shrink-0 p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors ml-auto"
+              onClick={e => { e.stopPropagation(); onEditPrompt() }}
+              title="编辑人物设定"
+            >
+              <FileText className="size-2.5" />
+            </button>
           </div>
         )}
 

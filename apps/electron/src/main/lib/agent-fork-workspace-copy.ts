@@ -1,5 +1,8 @@
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('agent-fork-workspace-copy')
 
 const FORK_WORKSPACE_COPY_BLOCKLIST = new Set([
   '.claude',
@@ -58,7 +61,7 @@ export function copyForkWorkspaceFiles(sourceDir: string, destDir: string): Fork
       result.copiedCount += 1
     } catch (err) {
       result.failedCount += 1
-      console.warn(`[Agent 会话] fork 工作区条目复制失败，已跳过 (${srcPath}):`, err)
+      log.warn(`fork 工作区条目复制失败，已跳过 (${srcPath}):`, err)
     }
   }
 

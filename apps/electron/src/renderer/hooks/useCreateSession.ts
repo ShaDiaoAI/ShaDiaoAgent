@@ -19,6 +19,9 @@ import { activeViewAtom } from '@/atoms/active-view'
 import { promptConfigAtom, selectedPromptIdAtom } from '@/atoms/system-prompt-atoms'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
 import { useOpenSession } from './useOpenSession'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('useCreateSession')
 
 interface CreateSessionOptions {
   /** 标记为草稿会话（不在侧边栏显示，发送首条消息后自动取消） */
@@ -71,7 +74,7 @@ export function useCreateSession(): CreateSessionActions {
       }
       return meta.id
     } catch (error) {
-      console.error('[创建会话] 创建 Chat 对话失败:', error)
+      log.error('创建 Chat 对话失败:', error)
       return undefined
     }
   }
@@ -92,7 +95,7 @@ export function useCreateSession(): CreateSessionActions {
       }
       return meta.id
     } catch (error) {
-      console.error('[创建会话] 创建 Agent 会话失败:', error)
+      log.error('创建 Agent 会话失败:', error)
       return undefined
     }
   }

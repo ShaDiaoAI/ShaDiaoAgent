@@ -15,6 +15,9 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { detectIsWindows, WINDOW_CONTROLS_INSET_RIGHT } from '@/lib/platform'
 import { cn } from '@/lib/utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ChatHeader')
 
 interface ChatHeaderProps {
   conversation: ConversationMeta | null
@@ -51,7 +54,7 @@ export function ChatHeader({ conversation }: ChatHeaderProps): React.ReactElemen
         prev.map((c) => (c.id === updated.id ? updated : c))
       )
     } catch (error) {
-      console.error('[ChatHeader] 更新标题失败:', error)
+      log.error('更新标题失败:', error)
     }
     setEditing(false)
   }

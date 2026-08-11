@@ -9,6 +9,9 @@ import { autoUpdater } from 'electron-updater'
 import { BrowserWindow, app } from 'electron'
 import type { UpdateStatus } from './updater-types'
 import { UPDATER_IPC_CHANNELS } from './updater-types'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('自动更新')
 
 /** 当前更新状态 */
 let currentStatus: UpdateStatus = { status: 'idle' }
@@ -34,7 +37,7 @@ export function getUpdateStatus(): UpdateStatus {
 export async function checkForUpdates(): Promise<void> {
   // 已在下载中或已下载完成，不重复检查
   if (currentStatus.status === 'downloading' || currentStatus.status === 'downloaded') {
-    console.log('[更新] 跳过检查：已在下载中或已下载完成')
+    log.info('跳过检查：已在下载中或已下载完成')
     return
   }
 
@@ -42,7 +45,7 @@ export async function checkForUpdates(): Promise<void> {
     setStatus({ status: 'checking' })
     await autoUpdater.checkForUpdates()
   } catch (err) {
-    console.error('[更新] 检查更新失败:', err)
+    log.error('检查更新失败:', err)
     setStatus({
       status: 'error',
       error: err instanceof Error ? err.message : String(err),
@@ -80,10 +83,10 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
   win = mainWindow
 
   autoUpdater.logger = {
-    info: (...args: unknown[]) => console.log('[更新-updater]', ...args),
-    warn: (...args: unknown[]) => console.warn('[更新-updater]', ...args),
-    error: (...args: unknown[]) => console.error('[更新-updater]', ...args),
-    debug: (...args: unknown[]) => console.log('[更新-updater:debug]', ...args),
+    info: (...args: unknown[]) => log.info(...args),
+    warn: (...args: unknown[]) => log.warn(...args),
+    error: (...args: unknown[]) => log.error(...args),
+    debug: (...args: unknown[]) => log.debug(...args),
   }
 
   // 自动下载，但不在用户正常退出时自动安装，避免重启应用后被动进入更新流程。
@@ -92,12 +95,12 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   // 监听更新事件
   autoUpdater.on('checking-for-update', () => {
-    console.log('[更新] 正在检查更新...')
+    log.info('正在检查更新...')
     setStatus({ status: 'checking' })
   })
 
   autoUpdater.on('update-available', (info) => {
-    console.log('[更新] 发现新版本:', info.version)
+    log.info('发现新版本:', info.version)
     setStatus({
       status: 'available',
       version: info.version,
@@ -121,7 +124,7 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('[更新] 下载完成:', info.version)
+    log.info('下载完成:', info.version)
     setStatus({
       status: 'downloaded',
       version: info.version,
@@ -129,12 +132,12 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
   })
 
   autoUpdater.on('update-not-available', () => {
-    console.log('[更新] 已是最新版本')
+    log.info('已是最新版本')
     setStatus({ status: 'not-available' })
   })
 
   autoUpdater.on('error', (err) => {
-    console.error('[更新] 更新出错:', err)
+    log.error('更新出错:', err)
     setStatus({
       status: 'error',
       error: err.message,
@@ -143,13 +146,13 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
 
   // 启动后延迟 10 秒首次检查
   setTimeout(() => {
-    console.log('[更新] 首次自动检查更新')
+    log.info('首次自动检查更新')
     checkForUpdates()
   }, 10_000)
 
   // 每 4 小时自动检查一次
   checkInterval = setInterval(() => {
-    console.log('[更新] 定时自动检查更新')
+    log.info('定时自动检查更新')
     checkForUpdates()
   }, 4 * 60 * 60 * 1000)
 
@@ -162,5 +165,5 @@ export function initAutoUpdater(mainWindow: BrowserWindow): void {
     win = null
   })
 
-  console.log('[更新] 自动更新模块已初始化（自动下载，用户主动确认后安装）')
+  log.info('自动更新模块已初始化（自动下载，用户主动确认后安装）')
 }

@@ -14,11 +14,14 @@ import { getAutomationsPath } from './config-paths'
 import {
   AUTOMATION_MAX_HISTORY,
   AUTOMATION_DEFAULT_PERMISSION_MODE,
+  createLogger,
   type Automation,
   type AutomationRun,
   type CreateAutomationInput,
   type UpdateAutomationInput,
 } from '@shadiao/shared'
+
+const log = createLogger('定时任务')
 
 /** 索引文件格式 */
 interface AutomationsIndex {
@@ -74,15 +77,15 @@ function readIndex(): AutomationsIndex {
     return cachedIndex
   }
   if (typeof data.version !== 'number') {
-    console.warn(`[定时任务] 索引文件缺少有效 version 字段，将忽略其内容`)
+    log.warn(`索引文件缺少有效 version 字段，将忽略其内容`)
     cachedIndex = { version: INDEX_VERSION, automations: [] }
     return cachedIndex
   }
   if (data.version > INDEX_VERSION) {
     // 数据由更高版本的 Proma 写入（用户回滚到旧版的场景）。保留原始 automations 数组只读返回，
     // 避免下次 writeIndex 用空数据覆盖磁盘导致永久丢失任务配置和运行历史。
-    console.warn(
-      `[定时任务] 索引文件版本 ${data.version} 高于当前构建（${INDEX_VERSION}），将以原数据加载，` +
+    log.warn(
+      `索引文件版本 ${data.version} 高于当前构建（${INDEX_VERSION}），将以原数据加载，` +
         `可能存在不识别的字段；请尽量升级到最新版本。`,
     )
     if (!Array.isArray(data.automations)) {
@@ -100,7 +103,7 @@ function readIndex(): AutomationsIndex {
   cachedIndex = data
   if (migrated) {
     writeIndex(data)
-    console.log('[定时任务] 索引已迁移至最新版本（sessionMode: new → daily，permissionMode: auto → bypassPermissions）')
+    log.info('索引已迁移至最新版本（sessionMode: new → daily，permissionMode: auto → bypassPermissions）')
   }
   return cachedIndex
 }
@@ -111,7 +114,7 @@ function writeIndex(index: AutomationsIndex): void {
     writeJsonFileAtomic(getAutomationsPath(), index)
   } catch (error) {
     cachedIndex = null // 写入失败时丢弃缓存，下次重新从磁盘读取
-    console.error('[定时任务] 写入索引文件失败:', error)
+    log.error('写入索引文件失败:', error)
     throw new Error('写入定时任务索引失败')
   }
 }
@@ -143,12 +146,12 @@ export function computeNextRunAt(
       ? a.scheduledAt!
       : from + FALLBACK_INTERVAL_MS
     if (!Number.isFinite(a.scheduledAt) || a.scheduledAt! <= 0) {
-      console.warn(`[定时任务] computeNextRunAt: once 缺少有效 scheduledAt (${a.scheduledAt})，回退到 10 分钟后`)
+      log.warn(`computeNextRunAt: once 缺少有效 scheduledAt (${a.scheduledAt})，回退到 10 分钟后`)
     }
   } else if (a.scheduleType === 'interval') {
     const minutes = Number(a.intervalMinutes)
     if (!Number.isFinite(minutes) || minutes < 1) {
-      console.warn(`[定时任务] computeNextRunAt: intervalMinutes 非法 (${a.intervalMinutes})，回退到 10 分钟`)
+      log.warn(`computeNextRunAt: intervalMinutes 非法 (${a.intervalMinutes})，回退到 10 分钟`)
       result = from + FALLBACK_INTERVAL_MS
     } else {
       result = from + Math.max(1, minutes) * 60_000
@@ -192,7 +195,7 @@ export function computeNextRunAt(
   }
 
   if (!Number.isFinite(result) || result <= 0) {
-    console.warn(`[定时任务] computeNextRunAt: 计算结果非法 (${result})，回退到 10 分钟后`)
+    log.warn(`computeNextRunAt: 计算结果非法 (${result})，回退到 10 分钟后`)
     return from + FALLBACK_INTERVAL_MS
   }
 
@@ -288,7 +291,7 @@ export function createAutomation(input: CreateAutomationInput): Automation {
 
   index.automations.push(automation)
   writeIndex(index)
-  console.log(`[定时任务] 已创建: ${automation.name} (${automation.id}), 模式 ${automation.scheduleType}`)
+  log.info(`已创建: ${automation.name} (${automation.id}), 模式 ${automation.scheduleType}`)
   return automation
 }
 
@@ -365,7 +368,7 @@ export function deleteAutomation(id: string): boolean {
   index.automations = index.automations.filter((a) => a.id !== id)
   if (index.automations.length === before) return false
   writeIndex(index)
-  console.log(`[定时任务] 已删除: ${id}`)
+  log.info(`已删除: ${id}`)
   return true
 }
 
@@ -407,7 +410,7 @@ export function appendRun(id: string, run: AutomationRun): Automation | undefine
   if (run.status !== 'skipped' && shouldAutoComplete(target)) {
     target.active = false
     target.completedAt = now
-    console.log(`[定时任务] ${target.name} 已达成运行上限（${target.runCount} 次），自动完成停用`)
+    log.info(`${target.name} 已达成运行上限（${target.runCount} 次），自动完成停用`)
   }
 
   target.updatedAt = now

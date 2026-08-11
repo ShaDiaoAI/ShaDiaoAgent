@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useSetAtom } from 'jotai'
 import { toast } from 'sonner'
 import { BookOpen, Brain, ChevronDown, ChevronRight, Code2, Eye, FileText, FolderOpen, Loader2, RefreshCw, Save, Sparkles } from 'lucide-react'
-import type { SkillFileNode, WorkspaceMemorySummary } from '@shadiao/shared'
+import { createLogger, type SkillFileNode, type WorkspaceMemorySummary } from '@shadiao/shared'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SettingsCard } from '@/components/settings/primitives'
@@ -12,6 +12,8 @@ import { MessageResponse } from '@/components/ai-elements/message'
 import { agentPendingPromptAtom } from '@/atoms/agent-atoms'
 import { useCreateSession } from '@/hooks/useCreateSession'
 import { cn } from '@/lib/utils'
+
+const log = createLogger('WorkspaceMemoryTab')
 
 type SelectedMemoryFile =
   | { kind: 'claude'; relativePath: 'CLAUDE.md'; title: string; absolutePath: string }
@@ -215,7 +217,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       persistInFlightRef.current = p
       await p
     } catch (err) {
-      console.error('[工作区记忆] 自动保存失败:', err)
+      log.error('自动保存失败:', err)
       toast.error(err instanceof Error ? err.message : '自动保存失败')
       setIsDirty(true)
     } finally {
@@ -246,7 +248,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       setEditText(file.content ?? '')
       setIsDirty(false)
     } catch (err) {
-      console.error('[工作区记忆] 读取 CLAUDE.md 失败:', err)
+      log.error('读取 CLAUDE.md 失败:', err)
       toast.error(err instanceof Error ? err.message : '读取 CLAUDE.md 失败')
     } finally {
       setLoadingFile(false)
@@ -268,7 +270,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       setEditText(file.content ?? '')
       setIsDirty(false)
     } catch (err) {
-      console.error('[工作区记忆] 读取 auto memory 文件失败:', err)
+      log.error('读取 auto memory 文件失败:', err)
       toast.error(err instanceof Error ? err.message : '读取 auto memory 文件失败')
     } finally {
       setLoadingFile(false)
@@ -286,7 +288,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         await openClaude(nextSummary)
       }
     } catch (err) {
-      console.error('[工作区记忆] 刷新失败:', err)
+      log.error('刷新失败:', err)
       toast.error('刷新工作区记忆失败')
     } finally {
       setLoading(false)
@@ -319,7 +321,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
         setEditText(claudeFile.content ?? '')
         setIsDirty(false)
       } catch (err) {
-        console.error('[工作区记忆] 加载失败:', err)
+        log.error('加载失败:', err)
         toast.error('加载工作区记忆失败')
       } finally {
         if (!cancelled) setLoading(false)
@@ -362,7 +364,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       await persistTarget(selected, editText)
       toast.success('记忆文件已保存')
     } catch (err) {
-      console.error('[工作区记忆] 保存失败:', err)
+      log.error('保存失败:', err)
       toast.error(err instanceof Error ? err.message : '保存失败')
       setIsDirty(true)
     } finally {
@@ -385,7 +387,7 @@ export function WorkspaceMemoryTab({ workspaceSlug, search }: WorkspaceMemoryTab
       })
       toast.success('已创建工作区记忆初始化会话')
     } catch (err) {
-      console.error('[工作区记忆] 创建初始化会话失败:', err)
+      log.error('创建初始化会话失败:', err)
       toast.error(err instanceof Error ? err.message : '创建初始化会话失败')
     } finally {
       setInitializing(false)

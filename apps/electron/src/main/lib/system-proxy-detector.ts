@@ -5,6 +5,9 @@
  */
 
 import type { SystemProxyDetectResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('system-proxy-detector')
 
 /**
  * 检测系统代理配置
@@ -29,7 +32,7 @@ export async function detectSystemProxy(): Promise<SystemProxyDetectResult> {
         }
     }
   } catch (error) {
-    console.error('[系统代理检测] 检测失败:', error)
+    log.error('检测失败:', error)
     return {
       success: false,
       message: error instanceof Error ? error.message : '检测失败',
@@ -124,7 +127,7 @@ async function detectMacOSProxy(): Promise<SystemProxyDetectResult> {
       message: '系统未配置代理',
     }
   } catch (error) {
-    console.error('[macOS 代理检测] 失败:', error)
+    log.error('失败:', error)
     return {
       success: false,
       message: 'macOS 代理检测失败',
@@ -192,7 +195,7 @@ async function detectWindowsProxy(): Promise<SystemProxyDetectResult> {
       message: '无法读取代理服务器地址',
     }
   } catch (error) {
-    console.error('[Windows 代理检测] 失败:', error)
+    log.error('失败:', error)
     return {
       success: false,
       message: 'Windows 代理检测失败',

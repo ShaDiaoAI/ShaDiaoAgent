@@ -15,6 +15,9 @@ import {
 } from './primitives'
 import { updateStatusAtom, updaterAvailableAtom, checkForUpdates } from '@/atoms/updater'
 import { ReleaseNotesViewer } from './ReleaseNotesViewer'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AboutSettings')
 
 /** 从 package.json 构建时由 Vite define 注入 */
 declare const __APP_VERSION__: string
@@ -64,7 +67,7 @@ function UpdateCard(): React.ReactElement | null {
           }
         })
         .catch((err) => {
-          console.error('[更新] 获取 Release 信息失败:', err)
+          log.error('获取 Release 信息失败:', err)
         })
     }
   }, [status.status, status.version, release])

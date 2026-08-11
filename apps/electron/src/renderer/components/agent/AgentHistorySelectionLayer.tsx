@@ -19,6 +19,9 @@ import { quotedSelectionMapAtom } from '@/atoms/preview-atoms'
 import { agentDiffPanelTabAtom, agentSidePanelOpenAtom } from '@/atoms/agent-atoms'
 import { SelectionActionPopover } from '@/components/selection/SelectionActionPopover'
 import { SELECTION_ACTION_POPOVER_SELECTOR } from '@/lib/quoted-selection'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('AgentHistorySelectionLayer')
 
 const MAX_AGENT_HISTORY_QUOTED_CHARS = 2000
 
@@ -258,7 +261,7 @@ export function AgentHistorySelectionLayer({
       window.getSelection()?.removeAllRanges()
       clearSelection()
     } catch (error) {
-      console.error('[AgentMessages] 打开历史选区聊天标签失败:', error)
+      log.error('打开历史选区聊天标签失败:', error)
       toast.error('打开聊天标签失败')
     } finally {
       openChatPendingRef.current = false

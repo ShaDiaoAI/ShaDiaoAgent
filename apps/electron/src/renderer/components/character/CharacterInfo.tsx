@@ -11,6 +11,9 @@ import { agentChannelIdAtom, agentModelIdAtom } from '@/atoms/agent-atoms'
 import { automationsAtom } from '@/atoms/automation-atoms'
 import type { ModelOption } from '@shadiao/shared'
 import { ModelSelector } from '@/components/chat/ModelSelector'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('CharacterInfo')
 
 interface CharacterInfoProps {
   onOpenPanel?: () => void
@@ -109,7 +112,7 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenMcp, onOpenAuto
         setCharacters((prev) => prev.map((c) => (c.id === r.data.id ? r.data : c)))
       }
     } catch (e) {
-      console.error('更新人物模型失败:', e)
+      log.error('更新人物模型失败:', e)
     }
   }, [selected, setSelected, setCharacters, setAgentChannelId, setAgentModelId])
 

@@ -12,7 +12,7 @@ import { useAtom, useSetAtom } from 'jotai'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { PROVIDER_LABELS, isAgentCompatibleProvider } from '@shadiao/shared'
+import { PROVIDER_LABELS, isAgentCompatibleProvider, createLogger } from '@shadiao/shared'
 import type { Channel } from '@shadiao/shared'
 import shadiaoLogo from '@/assets/bots/shadiao-logos/shadiao-logo.png'
 import { agentChannelIdAtom, agentModelIdAtom, agentChannelIdsAtom } from '@/atoms/agent-atoms'
@@ -29,6 +29,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { ChannelForm } from './ChannelForm'
+
+const log = createLogger('ChannelSettings')
 
 /** 组件视图模式 */
 type ViewMode = 'list' | 'create' | 'edit'
@@ -67,7 +69,7 @@ export function ChannelSettings(): React.ReactElement {
       setGlobalChannels(list) // 同步到全局缓存
       return list
     } catch (error) {
-      console.error('[渠道设置] 加载渠道列表失败:', error)
+      log.error('加载渠道列表失败:', error)
       return []
     } finally {
       setLoading(false)
@@ -142,7 +144,7 @@ export function ChannelSettings(): React.ReactElement {
       await loadChannels()
       setDeleteTarget(null)
     } catch (error) {
-      console.error('[渠道设置] 删除渠道失败:', error)
+      log.error('删除渠道失败:', error)
     }
   }
 
@@ -157,7 +159,7 @@ export function ChannelSettings(): React.ReactElement {
 
       await loadChannels()
     } catch (error) {
-      console.error('[渠道设置] 切换渠道状态失败:', error)
+      log.error('切换渠道状态失败:', error)
     }
   }
 

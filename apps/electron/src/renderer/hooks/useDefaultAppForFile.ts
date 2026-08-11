@@ -7,6 +7,9 @@
 
 import * as React from 'react'
 import type { DefaultAppInfo, FileAccessOptions } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('useDefaultAppForFile')
 
 const rendererCache = new Map<string, DefaultAppInfo | null>()
 
@@ -41,14 +44,14 @@ export function useDefaultAppForFile(
       .getDefaultAppForFile(filePath, access)
       .then((result) => {
         if (cancelled) return
-        console.log('[useDefaultAppForFile] IPC 返回:', filePath, result ? `name=${result.name}` : 'null')
+        log.info('IPC 返回:', filePath, result ? `name=${result.name}` : 'null')
         // 带访问上下文时，null 可能来自路径授权失败，不能污染按后缀共享的默认 App 缓存。
         if (result || !access) rendererCache.set(key, result)
         setInfo(result)
       })
       .catch((err) => {
         if (cancelled) return
-        console.warn('[useDefaultAppForFile] IPC 报错:', filePath, err)
+        log.warn('IPC 报错:', filePath, err)
         rendererCache.set(key, null)
         setInfo(null)
       })

@@ -21,10 +21,12 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react'
-import type { SkillFileNode, SkillFileContent } from '@shadiao/shared'
+import { createLogger, type SkillFileNode, type SkillFileContent } from '@shadiao/shared'
 import { Button } from '@/components/ui/button'
 import { SettingsCard } from './primitives'
 import { cn } from '@/lib/utils'
+
+const log = createLogger('SkillFilesPanel')
 
 interface SkillFilesPanelProps {
   workspaceSlug: string
@@ -81,7 +83,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
       setTree(nodes)
       onFileCountChangeRef.current?.(countTree(nodes).files)
     } catch (err) {
-      console.error('[SkillFiles] 加载文件树失败:', err)
+      log.error('加载文件树失败:', err)
       toast.error('加载文件树失败')
     } finally {
       setLoading(false)
@@ -106,7 +108,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
         setFileContent(result)
         setEditText(result.content ?? '')
       } catch (err) {
-        console.error('[SkillFiles] 读取文件失败:', err)
+        log.error('读取文件失败:', err)
         toast.error(err instanceof Error ? err.message : '读取文件失败')
         setFileContent(null)
       } finally {
@@ -135,7 +137,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
       toast.success('已保存')
       void refreshTree()
     } catch (err) {
-      console.error('[SkillFiles] 保存文件失败:', err)
+      log.error('保存文件失败:', err)
       toast.error(err instanceof Error ? err.message : '保存失败')
     } finally {
       setSaving(false)
@@ -168,7 +170,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
       await refreshTree()
       if (creating.type === 'file') void openFile(relativePath)
     } catch (err) {
-      console.error('[SkillFiles] 创建失败:', err)
+      log.error('创建失败:', err)
       toast.error(err instanceof Error ? err.message : '创建失败')
     }
   }
@@ -186,7 +188,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
       }
       void refreshTree()
     } catch (err) {
-      console.error('[SkillFiles] 删除失败:', err)
+      log.error('删除失败:', err)
       toast.error(err instanceof Error ? err.message : '删除失败')
     }
   }
@@ -218,7 +220,7 @@ export function SkillFilesPanel({ workspaceSlug, skillSlug, onFileCountChange }:
       setRenaming(null)
       void refreshTree()
     } catch (err) {
-      console.error('[SkillFiles] 重命名失败:', err)
+      log.error('重命名失败:', err)
       toast.error(err instanceof Error ? err.message : '重命名失败')
     }
   }

@@ -14,6 +14,9 @@ import { FileMentionList } from './FileMentionList'
 import type { FileMentionRef } from './FileMentionList'
 import type { FileIndexEntry, FileSearchResult } from '@shadiao/shared'
 import { createMentionPopup, positionPopup, isSuggestionTriggerPresent } from '@/components/agent/mention-popup-utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('file-mention-suggestion')
 
 export function createFileMentionSuggestion(
   workspacePathRef: React.RefObject<string | null>,
@@ -33,7 +36,7 @@ export function createFileMentionSuggestion(
     items: async ({ query }): Promise<FileIndexEntry[]> => {
       const wsPath = workspacePathRef.current
       if (!wsPath) {
-        console.warn('[FileMention] workspacePath is null, mention disabled')
+        log.warn('workspacePath is null, mention disabled')
         if (!missingWorkspaceToastShown) {
           toast.warning('暂时无法引用文件', {
             description: '当前 Agent 会话没有可用的工作区路径。请在顶部选择工作区，或新建 Agent 会话后重试。',
@@ -58,7 +61,7 @@ export function createFileMentionSuggestion(
         lastResult = result
         return result.entries
       } catch(e) {
-        console.error('[FileMention] search failed:', e)
+        log.error('search failed:', e)
         lastResult = null
         return []
       }
@@ -155,7 +158,7 @@ export function createFileMentionSuggestion(
             }
             props.editor.view.dom.addEventListener('blur', blurHandler, true)
           } catch (e) {
-            console.error('[FileMention] render popup failed:', e)
+            log.error('render popup failed:', e)
             cleanup()
           }
         },

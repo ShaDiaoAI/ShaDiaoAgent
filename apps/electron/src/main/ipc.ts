@@ -275,6 +275,9 @@ import { watchAttachedDirectory, unwatchAttachedDirectory } from './lib/workspac
 // import from './lib/dingtalk-bridge-manager' removed (ShaDiaoAgent)
 // import from './lib/wechat-config' removed (ShaDiaoAgent)
 // import from './lib/wechat-bridge' removed (ShaDiaoAgent)
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('IPC')
 /** 文件浏览器中需要隐藏的系统文件 */
 const HIDDEN_FS_ENTRIES = new Set(['.DS_Store', 'Thumbs.db'])
 
@@ -399,7 +402,7 @@ async function getAccessRootMainRepo(root: string): Promise<string | null> {
 
 function ensurePathAllowed(filePath: string, options?: FileAccessOptions): boolean {
   if (isPathAllowed(filePath, options)) return true
-  console.warn('[IPC] 拒绝越界路径:', filePath)
+  log.warn('拒绝越界路径:', filePath)
   return false
 }
 
@@ -436,7 +439,7 @@ async function ensurePathAllowedWithWorktree(filePath: string, options?: FileAcc
       }
     }
   }
-  console.warn('[IPC] 拒绝越界路径:', filePath)
+  log.warn('拒绝越界路径:', filePath)
   return false
 }
 
@@ -596,7 +599,7 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
   const ext = extOf(filePath)
   // ext 来自渲染进程的 filePath，必须严格校验：cmd /c "assoc ${ext}" 中 & | > < 等会触发命令链
   if (!/^\.[a-zA-Z0-9]+$/.test(ext)) {
-    console.log('[DefaultApp] ext 校验失败:', ext)
+    log.debug('ext 校验失败:', ext)
     return null
   }
 
@@ -607,12 +610,12 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
     'ProgId',
   ])
   let progId = parseWindowsRegistryValue(userChoiceResult.stdout)
-  console.log('[DefaultApp] ext=%s UserChoice progId=%s', ext, progId)
+  log.debug('ext=%s UserChoice progId=%s', ext, progId)
 
   if (!progId) {
     const assoc = await runCmd('cmd', ['/c', `assoc ${ext}`])
     progId = (assoc.stdout || '').split('=').slice(1).join('=').trim()
-    console.log('[DefaultApp] assoc fallback progId=%s', progId)
+    log.debug('assoc fallback progId=%s', progId)
   }
   // 第三 fallback：HKCU OpenWithList MRU（取最近使用的 exe，与 Windows 设置显示一致）
   if (!progId) {
@@ -640,7 +643,7 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
           ])
           exePath = parseWindowsRegistryValue(apResult2.stdout)
         }
-        console.log('[DefaultApp] OpenWithList MRU fallback: exe=%s path=%s', exeName, exePath)
+        log.debug('OpenWithList MRU fallback: exe=%s path=%s', exeName, exePath)
         if (exePath) return { appPath: exePath, appName }
       }
     }
@@ -656,13 +659,13 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
       const m = line.match(/^\s+(\S+)\s+REG_/)
       if (m && m[1] && isSafeWindowsProgId(m[1])) {
         progId = m[1]
-        console.log('[DefaultApp] OpenWithProgids fallback progId=%s', progId)
+        log.debug('OpenWithProgids fallback progId=%s', progId)
         break
       }
     }
   }
   if (!progId || !isSafeWindowsProgId(progId)) {
-    console.log('[DefaultApp] progId 无效或不安全:', progId)
+    log.debug('progId 无效或不安全:', progId)
     return null
   }
 
@@ -684,14 +687,14 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
       const parts = appUserModelId.split('!')
       appName = (parts[1] ?? parts[0] ?? '').replace(/^Microsoft\./, '').replace(/^Windows\./, '') || 'UWP App'
     }
-    console.log('[DefaultApp] UWP app, appName=%s', appName)
+    log.debug('UWP app, appName=%s', appName)
     return { appPath: '', appName, isUwp: true }
   }
 
   const command = await getWindowsDefaultAppCommand(progId)
-  console.log('[DefaultApp] open command:', command)
+  log.debug('open command:', command)
   const appPath = parseWindowsExecutablePath(command)
-  console.log('[DefaultApp] parsed appPath:', appPath)
+  log.debug('parsed appPath:', appPath)
   if (!appPath) {
     // Fallback：从 HKCR\<progId> 默认值取 app 名，从 App Paths 找 exe
     const rootResult = await runCmd('reg', ['query', `HKCR\\${progId}`, '/ve'])
@@ -712,7 +715,7 @@ async function getWindowsDefaultAppInfo(filePath: string): Promise<{ appPath: st
       ])
       exePath = parseWindowsRegistryValue(appPathsResult2.stdout)
     }
-    console.log('[DefaultApp] App Paths fallback: candidateAppName=%s exePath=%s', candidateAppName, exePath)
+    log.debug('App Paths fallback: candidateAppName=%s exePath=%s', candidateAppName, exePath)
     if (!exePath) return null
     const base = exePath.split(/[\\/]/).pop() || ''
     return { appPath: exePath, appName: base.replace(/\.exe$/i, '') }
@@ -758,14 +761,14 @@ if let appUrl = NSWorkspace.shared.urlForApplication(toOpen: url) {
     if (r.status === 0) {
       appPath = r.stdout.trim().replace(/\/$/, '')
     }
-    console.log('[DefaultApp] darwin swift 结果: status=%s appPath=%s', r.status, appPath)
+    log.debug('darwin swift 结果: status=%s appPath=%s', r.status, appPath)
     if (appPath.endsWith('.app')) {
       const base = appPath.split('/').pop() || ''
       appName = base.replace(/\.app$/, '')
     }
   } else if (process.platform === 'win32') {
     const info = await getWindowsDefaultAppInfo(filePath)
-    console.log('[DefaultApp] win32 getWindowsDefaultAppInfo 结果:', info)
+    log.debug('win32 getWindowsDefaultAppInfo 结果:', info)
     if (!info) return cacheNull(cacheKey)
     appPath = info.isUwp ? absPath : info.appPath
     appName = info.appName
@@ -793,12 +796,12 @@ if let appUrl = NSWorkspace.shared.urlForApplication(toOpen: url) {
   }
 
   if (!appPath || !appName) {
-    console.log('[DefaultApp] appPath 或 appName 为空，返回 null. appPath=%s appName=%s', appPath, appName)
+    log.debug('appPath 或 appName 为空，返回 null. appPath=%s appName=%s', appPath, appName)
     return cacheNull(cacheKey)
   }
 
-  const iconDataUrl = await getAppIconDataUrl(appPath).catch((e) => { console.warn('[DefaultApp] getAppIconDataUrl 失败:', e); return '' })
-  console.log('[DefaultApp] iconDataUrl 长度:', iconDataUrl?.length)
+  const iconDataUrl = await getAppIconDataUrl(appPath).catch((e) => { log.warn('getAppIconDataUrl 失败:', e); return '' })
+  log.debug('iconDataUrl 长度:', iconDataUrl?.length)
   if (!iconDataUrl) return cacheNull(cacheKey)
 
   const info: import('@shadiao/shared').DefaultAppInfo = { name: appName, appPath, iconDataUrl }
@@ -878,7 +881,7 @@ const wechatBridge = {
 } as any
 
 export function registerIpcHandlers(): void {
-  console.log('[IPC] 正在注册 IPC 处理器...')
+  log.info('正在注册 IPC 处理器...')
 
   // ===== 运行时相关 =====
 
@@ -903,7 +906,7 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.GET_GIT_REPO_STATUS,
     async (_, dirPath: string): Promise<GitRepoStatus | null> => {
       if (!dirPath || typeof dirPath !== 'string') {
-        console.warn('[IPC] git:get-repo-status 收到无效的目录路径')
+        log.warn('git:get-repo-status 收到无效的目录路径')
         return null
       }
 
@@ -916,7 +919,7 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.GET_UNSTAGED_CHANGES,
     async (_, dirPath: string, sessionPath?: string, workspaceFilesPath?: string, extraPaths?: string[], sessionId?: string) => {
       if (!dirPath || typeof dirPath !== 'string') {
-        console.warn('[IPC] git:get-unstaged-changes 收到无效的目录路径')
+        log.warn('git:get-unstaged-changes 收到无效的目录路径')
         return { isGitRepo: false, files: [], untrackedFiles: [], gitRootNames: [] }
       }
       const access = normalizeFileAccessOptions({ sessionId })
@@ -936,7 +939,7 @@ export function registerIpcHandlers(): void {
     async (_, input: GetFileDiffInput) => {
       const { dirPath, filePath, gitRoot, sessionId } = input
       if (!dirPath || !filePath || typeof dirPath !== 'string' || typeof filePath !== 'string') {
-        console.warn('[IPC] git:get-file-diff 收到无效参数')
+        log.warn('git:get-file-diff 收到无效参数')
         return ''
       }
       const access = normalizeFileAccessOptions({ sessionId })
@@ -951,7 +954,7 @@ export function registerIpcHandlers(): void {
     async (_, input: GetFileDiffInput) => {
       const { dirPath, filePath, gitRoot, sessionId } = input
       if (!dirPath || !filePath || typeof dirPath !== 'string' || typeof filePath !== 'string') {
-        console.warn('[IPC] git:get-untracked-content 收到无效参数')
+        log.warn('git:get-untracked-content 收到无效参数')
         return ''
       }
       const access = normalizeFileAccessOptions({ sessionId })
@@ -966,7 +969,7 @@ export function registerIpcHandlers(): void {
     async (_, input: RevertFileInput) => {
       const { dirPath, filePath, gitRoot, sessionId } = input
       if (!dirPath || !filePath || typeof dirPath !== 'string' || typeof filePath !== 'string') {
-        console.warn('[IPC] git:revert-file 收到无效参数')
+        log.warn('git:revert-file 收到无效参数')
         return
       }
       const access = normalizeFileAccessOptions({ sessionId })
@@ -981,7 +984,7 @@ export function registerIpcHandlers(): void {
     async (_, input: GetFileDiffInput) => {
       const { dirPath, filePath, gitRoot, sessionId } = input
       if (!dirPath || !filePath || typeof dirPath !== 'string' || typeof filePath !== 'string') {
-        console.warn('[IPC] git:get-diff-contents 收到无效参数')
+        log.warn('git:get-diff-contents 收到无效参数')
         return null
       }
       const access = normalizeFileAccessOptions({ sessionId })
@@ -1019,7 +1022,7 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.OPEN_DETACHED_PREVIEW,
     async (event, input: DetachedPreviewWindowInput): Promise<string | null> => {
       if (!input || typeof input.sessionId !== 'string' || typeof input.filePath !== 'string' || typeof input.dirPath !== 'string') {
-        console.warn('[IPC] preview:open-detached 收到无效参数')
+        log.warn('preview:open-detached 收到无效参数')
         return null
       }
       const { openDetachedPreviewWindow } = await import('./lib/detached-preview-window')
@@ -1052,12 +1055,12 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.OPEN_EXTERNAL,
     async (_, url: string): Promise<void> => {
       if (!url || typeof url !== 'string') {
-        console.warn('[IPC] shell:open-external 收到无效的 URL')
+        log.warn('shell:open-external 收到无效的 URL')
         return
       }
       // 仅允许 http/https 协议，防止安全风险
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        console.warn('[IPC] shell:open-external 仅支持 http/https 协议:', url)
+        log.warn('shell:open-external 仅支持 http/https 协议:', url)
         return
       }
       await shell.openExternal(url)
@@ -1072,14 +1075,14 @@ export function registerIpcHandlers(): void {
       const absPath = resolve(filePath)
       const options = normalizeFileAccessOptions(access)
       if (!isPathAllowed(absPath, options)) {
-        console.warn('[IPC] shell:system-open-file 拒绝越界路径:', absPath)
+        log.warn('shell:system-open-file 拒绝越界路径:', absPath)
         return
       }
       if (process.platform === 'darwin') {
         const { spawnSync } = await import('node:child_process')
         if (appName) {
           if (!KNOWN_EDITORS.includes(appName)) {
-            console.warn('[IPC] shell:system-open-file 拒绝未知应用:', appName)
+            log.warn('shell:system-open-file 拒绝未知应用:', appName)
             return
           }
           spawnSync('open', ['-a', appName, absPath], { timeout: 5000 })
@@ -1122,15 +1125,15 @@ export function registerIpcHandlers(): void {
       try {
         const options = normalizeFileAccessOptions(access)
         if (options && !isPathAllowed(filePath, options)) {
-          console.warn('[IPC] shell:get-default-app-for-file 拒绝越界路径:', filePath)
+          log.warn('shell:get-default-app-for-file 拒绝越界路径:', filePath)
           return null
         }
-        console.log('[IPC] get-default-app-for-file 收到请求:', filePath)
+        log.debug('get-default-app-for-file 收到请求:', filePath)
         const result = await getDefaultAppInfoForFile(filePath, options)
-        console.log('[IPC] get-default-app-for-file 返回:', result ? `name=${result.name} appPath=${result.appPath} iconLen=${result.iconDataUrl?.length}` : 'null')
+        log.debug('get-default-app-for-file 返回:', result ? `name=${result.name} appPath=${result.appPath} iconLen=${result.iconDataUrl?.length}` : 'null')
         return result
       } catch (err) {
-        console.warn('[IPC] shell:get-default-app-for-file 失败:', err)
+        log.warn('shell:get-default-app-for-file 失败:', err)
         return null
       }
     }
@@ -1609,7 +1612,7 @@ export function registerIpcHandlers(): void {
   // 监听系统主题变化，推送给所有渲染进程窗口
   nativeTheme.on('updated', () => {
     const isDark = nativeTheme.shouldUseDarkColors
-    console.log(`[设置] 系统主题变化: ${isDark ? '深色' : '浅色'}`)
+    log.info(`系统主题变化: ${isDark ? '深色' : '浅色'}`)
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send(SETTINGS_IPC_CHANNELS.ON_SYSTEM_THEME_CHANGED, isDark)
     })
@@ -1626,7 +1629,7 @@ export function registerIpcHandlers(): void {
         if (!existsSync(path)) return ''
         return readFileSync(path, 'utf-8')
       } catch (err) {
-        console.error('[ScratchPad] 加载失败:', err)
+        log.error('加载失败:', err)
         return ''
       }
     }
@@ -1641,7 +1644,7 @@ export function registerIpcHandlers(): void {
         await writeFile(path, content, 'utf-8')
         return true
       } catch (err) {
-        console.error('[ScratchPad] 保存失败:', err)
+        log.error('保存失败:', err)
         return false
       }
     }
@@ -1655,7 +1658,7 @@ export function registerIpcHandlers(): void {
         writeFileSync(getScratchPadPath(), content, 'utf-8')
         event.returnValue = true
       } catch (err) {
-        console.error('[ScratchPad] 同步保存失败:', err)
+        log.error('同步保存失败:', err)
         event.returnValue = false
       }
     }
@@ -1680,7 +1683,7 @@ export function registerIpcHandlers(): void {
         filePath = join(dirPath, filename)
       }
       writeFileSync(filePath, markdown, 'utf-8')
-      console.log('[ScratchPad] 已导出:', filePath)
+      log.info('已导出:', filePath)
       return filePath
     }
   )
@@ -1712,7 +1715,7 @@ export function registerIpcHandlers(): void {
         // 解析图标文件路径
         const iconPath = resolveAppIconPath(variantId)
         if (!iconPath || !existsSync(iconPath)) {
-          console.warn('[图标] 图标文件不存在:', iconPath)
+          log.warn('图标文件不存在:', iconPath)
           return false
         }
 
@@ -1723,10 +1726,10 @@ export function registerIpcHandlers(): void {
 
         // 持久化到设置
         await updateSettings({ appIconVariant: variantId })
-        console.log(`[图标] 已切换到: ${variantId}`)
+        log.info(`已切换到: ${variantId}`)
         return true
       } catch (error) {
-        console.error('[图标] 切换失败:', error)
+        log.error('切换失败:', error)
         return false
       }
     }
@@ -1849,7 +1852,7 @@ export function registerIpcHandlers(): void {
       const effectiveWorkspaceId = selectedCharacterId != null ? `char-${selectedCharacterId}` : workspaceId
       const session = createAgentSession(title, channelId, effectiveWorkspaceId, modelId, getSettings().agentRuntime ?? 'claude', selectedCharacterId ?? undefined)
       feishuBridgeManager.ensureSessionMirror(session).catch((error) => {
-        console.error('[飞书 Session 镜像] 新会话建群失败:', error)
+        log.error('新会话建群失败:', error)
       })
       return session
     }
@@ -2309,7 +2312,7 @@ export function registerIpcHandlers(): void {
       const session = getAgentSessionMeta(input.sessionId)
       if (session) {
         await feishuBridgeManager.startSessionMirrorRun(session).catch((error) => {
-          console.error('[飞书 Session 镜像] 流式卡片初始化失败:', error)
+          log.error('流式卡片初始化失败:', error)
         })
       }
       await runAgent(input, event.sender)
@@ -2343,13 +2346,13 @@ export function registerIpcHandlers(): void {
     async (_, input: GetTaskOutputInput): Promise<GetTaskOutputResult> => {
       try {
         // TODO: 实现通过 SDK 的 TaskOutput 获取任务输出
-        console.warn('[IPC] GET_TASK_OUTPUT: 当前版本暂未实现，返回空输出')
+        log.warn('GET_TASK_OUTPUT: 当前版本暂未实现，返回空输出')
         return {
           output: '',
           isComplete: false,
         }
       } catch (error) {
-        console.error('[IPC] 获取任务输出失败:', error)
+        log.error('获取任务输出失败:', error)
         throw error
       }
     }
@@ -2380,12 +2383,12 @@ export function registerIpcHandlers(): void {
     async (_, input: StopTaskInput): Promise<void> => {
       try {
         if (input.type === 'shell') {
-          console.warn('[IPC] STOP_TASK: Shell 任务停止功能待实现')
+          log.warn('STOP_TASK: Shell 任务停止功能待实现')
         } else {
-          console.warn('[IPC] STOP_TASK: Agent 任务暂不支持单独停止')
+          log.warn('STOP_TASK: Agent 任务暂不支持单独停止')
         }
       } catch (error) {
-        console.error('[IPC] 停止任务失败:', error)
+        log.error('停止任务失败:', error)
         throw error
       }
     }
@@ -2407,12 +2410,12 @@ export function registerIpcHandlers(): void {
       try {
         updateAgentSessionMeta(sessionId, { permissionMode: mode })
       } catch (err) {
-        console.warn(`[IPC] 持久化 session 权限模式失败: sessionId=${sessionId}`, err)
+        log.warn(`持久化 session 权限模式失败: sessionId=${sessionId}`, err)
       }
       // 若 session 正在跑，同步热切换运行时模式
       if (isAgentSessionActive(sessionId)) {
         await updateAgentPermissionMode(sessionId, mode).catch((err) => {
-          console.warn(`[IPC] 运行中权限模式切换失败: sessionId=${sessionId}`, err)
+          log.warn(`运行中权限模式切换失败: sessionId=${sessionId}`, err)
           throw err
         })
       }
@@ -2624,14 +2627,14 @@ export function registerIpcHandlers(): void {
             try {
               updateAgentSessionMeta(sessionId, { permissionMode: targetMode })
             } catch (err) {
-              console.warn(`[IPC] ExitPlanMode 持久化 session 权限模式失败: sessionId=${sessionId}`, err)
+              log.warn(`ExitPlanMode 持久化 session 权限模式失败: sessionId=${sessionId}`, err)
             }
           }
           event.sender.send(AGENT_IPC_CHANNELS.STREAM_EVENT, {
             sessionId,
             payload: { kind: 'shadiao_event', event: { type: 'permission_mode_changed', mode: targetMode } },
           })
-          console.log(`[IPC] ExitPlanMode 权限模式切换: ${targetMode}`)
+          log.info(`ExitPlanMode 权限模式切换: ${targetMode}`)
         }
       }
     }
@@ -2923,7 +2926,7 @@ export function registerIpcHandlers(): void {
       }
 
       rmSync(safePath, { recursive: true, force: true })
-      console.log(`[Agent 文件] 已删除: ${safePath}`)
+      log.info(`已删除: ${safePath}`)
     }
   )
 
@@ -2975,7 +2978,7 @@ export function registerIpcHandlers(): void {
       }
 
       await writeFile(tmpPath, content, 'utf-8')
-      console.log(`[IPC] clipboard 预览文件已写入: ${tmpPath}`)
+      log.info(`clipboard 预览文件已写入: ${tmpPath}`)
       return tmpPath
     }
   )
@@ -3006,7 +3009,7 @@ export function registerIpcHandlers(): void {
 
       const resolvedPath = resolveTargetPath(filePath, candidateBasePaths?.length ? candidateBasePaths : undefined)
       if (!existsSync(resolvedPath)) {
-        console.warn('[IPC] shell:show-item-in-folder 路径不存在:', resolvedPath)
+        log.warn('shell:show-item-in-folder 路径不存在:', resolvedPath)
         return false
       }
       shell.showItemInFolder(resolve(resolvedPath))
@@ -3040,7 +3043,7 @@ export function registerIpcHandlers(): void {
       const allowedBasePaths = getAllowedCandidateBasePaths(options)
       const resolved = resolveFilePath(filePath, allowedBasePaths)
       if (!resolved || !isPathAllowed(resolved, options)) {
-        console.warn('[IPC] file:write-text 拒绝越界路径:', resolved ?? filePath)
+        log.warn('file:write-text 拒绝越界路径:', resolved ?? filePath)
         return false
       }
       writeFileSync(resolved, content, 'utf-8')
@@ -3061,7 +3064,7 @@ export function registerIpcHandlers(): void {
       try {
         return { url: registerPromaFilePath(result) }
       } catch (err) {
-        console.warn('[IPC] file:resolve-path 无法注册为文件，跳过:', result, err instanceof Error ? err.message : err)
+        log.warn('file:resolve-path 无法注册为文件，跳过:', result, err instanceof Error ? err.message : err)
         return null
       }
     }
@@ -3145,7 +3148,7 @@ export function registerIpcHandlers(): void {
 
       const newPath = join(dirname(safePath), newName)
       renameSync(safePath, newPath)
-      console.log(`[Agent 文件] 已重命名: ${safePath} → ${newPath}`)
+      log.info(`已重命名: ${safePath} → ${newPath}`)
     }
   )
 
@@ -3165,7 +3168,7 @@ export function registerIpcHandlers(): void {
 
       const newPath = join(safeTarget, basename(safePath))
       renameSync(safePath, newPath)
-      console.log(`[Agent 文件] 已移动: ${safePath} → ${newPath}`)
+      log.info(`已移动: ${safePath} → ${newPath}`)
     }
   )
 
@@ -3282,7 +3285,7 @@ export function registerIpcHandlers(): void {
       const safePath = resolve(filePath)
       const options = normalizeFileAccessOptions(access)
       if (!isPathAllowed(safePath, options)) {
-        console.warn('[IPC] show-attached-in-folder 拒绝越界路径:', safePath)
+        log.warn('show-attached-in-folder 拒绝越界路径:', safePath)
         return
       }
       shell.showItemInFolder(safePath)
@@ -3306,7 +3309,7 @@ export function registerIpcHandlers(): void {
       }
       const newPath = join(dirname(safePath), newName)
       renameSync(safePath, newPath)
-      console.log(`[附加目录] 已重命名: ${safePath} → ${newPath}`)
+      log.info(`已重命名: ${safePath} → ${newPath}`)
     }
   )
 
@@ -3325,7 +3328,7 @@ export function registerIpcHandlers(): void {
       }
       const newPath = join(safeTarget, basename(safePath))
       renameSync(safePath, newPath)
-      console.log(`[附加目录] 已移动: ${safePath} → ${newPath}`)
+      log.info(`已移动: ${safePath} → ${newPath}`)
     }
   )
 
@@ -3698,7 +3701,7 @@ export function registerIpcHandlers(): void {
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.appId && saved.appSecret) {
         feishuBridgeManager.restartBot(saved.id).catch((err) => {
-          console.error(`[飞书 IPC] Bot "${saved.name}" 重启失败:`, err)
+          log.error(`Bot "${saved.name}" 重启失败:`, err)
         })
       } else {
         feishuBridgeManager.stopBot(saved.id)
@@ -3823,7 +3826,7 @@ export function registerIpcHandlers(): void {
               }
               event.sender.send(FEISHU_IPC_CHANNELS.REGISTER_APP_QRCODE, payload)
             } catch (err) {
-              console.error('[飞书扫码注册] QRCode 生成失败:', err)
+              log.error('QRCode 生成失败:', err)
               if (event.sender.isDestroyed()) return
               // 兜底：仍把 url 发过去，渲染层可用浏览器打开
               event.sender.send(FEISHU_IPC_CHANNELS.REGISTER_APP_QRCODE, {
@@ -3942,7 +3945,7 @@ export function registerIpcHandlers(): void {
       // 配置变更后自动重启或停止（不阻塞保存结果）
       if (saved.enabled && saved.clientId && saved.clientSecret) {
         dingtalkBridgeManager.restartBot(saved.id).catch((err) => {
-          console.error(`[钉钉 IPC] Bot "${saved.name}" 重启失败:`, err)
+          log.error(`Bot "${saved.name}" 重启失败:`, err)
         })
       } else {
         dingtalkBridgeManager.stopBot(saved.id)
@@ -4042,7 +4045,7 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  console.log('[IPC] IPC 处理器注册完成')
+  log.info('IPC 处理器注册完成')
 
   // 注册更新 IPC 处理器
   registerUpdaterIpc()
@@ -4056,11 +4059,11 @@ export function registerIpcHandlers(): void {
         const archivedChats = autoArchiveConversations(days)
         const archivedSessions = autoArchiveAgentSessions(days)
         if (archivedChats + archivedSessions > 0) {
-          console.log(`[自动归档] 已归档 ${archivedChats} 个对话, ${archivedSessions} 个 Agent 会话`)
+          log.info(`已归档 ${archivedChats} 个对话, ${archivedSessions} 个 Agent 会话`)
         }
       }
     } catch (error) {
-      console.error('[自动归档] 自动归档失败:', error)
+      log.error('自动归档失败:', error)
     }
   }
 
@@ -4072,7 +4075,7 @@ export function registerIpcHandlers(): void {
     cleanupStaleAttachedPaths()
     cleanupStaleWorkspaceAttachedPaths()
   } catch (error) {
-    console.error('[启动清理] 清理失效附加路径失败:', error)
+    log.error('清理失效附加路径失败:', error)
   }
 
   // ===== 存储管理 =====
@@ -4093,7 +4096,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('migration:cancelImport', async (_, tempDir: string) => {
     if (tempDir && existsSync(tempDir) && tempDir.includes('shadiao-import-')) {
       rmSync(tempDir, { recursive: true, force: true })
-      console.log(`[迁移] 已清理临时目录: ${tempDir}`)
+      log.info(`已清理临时目录: ${tempDir}`)
     }
   })
 
@@ -4104,7 +4107,7 @@ export function registerIpcHandlers(): void {
       if (settings.autoCleanupTempOnStart !== false) {
         const result = await cleanupTempFiles()
         if (result.freedBytes > 0) {
-          console.log(`[存储清理] 启动时清理了 ${(result.freedBytes / 1024 / 1024).toFixed(1)} MB 临时文件`)
+          log.info(`启动时清理了 ${(result.freedBytes / 1024 / 1024).toFixed(1)} MB 临时文件`)
         }
       }
       const archiveDays = settings.autoCleanupArchivedDays ?? 0
@@ -4115,11 +4118,11 @@ export function registerIpcHandlers(): void {
           archivedBeforeDays: archiveDays,
         })
         if (result.freedBytes > 0) {
-          console.log(`[存储清理] 启动时清理了 ${(result.freedBytes / 1024 / 1024).toFixed(1)} MB 归档数据`)
+          log.info(`启动时清理了 ${(result.freedBytes / 1024 / 1024).toFixed(1)} MB 归档数据`)
         }
       }
     } catch (e) {
-      console.error('[存储清理] 启动时清理失败:', e)
+      log.error('启动时清理失败:', e)
     }
   }
   runStartupCleanup()
@@ -4574,10 +4577,31 @@ export function registerIpcHandlers(): void {
     try {
       const { logoutFromDjango } = await import('./lib/django-client.js')
       logoutFromDjango()
-      console.log('[沙雕认证] 登出成功，auth 文件已清除')
+
+      // 清除主进程全局状态，避免新账号复用旧账号的人物/会话关联
+      selectedCharacterId = null
+      perCharacterLastSession.clear()
+
+      // 清除持久化的每人物会话记忆和上次选中人物
+      updateSettings({
+        perCharacterLastSession: {},
+        lastSelectedCharacterId: null,
+        tabState: undefined,
+      })
+
+      // 清除人物缓存文件，避免 API 失败时回退到旧账号的人物列表
+      try {
+        const { join } = await import('node:path')
+        const { unlinkSync } = await import('node:fs')
+        const { getConfigDir } = await import('./lib/config-paths.js')
+        const charsCachePath = join(getConfigDir(), 'characters-cache.json')
+        unlinkSync(charsCachePath)
+      } catch { /* 文件不存在则忽略 */ }
+
+      log.info('登出成功，auth 文件已清除，主进程状态已重置')
       return { success: true }
     } catch (e) {
-      console.error('[沙雕认证] 登出失败:', e)
+      log.error('登出失败:', e)
       return { success: false, error: (e as Error).message }
     }
   })
@@ -4628,7 +4652,7 @@ export function registerIpcHandlers(): void {
         try {
           updateAgentWorkspace(`char-${id}`, { name: data.name })
         } catch (e) {
-          console.warn(`[沙雕人物] 同步 workspace 名称失败 (char-${id}):`, e)
+          log.warn(`同步 workspace 名称失败 (char-${id}):`, e)
         }
       }
       return { success: true, data: result }

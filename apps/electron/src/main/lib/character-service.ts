@@ -14,6 +14,9 @@ import { getConfigDir } from './config-paths'
 import { rmSyncWithRetry } from './fs-retry'
 import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file'
 import { skillCopyFilter, updateAgentWorkspace } from './agent-workspace-manager'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('沙雕人物')
 
 // Re-export types
 export type { ShadiaoCharacter, Skin, UserItem, WalletInfo, RewardLog }
@@ -58,7 +61,7 @@ function copyDefaultSkillsToCharacter(characterId: number, options: { throwOnErr
   try {
     const entries = readdirSync(defaultDir, { withFileTypes: true })
     if (entries.length === 0) {
-      console.warn(`[沙雕人物] 默认 Skills 模板为空，人物 ${characterId} Skills 未初始化`)
+      log.warn(`默认 Skills 模板为空，人物 ${characterId} Skills 未初始化`)
       return
     }
 
@@ -69,13 +72,13 @@ function copyDefaultSkillsToCharacter(characterId: number, options: { throwOnErr
       try {
         cpSync(source, target, { recursive: true, filter: skillCopyFilter })
       } catch (err) {
-        console.warn(`[沙雕人物] 复制默认 Skill 失败 (char-${characterId}/${entry.name}):`, err)
+        log.warn(`复制默认 Skill 失败 (char-${characterId}/${entry.name}):`, err)
         if (options.throwOnError) throw err
       }
     }
-    console.log(`[沙雕人物] 已复制默认 Skills 到人物 ${characterId}`)
+    log.info(`已复制默认 Skills 到人物 ${characterId}`)
   } catch (err) {
-    console.error(`[沙雕人物] 复制默认 Skills 失败 (char-${characterId}):`, err)
+    log.error(`复制默认 Skills 失败 (char-${characterId}):`, err)
     if (options.throwOnError) throw err
   }
 }
@@ -101,7 +104,7 @@ function ensureCharacterPluginManifest(characterId: number, characterName: strin
   }
 
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
-  console.log(`[沙雕人物] 已创建 plugin manifest: char-${characterId}`)
+  log.info(`已创建 plugin manifest: char-${characterId}`)
 }
 
 /**
@@ -119,7 +122,7 @@ function ensureCharacterMcpConfig(characterId: number): void {
   }
 
   writeFileSync(mcpPath, JSON.stringify(defaultConfig, null, 2), 'utf-8')
-  console.log(`[沙雕人物] 已初始化 MCP 配置: char-${characterId}`)
+  log.info(`已初始化 MCP 配置: char-${characterId}`)
 }
 
 /**
@@ -140,7 +143,7 @@ function ensureCharacterAutoMemory(characterId: number): void {
     writeFileSync(indexPath, '', 'utf-8')
   }
 
-  console.log(`[沙雕人物] 已初始化 Auto Memory: char-${characterId}`)
+  log.info(`已初始化 Auto Memory: char-${characterId}`)
 }
 
 /**
@@ -173,7 +176,7 @@ function ensureCharacterWorkspaceEntry(characterId: number, characterName: strin
       updatedAt: now,
     })
     writeJsonFileAtomic(indexPath, index)
-    console.log(`[沙雕人物] 已注册 workspace 条目: ${wsId}`)
+    log.info(`已注册 workspace 条目: ${wsId}`)
   } else {
     // 🆕 回填：已有 workspace 可能缺少 characterId（旧版创建），或名称不一致
     let changed = false
@@ -187,7 +190,7 @@ function ensureCharacterWorkspaceEntry(characterId: number, characterName: strin
     }
     if (changed) {
       writeJsonFileAtomic(indexPath, index)
-      console.log(`[沙雕人物] 已回填 workspace 条目: ${wsId} (characterId=${characterId}, name=${characterName})`)
+      log.info(`已回填 workspace 条目: ${wsId} (characterId=${characterId}, name=${characterName})`)
     }
   }
 }
@@ -228,7 +231,7 @@ function initCharacterWorkspace(characterId: number, characterName: string): voi
   // 4. Auto Memory 目录 + MEMORY.md
   ensureCharacterAutoMemory(characterId)
 
-  console.log(`[沙雕人物] 人物 ${characterId} (${characterName}) workspace 初始化完成`)
+  log.info(`人物 ${characterId} (${characterName}) workspace 初始化完成`)
 }
 
 /**
@@ -238,9 +241,9 @@ function cleanupCharacterWorkspace(characterId: number): void {
   const wsPath = join(getConfigDir(), 'agent-workspaces', `char-${characterId}`)
   try {
     rmSyncWithRetry(wsPath, { recursive: true, force: true })
-    console.log(`[沙雕人物] 已清理人物 ${characterId} workspace`)
+    log.info(`已清理人物 ${characterId} workspace`)
   } catch (err) {
-    console.warn(`[沙雕人物] 清理人物 ${characterId} workspace 失败:`, err)
+    log.warn(`清理人物 ${characterId} workspace 失败:`, err)
   }
 }
 
@@ -280,7 +283,7 @@ export async function createChar(data: {
   try {
     initCharacterWorkspace(char.id, char.name)
   } catch (err) {
-    console.error(`[沙雕人物] 初始化人物 ${char.id} workspace 失败:`, err)
+    log.error(`初始化人物 ${char.id} workspace 失败:`, err)
     // 不阻塞人物创建流程，workspace 缺失后续按需补建
   }
   return char
@@ -297,7 +300,7 @@ export async function updateChar(id: number, data: {
       updateAgentWorkspace(wsId, { name: data.name })
     } catch (err) {
       // workspace 条目可能不存在（旧人物），不阻塞主流程
-      console.warn(`[沙雕人物] 同步人物 ${id} workspace 名称失败:`, err)
+      log.warn(`同步人物 ${id} workspace 名称失败:`, err)
     }
   }
   return updated
@@ -309,7 +312,7 @@ export async function deleteChar(id: number): Promise<void> {
   try {
     cleanupCharacterWorkspace(id)
   } catch (err) {
-    console.warn(`[沙雕人物] 清理人物 ${id} workspace 失败:`, err)
+    log.warn(`清理人物 ${id} workspace 失败:`, err)
   }
 }
 

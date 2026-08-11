@@ -13,6 +13,9 @@ import { FileTypeIcon } from './FileTypeIcon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { fileBrowserAutoRevealAtom } from '@/atoms/agent-atoms'
 import type { FileIndexEntry } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('FileSearchBar')
 
 interface FileSearchBarProps {
   workspaceFilesPath: string | null
@@ -139,7 +142,7 @@ export function FileSearchBar({
           setIsOpen(false)
         }
       } catch (err) {
-        console.error('[FileSearchBar] 搜索失败:', err)
+        log.error('搜索失败:', err)
         if (!ac.signal.aborted) {
           setResults([])
           setIsOpen(false)

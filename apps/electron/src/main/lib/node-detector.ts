@@ -8,7 +8,10 @@ import { execSync, spawnSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import type { NodeRuntimeStatus } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { getNodeInstallPathFromRegistry } from './windows-env'
+
+const log = createLogger('Node.js 检测')
 
 /**
  * 从系统 PATH 查找 Node.js
@@ -148,12 +151,12 @@ function meetsVersion(version: string, target: string): boolean {
  * @returns Node.js 运行时状态
  */
 export async function detectNodeRuntime(): Promise<NodeRuntimeStatus> {
-  console.log('[Node.js 检测] 开始检测 Node.js 运行时...')
+  log.debug('开始检测 Node.js 运行时...')
 
   const nodePath = findNodePath()
 
   if (!nodePath) {
-    console.warn('[Node.js 检测] 未找到 Node.js')
+    log.warn('未找到 Node.js')
     return {
       available: false,
       version: null,
@@ -165,7 +168,7 @@ export async function detectNodeRuntime(): Promise<NodeRuntimeStatus> {
   const version = getNodeVersion(nodePath)
 
   if (!version) {
-    console.warn(`[Node.js 检测] Node.js 无法执行: ${nodePath}`)
+    log.warn(`Node.js 无法执行: ${nodePath}`)
     return {
       available: false,
       version: null,
@@ -174,7 +177,7 @@ export async function detectNodeRuntime(): Promise<NodeRuntimeStatus> {
     }
   }
 
-  console.log(`[Node.js 检测] 找到 Node.js: ${nodePath} (${version})`)
+  log.info(`找到 Node.js: ${nodePath} (${version})`)
   return {
     available: true,
     version,

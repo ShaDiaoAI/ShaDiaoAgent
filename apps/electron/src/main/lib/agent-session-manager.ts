@@ -45,6 +45,9 @@ import { convertLegacyMessage } from '@shadiao/session-core'
 const clearNanoBananaAgentHistory = (): void => {}
 import { assertEnabledModelForChannel } from './agent-model-selection'
 import { copyForkWorkspaceFiles } from './agent-fork-workspace-copy'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('Agent 会话')
 
 /**
  * 会话索引文件格式
@@ -97,7 +100,7 @@ function parseJsonlLines<T>(lines: string[]): { records: T[]; errors: JsonlParse
 function parseJsonlLenient<T>(lines: string[], context: string): T[] {
   const { records, errors } = parseJsonlLines<T>(lines)
   for (const error of errors) {
-    console.warn(`[Agent 会话] ${context} — JSONL 第 ${error.lineNumber} 行解析失败，已跳过:`, error.message)
+    log.warn(`${context} — JSONL 第 ${error.lineNumber} 行解析失败，已跳过:`, error.message)
   }
   return records
 }
@@ -145,12 +148,12 @@ function readIndex(): AgentSessionsIndex {
   if (data) {
     // 防御：旧格式可能是纯数组（无 version/sessions 包裹），当作损坏文件重建
     if (!Array.isArray((data as AgentSessionsIndex).sessions)) {
-      console.warn('[Agent 会话] agent-sessions.json 格式异常（缺少 sessions 数组），已重建空索引')
+      log.warn('agent-sessions.json 格式异常（缺少 sessions 数组），已重建空索引')
       return { version: INDEX_VERSION, sessions: [] }
     }
     if (migrateLegacyPermissionMode(data)) {
       writeIndex(data)
-      console.log('[Agent 会话] 已迁移历史权限模式 auto → bypassPermissions')
+      log.info('已迁移历史权限模式 auto → bypassPermissions')
     }
     return data
   }
@@ -166,7 +169,7 @@ function writeIndex(index: AgentSessionsIndex): void {
   try {
     writeJsonFileAtomic(indexPath, index)
   } catch (error) {
-    console.error('[Agent 会话] 写入索引文件失败:', error)
+    log.error('写入索引文件失败:', error)
     throw new Error('写入 Agent 会话索引失败')
   }
 }
@@ -275,7 +278,7 @@ export function createAgentSession(
     }
   }
 
-  console.log(`[Agent 会话] 已创建会话: ${meta.title} (${meta.id})`)
+  log.info(`已创建会话: ${meta.title} (${meta.id})`)
   return meta
 }
 
@@ -294,7 +297,7 @@ export function getAgentSessionMessages(id: string): AgentMessage[] {
     const lines = raw.split('\n').filter((line) => line.trim())
     return parseJsonlLenient<AgentMessage>(lines, `读取会话消息 (${id})`)
   } catch (error) {
-    console.error(`[Agent 会话] 读取消息失败 (${id}):`, error)
+    log.error(`读取消息失败 (${id}):`, error)
     return []
   }
 }
@@ -319,7 +322,7 @@ export function appendAgentMessage(id: string, message: AgentMessage): void {
       writeIndex(index)
     }
   } catch (error) {
-    console.error(`[Agent 会话] 追加消息失败 (${id}):`, error)
+    log.error(`追加消息失败 (${id}):`, error)
     throw new Error('追加 Agent 消息失败')
   }
 }
@@ -345,7 +348,7 @@ export function appendSDKMessages(id: string, messages: SDKMessage[]): void {
       appendFileSync(filePath, serializeSDKMessageForStorage(message) + '\n', 'utf-8')
     }
   } catch (error) {
-    console.error(`[Agent 会话] 追加 SDKMessage 失败 (${id}):`, error)
+    log.error(`追加 SDKMessage 失败 (${id}):`, error)
     throw new Error('追加 SDKMessage 失败')
   }
 }
@@ -416,7 +419,7 @@ export function getAgentSessionSDKMessages(id: string): SDKMessage[] {
     const lines = raw.split('\n').filter((line) => line.trim())
     return parseJsonlLenient<unknown>(lines, `读取 SDKMessage (${id})`).map(normalizePersistedSDKMessage)
   } catch (error) {
-    console.error(`[Agent 会话] 读取 SDKMessage 失败 (${id}):`, error)
+    log.error(`读取 SDKMessage 失败 (${id}):`, error)
     return []
   }
 }
@@ -453,7 +456,7 @@ export function updateAgentSessionMeta(
   index.sessions[idx] = updated
   writeIndex(index)
 
-  console.log(`[Agent 会话] 已更新会话: ${updated.title} (${updated.id})`)
+  log.info(`已更新会话: ${updated.title} (${updated.id})`)
   return updated
 }
 
@@ -465,7 +468,7 @@ export function deleteAgentSession(id: string): void {
   const idx = index.sessions.findIndex((s) => s.id === id)
 
   if (idx === -1) {
-    console.warn(`[Agent 会话] 会话不存在，跳过删除: ${id}`)
+    log.warn(`会话不存在，跳过删除: ${id}`)
     return
   }
 
@@ -478,7 +481,7 @@ export function deleteAgentSession(id: string): void {
     try {
       unlinkSync(filePath)
     } catch (error) {
-      console.warn(`[Agent 会话] 删除消息文件失败 (${id}):`, error)
+      log.warn(`删除消息文件失败 (${id}):`, error)
     }
   }
 
@@ -490,15 +493,15 @@ export function deleteAgentSession(id: string): void {
         const sessionDir = getAgentSessionWorkspacePath(ws.slug, id)
         if (existsSync(sessionDir)) {
           rmSyncWithRetry(sessionDir, { recursive: true, force: true })
-          console.log(`[Agent 会话] 已清理 session 工作目录: ${sessionDir}`)
+          log.info(`已清理 session 工作目录: ${sessionDir}`)
         }
       } catch (error) {
-        console.warn(`[Agent 会话] 清理 session 工作目录失败 (${id}):`, error)
+        log.warn(`清理 session 工作目录失败 (${id}):`, error)
       }
     }
   }
 
-  console.log(`[Agent 会话] 已删除会话: ${removed.title} (${removed.id})`)
+  log.info(`已删除会话: ${removed.title} (${removed.id})`)
 
   // 清理 Nano Banana 生图历史
   clearNanoBananaAgentHistory(id)
@@ -514,9 +517,9 @@ export function deleteAgentSession(id: string): void {
       if (existsSync(histDir)) {
         try {
           rmSyncWithRetry(histDir, { recursive: true, force: true })
-          console.log(`[Agent 会话] 已清理 file-history: ${sid}`)
+          log.info(`已清理 file-history: ${sid}`)
         } catch (e) {
-          console.warn(`[Agent 会话] 清理 file-history 失败 (${sid}):`, e)
+          log.warn(`清理 file-history 失败 (${sid}):`, e)
         }
       }
     }
@@ -531,9 +534,9 @@ export function deleteAgentSession(id: string): void {
             if (existsSync(sessionFile)) {
               try {
                 unlinkSync(sessionFile)
-                console.log(`[Agent 会话] 已清理 SDK session 文件: ${sessionFile}`)
+                log.info(`已清理 SDK session 文件: ${sessionFile}`)
               } catch (e) {
-                console.warn('[Agent 会话] 清理 SDK session 文件失败:', e)
+                log.warn('清理 SDK session 文件失败:', e)
               }
             }
           }
@@ -590,16 +593,16 @@ function moveSessionWorkspaceDir(session: AgentSessionMeta, targetWorkspaceSlug:
       const contents = readdirSync(destDir)
       rmSyncWithRetry(destDir, { recursive: true, force: true })
       const reason = contents.length === 0 ? '空目标目录' : '非空目标目录（以源目录为准）'
-      console.log(`[Agent 会话] 已清理${reason}: ${destDir}`)
+      log.info(`已清理${reason}: ${destDir}`)
     } catch (cleanupError) {
-      console.warn('[Agent 会话] 清理目标目录失败，跳过目录迁移:', cleanupError)
+      log.warn('清理目标目录失败，跳过目录迁移:', cleanupError)
       throw cleanupError
     }
   }
 
   // renameWithRetry：优先 renameSync（原子），跨设备或句柄占用时自动降级 cpSync + rmSyncWithRetry。
   renameWithRetry(srcDir, destDir)
-  console.log(`[Agent 会话] 已移动工作目录: ${srcDir} → ${destDir}`)
+  log.info(`已移动工作目录: ${srcDir} → ${destDir}`)
 }
 
 /**
@@ -656,7 +659,7 @@ export function moveSessionToWorkspace(sessionId: string, targetWorkspaceId: str
     }
   }
 
-  console.log(`[Agent 会话] 已迁移会话及子会话到工作区: ${updatedRoot.title}（${movedCount} 个）→ ${targetWs.name}`)
+  log.info(`已迁移会话及子会话到工作区: ${updatedRoot.title}（${movedCount} 个）→ ${targetWs.name}`)
   return updatedRoot
 }
 
@@ -673,7 +676,7 @@ export function migrateChatToAgentSession(conversationId: string, agentSessionId
   const chatMessages = getConversationMessages(conversationId)
 
   if (chatMessages.length === 0) {
-    console.log(`[Agent 会话] Chat 对话无消息，跳过迁移 (${conversationId})`)
+    log.info(`Chat 对话无消息，跳过迁移 (${conversationId})`)
     return
   }
 
@@ -695,7 +698,7 @@ export function migrateChatToAgentSession(conversationId: string, agentSessionId
     count++
   }
 
-  console.log(`[Agent 会话] 已迁移 ${count} 条消息到 Agent 会话 (${conversationId} → ${agentSessionId})`)
+  log.info(`已迁移 ${count} 条消息到 Agent 会话 (${conversationId} → ${agentSessionId})`)
 }
 
 /**
@@ -755,14 +758,14 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
     effectiveUpToMessageUuid = forkTarget.effectiveUpToMessageUuid
 
     if (forkTarget.usedSidechainFallback) {
-      console.log(
-        `[Agent 会话] fork 目标消息 ${upToMessageUuid} 属于 sub-agent，自动回溯到主线消息 ${effectiveUpToMessageUuid}`,
+      log.debug(
+        `fork 目标消息 ${upToMessageUuid} 属于 sub-agent，自动回溯到主线消息 ${effectiveUpToMessageUuid}`,
       )
     }
 
     if (forkTarget.effectiveSdkSessionId && forkTarget.effectiveSdkSessionId !== sourceMeta.sdkSessionId) {
-      console.log(
-        `[Agent 会话] fork 目标消息属于旧 SDK session ${forkTarget.effectiveSdkSessionId}（当前为 ${sourceMeta.sdkSessionId}），使用消息所属 session 进行 fork`,
+      log.debug(
+        `fork 目标消息属于旧 SDK session ${forkTarget.effectiveSdkSessionId}（当前为 ${sourceMeta.sdkSessionId}），使用消息所属 session 进行 fork`,
       )
       forkSourceSdkSessionId = forkTarget.effectiveSdkSessionId
     }
@@ -780,7 +783,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
   } catch (err) {
     // 指定 dir 失败时，让 SDK 自动搜索所有项目目录
     if (sourceDir) {
-      console.warn(`[Agent 会话] forkSession 指定 dir 失败，改用全局搜索:`, err)
+      log.warn(`forkSession 指定 dir 失败，改用全局搜索:`, err)
       forkResult = await sdk.forkSession(forkSourceSdkSessionId, {
         upToMessageId: effectiveUpToMessageUuid,
       })
@@ -835,12 +838,12 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
       const destJsonl = join(sdkProjectsDir, `${forkResult.sessionId}.jsonl`)
       try {
         const copiedLines = await copyTextFileWithPathRewrite(sourceJsonl, destJsonl, sourceDir, destDir)
-        console.log(`[Agent 会话] 已将 SDK session JSONL 复制到 fork 目标目录并改写路径: ${destJsonl} (${copiedLines} 行)`)
+        log.debug(`已将 SDK session JSONL 复制到 fork 目标目录并改写路径: ${destJsonl} (${copiedLines} 行)`)
       } catch (err) {
-        console.warn(`[Agent 会话] 复制 SDK session JSONL 失败，fork 后首轮可能触发上下文回填:`, err)
+        log.warn(`复制 SDK session JSONL 失败，fork 后首轮可能触发上下文回填:`, err)
       }
     } else {
-      console.warn(`[Agent 会话] 未找到 SDK session JSONL (${forkResult.sessionId})，fork 后首轮可能触发上下文回填`)
+      log.warn(`未找到 SDK session JSONL (${forkResult.sessionId})，fork 后首轮可能触发上下文回填`)
     }
   }
 
@@ -851,12 +854,12 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
   if (sourceDir && destDir) {
     try {
       const copyResult = copyForkWorkspaceFiles(sourceDir, destDir)
-      console.log(
-        `[Agent 会话] 已复制工作区文件: ${sourceDir} → ${destDir} `
+      log.debug(
+        `已复制工作区文件: ${sourceDir} → ${destDir} `
         + `(${copyResult.copiedCount} 个条目, 跳过 ${copyResult.skippedCount} 个, 失败 ${copyResult.failedCount} 个)`,
       )
     } catch (err) {
-      console.warn(`[Agent 会话] 复制工作区文件失败:`, err)
+      log.warn(`复制工作区文件失败:`, err)
     }
   }
 
@@ -874,7 +877,7 @@ export async function forkAgentSession(input: ForkSessionInput): Promise<AgentSe
     destDir,
   })
 
-  console.log(`[Agent 会话] 分叉会话已创建（SDK 原生 fork）: ${sourceMeta.title} → ${forkTitle} (${copiedMessages} 条消息, sdkSessionId=${forkResult.sessionId})`)
+  log.info(`分叉会话已创建（SDK 原生 fork）: ${sourceMeta.title} → ${forkTitle} (${copiedMessages} 条消息, sdkSessionId=${forkResult.sessionId})`)
   return newMeta
 }
 
@@ -1006,7 +1009,7 @@ async function* readStoredSDKMessages(filePath: string): AsyncGenerator<SDKMessa
         yield parsed as SDKMessage
       }
     } catch (err) {
-      console.warn(`[Agent 会话] 跳过无法解析的 SDKMessage 行 (${filePath}):`, err)
+      log.warn(`跳过无法解析的 SDKMessage 行 (${filePath}):`, err)
     }
   }
 }
@@ -1031,7 +1034,7 @@ function serializeSDKMessageForStorage(
     sanitized = rewriteSourceToDest(sanitized, sourceDir, destDir)
   }
   if (sanitized.length > MAX_SDK_MESSAGE_LENGTH) {
-    console.warn(`[Agent 会话] 消息截断后仍超限 (${(sanitized.length / 1024).toFixed(0)}K chars)`)
+    log.warn(`消息截断后仍超限 (${(sanitized.length / 1024).toFixed(0)}K chars)`)
   }
   return sanitized
 }
@@ -1132,7 +1135,7 @@ export function truncateSDKMessages(id: string, upToUuidInclusive: string): SDKM
   const content = kept.map((m) => JSON.stringify(m)).join('\n') + (kept.length > 0 ? '\n' : '')
   writeFileSync(filePath, content, 'utf-8')
 
-  console.log(`[Agent 会话] 消息已截断: sessionId=${id}, 保留 ${kept.length}/${messages.length} 条`)
+  log.info(`消息已截断: sessionId=${id}, 保留 ${kept.length}/${messages.length} 条`)
   return kept
 }
 
@@ -1177,7 +1180,7 @@ export function resolveUserUuidFromSDK(
         // Proma JSONL 中的 UUID 来自源会话，forked JSONL 中已重映射
         const sourceFilePath = findSdkSessionJsonl(forkSourceSdkSessionId, projectDir)
         if (sourceFilePath) {
-          console.log(`[Agent 会话] resolveUserUuid: fork 会话 UUID 不匹配（非 .uuid 字段），切换到源会话 ${forkSourceSdkSessionId}`)
+          log.debug(`resolveUserUuid: fork 会话 UUID 不匹配（非 .uuid 字段），切换到源会话 ${forkSourceSdkSessionId}`)
           sessionFilePath = sourceFilePath
           usingSourceSession = true
         }
@@ -1188,12 +1191,12 @@ export function resolveUserUuidFromSDK(
     sessionFilePath = findSdkSessionJsonl(forkSourceSdkSessionId, projectDir)
     if (sessionFilePath) {
       usingSourceSession = true
-      console.log(`[Agent 会话] resolveUserUuid: 当前 JSONL 未找到，使用源会话 ${forkSourceSdkSessionId}`)
+      log.debug(`resolveUserUuid: 当前 JSONL 未找到，使用源会话 ${forkSourceSdkSessionId}`)
     }
   }
 
   if (!sessionFilePath) {
-    console.warn(`[Agent 会话] 未找到 SDK session JSONL: sdkSessionId=${sdkSessionId}`)
+    log.warn(`未找到 SDK session JSONL: sdkSessionId=${sdkSessionId}`)
     return undefined
   }
 
@@ -1205,7 +1208,7 @@ export function resolveUserUuidFromSDK(
     // 找到 assistant message 的位置
     const assistantIdx = messages.findIndex((m) => m.uuid === assistantMessageUuid)
     if (assistantIdx < 0) {
-      console.warn(`[Agent 会话] SDK JSONL 中未找到 assistant uuid=${assistantMessageUuid}${usingSourceSession ? ' (源会话)' : ''}`)
+      log.warn(`SDK JSONL 中未找到 assistant uuid=${assistantMessageUuid}${usingSourceSession ? ' (源会话)' : ''}`)
       return undefined
     }
 
@@ -1229,16 +1232,16 @@ export function resolveUserUuidFromSDK(
     for (let i = assistantIdx + 1; i < messages.length; i++) {
       const m = messages[i]!
       if (isRealUserMessage(m)) {
-        console.log(`[Agent 会话] 解析到下一轮 user uuid=${m.uuid} (assistant uuid=${assistantMessageUuid}${usingSourceSession ? ', 源会话' : ''})`)
+        log.debug(`解析到下一轮 user uuid=${m.uuid} (assistant uuid=${assistantMessageUuid}${usingSourceSession ? ', 源会话' : ''})`)
         return m.uuid as string
       }
     }
 
     // 最后一个 turn — 当前文件系统已是该 turn 完成后的状态，无需文件回退
-    console.log(`[Agent 会话] 最后一个 turn，无需文件回退 (assistant uuid=${assistantMessageUuid})`)
+    log.debug(`最后一个 turn，无需文件回退 (assistant uuid=${assistantMessageUuid})`)
     return '__LAST_TURN__'
   } catch (err) {
-    console.warn(`[Agent 会话] 读取 SDK session JSONL 失败:`, err)
+    log.warn(`读取 SDK session JSONL 失败:`, err)
     return undefined
   }
 }
@@ -1314,7 +1317,7 @@ export function rewindFilesFromSnapshot(
     // Fork 场景：userMessageUuid 来自源会话（resolveUserUuidFromSDK 已做过 fallback），
     // 在 forked JSONL 中找不到 → 直接切换到源会话 JSONL
     if (targetIdx < 0 && forkSourceSdkSessionId) {
-      console.log(`[Agent 会话] rewindFilesFromSnapshot: 目标 UUID 在当前 JSONL 中未找到，切换到源会话 ${forkSourceSdkSessionId}`)
+      log.debug(`rewindFilesFromSnapshot: 目标 UUID 在当前 JSONL 中未找到，切换到源会话 ${forkSourceSdkSessionId}`)
       const sourceFilePath = findSdkSessionJsonl(forkSourceSdkSessionId, projectDir)
       if (!sourceFilePath) {
         return { canRewind: false, error: '未找到源会话 SDK session JSONL（fork 回退需要源会话数据）' }
@@ -1328,7 +1331,7 @@ export function rewindFilesFromSnapshot(
       if (targetIdx < 0) {
         return { canRewind: false, error: `源会话 SDK JSONL 中也未找到 user message uuid=${userMessageUuid}` }
       }
-      console.log(`[Agent 会话] rewindFilesFromSnapshot: 在源会话中找到目标 UUID (idx=${targetIdx})`)
+      log.debug(`rewindFilesFromSnapshot: 在源会话中找到目标 UUID (idx=${targetIdx})`)
     } else if (targetIdx < 0) {
       return { canRewind: false, error: `SDK JSONL 中未找到 user message uuid=${userMessageUuid}` }
     }
@@ -1396,10 +1399,10 @@ export function rewindFilesFromSnapshot(
 
     if (fileState.size === 0) {
       if (!targetSnapshotFound) {
-        console.log(`[Agent 会话] rewindFilesFromSnapshot: 目标消息无文件快照记录`)
+        log.debug(`rewindFilesFromSnapshot: 目标消息无文件快照记录`)
         return { canRewind: false, error: '目标消息无文件快照记录（会话可能在启用文件检查点前创建）' }
       }
-      console.log(`[Agent 会话] rewindFilesFromSnapshot: 快照存在但无文件变化`)
+      log.debug(`rewindFilesFromSnapshot: 快照存在但无文件变化`)
       return { canRewind: true, filesChanged: [] }
     }
 
@@ -1419,7 +1422,7 @@ export function rewindFilesFromSnapshot(
       // 路径安全检查：文件必须位于 cwd 或 attachedDirectories 之内
       const isInAllowedDir = allowedDirs.some((dir) => fullPath.startsWith(dir + '/') || fullPath === dir)
       if (!isInAllowedDir) {
-        console.warn(`[Agent 会话] rewindFiles: 拒绝路径越界 ${filePath}`)
+        log.warn(`rewindFiles: 拒绝路径越界 ${filePath}`)
         continue
       }
 
@@ -1429,9 +1432,9 @@ export function rewindFilesFromSnapshot(
           try {
             unlinkSync(fullPath)
             filesChanged.push(filePath)
-            console.log(`[Agent 会话] rewindFiles: 删除 ${filePath}`)
+            log.debug(`rewindFiles: 删除 ${filePath}`)
           } catch (err) {
-            console.warn(`[Agent 会话] rewindFiles: 删除失败 ${filePath}:`, err)
+            log.warn(`rewindFiles: 删除失败 ${filePath}:`, err)
           }
         }
       } else {
@@ -1439,11 +1442,11 @@ export function rewindFilesFromSnapshot(
         const backupPath = resolve(fileHistoryDir, backupFileName)
         // backupPath 越界检查
         if (!backupPath.startsWith(resolve(fileHistoryDir) + '/') && backupPath !== resolve(fileHistoryDir)) {
-          console.warn(`[Agent 会话] rewindFiles: 拒绝备份路径越界 ${backupFileName}`)
+          log.warn(`rewindFiles: 拒绝备份路径越界 ${backupFileName}`)
           continue
         }
         if (!existsSync(backupPath)) {
-          console.warn(`[Agent 会话] rewindFiles: 备份文件不存在 ${backupPath}`)
+          log.warn(`rewindFiles: 备份文件不存在 ${backupPath}`)
           continue
         }
         try {
@@ -1453,14 +1456,14 @@ export function rewindFilesFromSnapshot(
           if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
           writeFileSync(fullPath, backupContent)
           filesChanged.push(filePath)
-          console.log(`[Agent 会话] rewindFiles: 恢复 ${filePath} ← ${backupFileName}${isForkFallback ? ' (from source session)' : ''}`)
+          log.debug(`rewindFiles: 恢复 ${filePath} ← ${backupFileName}${isForkFallback ? ' (from source session)' : ''}`)
         } catch (err) {
-          console.warn(`[Agent 会话] rewindFiles: 恢复失败 ${filePath}:`, err)
+          log.warn(`rewindFiles: 恢复失败 ${filePath}:`, err)
         }
       }
     }
 
-    console.log(`[Agent 会话] rewindFilesFromSnapshot 完成: ${filesChanged.length} 个文件已恢复${isForkFallback ? ' (fork fallback)' : ''}`)
+    log.debug(`rewindFilesFromSnapshot 完成: ${filesChanged.length} 个文件已恢复${isForkFallback ? ' (fork fallback)' : ''}`)
     return { canRewind: true, filesChanged }
   } catch (err) {
     return { canRewind: false, error: err instanceof Error ? err.message : String(err) }
@@ -1489,7 +1492,7 @@ export function autoArchiveAgentSessions(daysThreshold: number): number {
 
   if (count > 0) {
     writeIndex(index)
-    console.log(`[Agent 会话] 自动归档 ${count} 个会话（阈值: ${daysThreshold} 天）`)
+    log.info(`自动归档 ${count} 个会话（阈值: ${daysThreshold} 天）`)
   }
 
   return count
@@ -1518,7 +1521,7 @@ export function markRunningDelegationsAsInterrupted(): number {
 
   if (count > 0) {
     writeIndex(index)
-    console.log(`[Agent 会话] 启动收敛 ${count} 个遗留的运行中委派子会话为 interrupted`)
+    log.info(`启动收敛 ${count} 个遗留的运行中委派子会话为 interrupted`)
   }
 
   return count
@@ -1560,7 +1563,7 @@ export function cleanupStaleAttachedPaths(): number {
 
   if (count > 0) {
     writeIndex(index)
-    console.log(`[Agent 会话] 清理了 ${count} 个不存在的附加路径`)
+    log.info(`清理了 ${count} 个不存在的附加路径`)
   }
 
   return count
@@ -1719,7 +1722,7 @@ function findSessionMessageSnippet(sessionId: string, query: string): string | u
       try {
         parsed = JSON.parse(line)
       } catch (error) {
-        console.warn(`[Agent 会话] 会话引用摘要跳过无法解析的 JSONL 行 (${sessionId}):`, error)
+        log.warn(`会话引用摘要跳过无法解析的 JSONL 行 (${sessionId}):`, error)
         continue
       }
       const textContent = extractTextFromPersistedMessage(parsed)

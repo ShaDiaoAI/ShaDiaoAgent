@@ -40,6 +40,9 @@ import { detectLanguage } from '@shadiao/core'
 import { FilePathChip, isAbsoluteFilePath, isRelativeFilePath } from './file-path-chip'
 import type { HTMLAttributes, ComponentProps, ReactNode } from 'react'
 import type { FileAttachment } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('message')
 
 // ===== Message 根容器 =====
 
@@ -833,7 +836,7 @@ function MessageAttachmentImage({ attachment, isSingle = false, index, onOpen, o
         onLoaded(attachment.id, src)
       })
       .catch((error) => {
-        console.error('[MessageAttachmentImage] 读取附件失败:', error)
+        log.error('读取附件失败:', error)
       })
   }, [attachment.id, attachment.localPath, attachment.mediaType, onLoaded])
 

@@ -41,7 +41,10 @@ import { interfaceVariantAtom } from '@/atoms/theme'
 import { previewFileMapAtom } from '@/atoms/preview-atoms'
 import { useOpenPreview } from '@/components/diff/preview-opener'
 import { detectIsWindows } from '@/lib/platform'
+import { createLogger } from '@shadiao/shared'
 import type { FileEntry, AgentPendingFile } from '@shadiao/shared'
+
+const log = createLogger('SidePanel')
 
 function getPathBasename(filePath: string): string {
   return filePath.split(/[\\/]/).filter(Boolean).pop() || filePath
@@ -191,14 +194,14 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
       const result = await window.electronAPI.openFolderDialog()
       if (result) await attachSessionDir(result.path)
     } catch (error) {
-      console.error('[SidePanel] 附加文件夹失败:', error)
+      log.error('附加文件夹失败:', error)
     }
   }, [attachSessionDir])
 
   const handleSessionFoldersDropped = React.useCallback(async (folderPaths: string[]) => {
     for (const dirPath of folderPaths) {
       try { await attachSessionDir(dirPath) } catch (error) {
-        console.error('[SidePanel] 拖拽附加文件夹失败:', error)
+        log.error('拖拽附加文件夹失败:', error)
       }
     }
   }, [attachSessionDir])
@@ -212,7 +215,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
         return map
       })
     } catch (error) {
-      console.error('[SidePanel] 移除附加目录失败:', error)
+      log.error('移除附加目录失败:', error)
     }
   }, [sessionId, setAttachedDirsMap])
 
@@ -228,7 +231,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const handleSessionFilesAttached = React.useCallback(async (filePaths: string[]) => {
     for (const filePath of filePaths) {
       try { await attachSessionFile(filePath) } catch (error) {
-        console.error('[SidePanel] 附加文件失败:', error)
+        log.error('附加文件失败:', error)
       }
     }
   }, [attachSessionFile])
@@ -242,7 +245,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
         return map
       })
     } catch (error) {
-      console.error('[SidePanel] 移除附加文件失败:', error)
+      log.error('移除附加文件失败:', error)
     }
   }, [sessionId, setAttachedFilesMap])
 
@@ -263,14 +266,14 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
       const result = await window.electronAPI.openFolderDialog()
       if (result) await attachWorkspaceDir(result.path)
     } catch (error) {
-      console.error('[SidePanel] 附加工作区文件夹失败:', error)
+      log.error('附加工作区文件夹失败:', error)
     }
   }, [attachWorkspaceDir])
 
   const handleWorkspaceFoldersDropped = React.useCallback(async (folderPaths: string[]) => {
     for (const dirPath of folderPaths) {
       try { await attachWorkspaceDir(dirPath) } catch (error) {
-        console.error('[SidePanel] 拖拽附加工作区文件夹失败:', error)
+        log.error('拖拽附加工作区文件夹失败:', error)
       }
     }
   }, [attachWorkspaceDir])
@@ -285,7 +288,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
         return map
       })
     } catch (error) {
-      console.error('[SidePanel] 移除工作区附加目录失败:', error)
+      log.error('移除工作区附加目录失败:', error)
     }
   }, [workspaceSlug, currentWorkspaceId, setWsAttachedDirsMap])
 
@@ -302,7 +305,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
   const handleWorkspaceFilesAttached = React.useCallback(async (filePaths: string[]) => {
     for (const filePath of filePaths) {
       try { await attachWorkspaceFile(filePath) } catch (error) {
-        console.error('[SidePanel] 附加工作区文件失败:', error)
+        log.error('附加工作区文件失败:', error)
       }
     }
   }, [attachWorkspaceFile])
@@ -317,7 +320,7 @@ export function SidePanel({ sessionId, sessionPath, activeTab, onTabChange, widt
         return map
       })
     } catch (error) {
-      console.error('[SidePanel] 移除工作区附加文件失败:', error)
+      log.error('移除工作区附加文件失败:', error)
     }
   }, [workspaceSlug, currentWorkspaceId, setWsAttachedFilesMap])
 
@@ -858,7 +861,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
     if (expanded && loaded) {
       window.electronAPI.listAttachedDirectory(dirPath, { sessionId, candidateBasePaths: allowedPaths })
         .then((items) => setChildren(items))
-        .catch((err) => console.error('[AttachedDirTree] 刷新失败:', err))
+        .catch((err) => log.error('刷新失败:', err))
     }
   }, [refreshVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -875,7 +878,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
             setLoaded(true)
           }
         } catch (err) {
-          console.error('[AttachedDirTree] reveal 加载失败:', err)
+          log.error('reveal 加载失败:', err)
           return
         }
       }
@@ -892,7 +895,7 @@ function AttachedDirTree({ dirPath, onDetach, selectedPaths, onSelect, refreshVe
         setChildren(items)
         setLoaded(true)
       } catch (err) {
-        console.error('[AttachedDirTree] 加载失败:', err)
+        log.error('加载失败:', err)
       }
     }
     setExpanded(!expanded)
@@ -1003,7 +1006,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
     if (expanded && loaded && entry.isDirectory) {
       window.electronAPI.listAttachedDirectory(currentPath, { sessionId, candidateBasePaths: allowedPaths })
         .then((items) => setChildren(items))
-        .catch((err) => console.error('[AttachedDirItem] 刷新子目录失败:', err))
+        .catch((err) => log.error('刷新子目录失败:', err))
     }
   }, [refreshVersion]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1033,7 +1036,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
               setLoaded(true)
             }
           } catch (err) {
-            console.error('[AttachedDirItem] reveal 加载子目录失败:', err)
+            log.error('reveal 加载子目录失败:', err)
             return
           }
         }
@@ -1059,7 +1062,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
         setChildren(items)
         setLoaded(true)
       } catch (err) {
-        console.error('[AttachedDirItem] 加载子目录失败:', err)
+        log.error('加载子目录失败:', err)
       }
     }
     setExpanded(!expanded)
@@ -1101,7 +1104,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
       setCurrentName(newName)
       setCurrentPath(newPath)
     } catch (err) {
-      console.error('[AttachedDirItem] 重命名失败:', err)
+      log.error('重命名失败:', err)
     }
     setIsRenaming(false)
   }
@@ -1122,7 +1125,7 @@ function AttachedDirItem({ entry, depth, selectedPaths, onSelect, refreshVersion
       const newPath = `${result.path}/${currentName}`
       setCurrentPath(newPath)
     } catch (err) {
-      console.error('[AttachedDirItem] 移动失败:', err)
+      log.error('移动失败:', err)
     }
   }
 

@@ -6,6 +6,9 @@
  */
 
 import type { InstallerManifest, InstallerSource } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('installer-manifest')
 
 // TODO: 替换为 ShaDiaoAgent 自己的 API 地址
 const SHADIAO_API_BASE = 'https://api.shadiao.online:8443'
@@ -102,11 +105,11 @@ export async function fetchInstallerManifest(force = false): Promise<InstallerMa
     }
 
     cache = { data, timestamp: Date.now() }
-    console.log(`[Installer Manifest] 远程清单获取成功，共 ${data.installers.length} 项`)
+    log.info(`远程清单获取成功，共 ${data.installers.length} 项`)
     return data
   } catch (error) {
-    console.warn(
-      `[Installer Manifest] 远程清单获取失败，降级到内置 fallback:`,
+    log.warn(
+      `远程清单获取失败，降级到内置 fallback:`,
       error,
     )
     // 不缓存 fallback，下一次仍然先试远程

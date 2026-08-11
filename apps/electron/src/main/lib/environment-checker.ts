@@ -5,8 +5,11 @@
  */
 
 import type { EnvironmentCheckResult } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
 import { detectNodeRuntime, checkNodeVersion } from './node-detector'
 import { detectGitRuntime } from './git-detector'
+
+const log = createLogger('environment-checker')
 
 /**
  * 获取下载链接
@@ -76,7 +79,7 @@ function meetsVersion(version: string, target: string): boolean {
  * @returns 环境检测结果
  */
 export async function checkEnvironment(): Promise<EnvironmentCheckResult> {
-  console.log('[环境检测] 开始检测运行环境...')
+  log.info('开始检测运行环境...')
 
   const platform = process.platform as 'darwin' | 'win32' | 'linux'
   const downloadUrls = getDownloadUrls(platform)
@@ -119,7 +122,7 @@ export async function checkEnvironment(): Promise<EnvironmentCheckResult> {
     checkedAt: Date.now(),
   }
 
-  console.log('[环境检测] 检测完成:', result)
+  log.debug('检测完成:', result)
 
   return result
 }

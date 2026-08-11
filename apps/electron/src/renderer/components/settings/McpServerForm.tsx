@@ -18,6 +18,9 @@ import {
   SettingsSelect,
   SettingsToggle,
 } from './primitives'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('McpServerForm')
 
 /** 编辑中的服务器 */
 interface EditingServer {
@@ -228,7 +231,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onChanged, onCan
         }, 3000)
       }
     } catch (error) {
-      console.error('[MCP 表单] 自动保存失败:', error)
+      log.error('自动保存失败:', error)
       if (generation === saveGenerationRef.current && mountedRef.current) {
         toast.error('自动保存失败')
         setSaveStatus('error')
@@ -342,7 +345,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onChanged, onCan
       const config = await window.electronAPI.getWorkspaceMcpConfig(workspaceSlug)
       const entry = buildEntry(true) // 保存时包含测试结果
 
-      console.log(`[MCP 表单] 保存 MCP: ${serverName}, enabled: ${entry.enabled}, testResult: ${testResult?.success ?? '未测试'}`)
+      log.info(`保存 MCP: ${serverName}, enabled: ${entry.enabled}, testResult: ${testResult?.success ?? '未测试'}`)
 
       const newConfig: WorkspaceMcpConfig = {
         servers: {
@@ -353,7 +356,7 @@ export function McpServerForm({ server, workspaceSlug, onSaved, onChanged, onCan
       await window.electronAPI.saveWorkspaceMcpConfig(workspaceSlug, newConfig)
       onSaved()
     } catch (error) {
-      console.error('[MCP 表单] 保存失败:', error)
+      log.error('保存失败:', error)
     } finally {
       setSaving(false)
     }

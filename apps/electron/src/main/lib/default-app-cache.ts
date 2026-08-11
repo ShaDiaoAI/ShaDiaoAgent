@@ -8,6 +8,9 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import type { DefaultAppInfo } from '@shadiao/shared'
 import { getDefaultAppsCachePath } from './config-paths'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('default-app-cache')
 
 interface DefaultAppCacheEntry extends DefaultAppInfo {
   updatedAt: number
@@ -61,7 +64,7 @@ function loadCache(): void {
       if (entry) entries.set(key, entry)
     }
   } catch (error) {
-    console.warn('[DefaultApp] 读取默认 App 缓存失败:', error)
+    log.warn('读取默认 App 缓存失败:', error)
   }
 }
 
@@ -81,7 +84,7 @@ function persistCache(): void {
   try {
     writeFileSync(cachePath, JSON.stringify(file, null, 2), 'utf-8')
   } catch (error) {
-    console.warn('[DefaultApp] 写入默认 App 缓存失败:', error)
+    log.warn('写入默认 App 缓存失败:', error)
   }
 }
 

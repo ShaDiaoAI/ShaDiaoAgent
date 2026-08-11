@@ -17,6 +17,9 @@ import type {
   ExitPlanAllowedPrompt,
   PromaPermissionMode,
 } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('agent-exit-plan-service')
 
 /** ExitPlanMode 审批结果（扩展 SDK PermissionResult，附加 targetMode） */
 export type ExitPlanPermissionResult = {
@@ -62,7 +65,7 @@ export class AgentExitPlanService {
     signal: AbortSignal,
     sendToRenderer: (request: ExitPlanModeRequest) => void,
   ): Promise<ExitPlanPermissionResult> {
-    console.log(`[ExitPlanService] handleExitPlanMode 开始: sessionId=${sessionId}, signal.aborted=${signal.aborted}`)
+    log.debug(`handleExitPlanMode 开始: sessionId=${sessionId}, signal.aborted=${signal.aborted}`)
     const allowedPrompts = this.parseAllowedPrompts(input)
 
     const request: ExitPlanModeRequest = {
@@ -79,7 +82,7 @@ export class AgentExitPlanService {
 
       signal.addEventListener('abort', () => {
         if (this.pendingRequests.has(request.requestId)) {
-          console.warn(`[ExitPlanService] AbortSignal 触发，deny: requestId=${request.requestId}`)
+          log.warn(`AbortSignal 触发，deny: requestId=${request.requestId}`)
           this.pendingRequests.delete(request.requestId)
           resolve({ behavior: 'deny', message: '操作已中止' })
         }

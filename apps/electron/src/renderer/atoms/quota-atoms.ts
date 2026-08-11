@@ -31,7 +31,8 @@ export function getQuotaColor(balance: number | null): {
   fill: string
   text: string
 } {
-  if (balance == null || balance <= 0) return { fill: 'bg-slate-300', text: 'text-slate-400' }
+  if (balance == null) return { fill: 'bg-slate-300', text: 'text-slate-400' }
+  if (balance <= 0) return { fill: 'bg-red-500', text: 'text-red-500' }
   if (balance < 10) return { fill: 'bg-red-500', text: 'text-red-500' }
   if (balance < 50) return { fill: 'bg-amber-500', text: 'text-amber-500' }
   return { fill: 'bg-emerald-500', text: 'text-emerald-500' }

@@ -49,6 +49,9 @@ import {
   updateShortcutOverrides,
 } from '@/lib/shortcut-registry'
 import { getFileParentPath } from '@/lib/file-utils'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('GlobalShortcuts')
 
 /**
  * 快捷键初始化 + 全局 Handler 注册
@@ -260,7 +263,7 @@ export function GlobalShortcuts(): null {
                   fileReferences = `<attached_files>\n${refs}\n</attached_files>\n\n`
                 }
               } catch (error) {
-                console.error('[快速任务] 保存 Agent 附件失败:', error)
+                log.error('保存 Agent 附件失败:', error)
               }
             }
           }
@@ -298,7 +301,7 @@ export function GlobalShortcuts(): null {
           if (data.files && data.files.length > 0) {
             for (const file of data.files) {
               if (!file.base64) {
-                console.warn('[快速任务] Chat 附件缺少 base64，已跳过:', file.filename)
+                log.warn('Chat 附件缺少 base64，已跳过:', file.filename)
                 continue
               }
               try {
@@ -310,7 +313,7 @@ export function GlobalShortcuts(): null {
                 })
                 savedAttachments.push(result.attachment)
               } catch (error) {
-                console.error('[快速任务] 保存 Chat 附件失败:', error)
+                log.error('保存 Chat 附件失败:', error)
               }
             }
           }
@@ -333,7 +336,7 @@ export function GlobalShortcuts(): null {
           })
         }
       } catch (error) {
-        console.error('[快速任务] 创建会话失败:', error)
+        log.error('创建会话失败:', error)
       }
     })
     return cleanup
@@ -434,7 +437,7 @@ export function GlobalShortcuts(): null {
         store.set(tabsAtom, result.tabs)
         store.set(activeTabIdAtom, result.activeTabId)
       } catch (error) {
-        console.error('[菜单栏] 打开 Agent 会话失败:', error)
+        log.error('打开 Agent 会话失败:', error)
       }
     })
 

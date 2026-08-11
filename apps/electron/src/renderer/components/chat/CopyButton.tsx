@@ -8,6 +8,9 @@
 import { useState, useCallback } from 'react'
 import { CopyIcon, CheckIcon } from 'lucide-react'
 import { MessageAction } from '@/components/ai-elements/message'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('CopyButton')
 
 interface CopyButtonProps {
   /** 要复制的内容 */
@@ -23,7 +26,7 @@ export function CopyButton({ content }: CopyButtonProps): React.ReactElement {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('复制失败:', error)
+      log.error('复制失败:', error)
     }
   }, [content])
 

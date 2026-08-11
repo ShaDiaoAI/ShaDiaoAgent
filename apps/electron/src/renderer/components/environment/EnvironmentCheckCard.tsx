@@ -25,6 +25,9 @@ import {
   type InstallerDownloadState,
 } from '@/atoms/environment'
 import type { InstallerDownloadRequest } from '@shadiao/shared'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('EnvironmentCheckCard')
 
 type CheckStatus = 'checking' | 'success' | 'warning' | 'error'
 
@@ -179,7 +182,7 @@ function DownloadAction({ installerId, toolName }: { installerId: string; toolNa
       }))
       // 下载完自动拉起安装程序
       await window.electronAPI.launchInstaller(result.filePath).catch((err) => {
-        console.error('[Installer] launch failed:', err)
+        log.error('launch failed:', err)
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)

@@ -1,4 +1,7 @@
 import { powerMonitor } from 'electron'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('bridge-registry')
 
 /**
  * Bridge Registry — 统一管理 IM Bridge 生命周期
@@ -60,7 +63,7 @@ export async function startAllBridges(): Promise<void> {
   for (const bridge of bridges) {
     if (bridge.shouldAutoStart()) {
       bridge.start().catch((err) => {
-        console.error(`[Bridge Registry] ${bridge.name} 自动启动失败:`, err)
+        log.error(`${bridge.name} 自动启动失败:`, err)
       })
     }
   }
@@ -82,7 +85,7 @@ export function startBridgeSelfHealing(options: BridgeSelfHealingOptions = {}): 
     healthCheckTimer.unref?.()
   }
 
-  console.log('[Bridge Registry] 自愈守护已启动')
+  log.info('自愈守护已启动')
 }
 
 /** 停止 Bridge 自愈守护（应用退出时调用）。 */
@@ -103,7 +106,7 @@ export function stopBridgeSelfHealing(): void {
   }
   scheduledRecoveryTimers.clear()
 
-  console.log('[Bridge Registry] 自愈守护已停止')
+  log.info('自愈守护已停止')
 }
 
 /** 立即恢复需要自愈的 Bridge。force=true 时会重启所有自动启用的 Bridge。 */
@@ -119,7 +122,7 @@ export async function recoverAllBridges(
       if (!bridge.shouldAutoStart()) continue
       if (!options.force && bridge.needsRecovery?.() !== true) continue
 
-      console.log(`[Bridge Registry] 自愈恢复 ${bridge.name}，原因：${reason}`)
+      log.info(`自愈恢复 ${bridge.name}，原因：${reason}`)
       try {
         if (bridge.recover) {
           await bridge.recover()
@@ -127,13 +130,13 @@ export async function recoverAllBridges(
           try {
             bridge.stop()
           } catch (err) {
-            console.error(`[Bridge Registry] ${bridge.name} 自愈停止失败:`, err)
+            log.error(`${bridge.name} 自愈停止失败:`, err)
           }
           await bridge.start()
         }
-        console.log(`[Bridge Registry] ${bridge.name} 自愈恢复完成`)
+        log.info(`${bridge.name} 自愈恢复完成`)
       } catch (err) {
-        console.error(`[Bridge Registry] ${bridge.name} 自愈恢复失败:`, err)
+        log.error(`${bridge.name} 自愈恢复失败:`, err)
       }
     }
   } finally {
@@ -166,7 +169,7 @@ export function stopAllBridges(): void {
     try {
       bridge.stop()
     } catch (err) {
-      console.error(`[Bridge Registry] ${bridge.name} 停止失败:`, err)
+      log.error(`${bridge.name} 停止失败:`, err)
     }
   }
 }

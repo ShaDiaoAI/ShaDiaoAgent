@@ -32,6 +32,9 @@ import {
   updateShortcutOverrides,
   isMac,
 } from '@/lib/shortcut-registry'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('ShortcutSettings')
 
 // ===== 快捷键录制组件 =====
 
@@ -336,7 +339,7 @@ export function ShortcutSettings(): React.ReactElement {
               return true
             }
           } catch (error) {
-            console.error(error)
+            log.error(String(error))
             toast.warning('快捷键已保存，但全局快捷键当前未注册', {
               id: 'shortcut-save-warning',
               description: '重新注册全局快捷键时出错，请重试或换一个组合。',
@@ -348,7 +351,7 @@ export function ShortcutSettings(): React.ReactElement {
         toast.success('快捷键已保存', { id: 'shortcut-save-success' })
         return true
       } catch (error) {
-        console.error(error)
+        log.error(String(error))
         toast.error('快捷键保存失败', { id: 'shortcut-save-error' })
         return false
       }
@@ -379,7 +382,7 @@ export function ShortcutSettings(): React.ReactElement {
               return
             }
           } catch (error) {
-            console.error(error)
+            log.error(String(error))
             toast.warning('已恢复默认，但全局快捷键重新注册失败', {
               id: 'shortcut-save-warning',
             })
@@ -389,7 +392,7 @@ export function ShortcutSettings(): React.ReactElement {
 
         toast.success('已恢复默认快捷键', { id: 'shortcut-save-success' })
       } catch (error) {
-        console.error(error)
+        log.error(String(error))
         toast.error('恢复默认快捷键失败', { id: 'shortcut-save-error' })
       }
     },
@@ -420,7 +423,7 @@ export function ShortcutSettings(): React.ReactElement {
             // 这是期望结果，因此这里不像 handleSaveShortcut 那样把 false 当 warning。
             await reregisterGlobalShortcut(shortcutId)
           } catch (error) {
-            console.error(error)
+            log.error(String(error))
             toast.warning('快捷键已禁用，但主进程重新注册时出错', {
               id: 'shortcut-save-warning',
             })
@@ -430,7 +433,7 @@ export function ShortcutSettings(): React.ReactElement {
 
         toast.success('快捷键已禁用', { id: 'shortcut-save-success' })
       } catch (error) {
-        console.error(error)
+        log.error(String(error))
         toast.error('禁用快捷键失败', { id: 'shortcut-save-error' })
       }
     },
@@ -458,7 +461,7 @@ export function ShortcutSettings(): React.ReactElement {
           return
         }
       } catch (error) {
-        console.error(error)
+        log.error(String(error))
         toast.warning('已恢复全部默认，但全局快捷键重新注册失败', {
           id: 'shortcut-save-warning',
         })
@@ -470,7 +473,7 @@ export function ShortcutSettings(): React.ReactElement {
         description: hadDisabled ? '已禁用的快捷键也已重新启用' : undefined,
       })
     } catch (error) {
-      console.error(error)
+      log.error(String(error))
       toast.error('恢复全部默认快捷键失败', { id: 'shortcut-save-error' })
     }
   }, [overrides, setOverrides])
@@ -488,7 +491,7 @@ export function ShortcutSettings(): React.ReactElement {
       })
       .catch((error) => {
         setSendWithCmdEnter(sendWithCmdEnter)
-        console.error(error)
+        log.error(String(error))
         toast.error('发送快捷键保存失败', { id: 'shortcut-save-error' })
       })
   }, [sendWithCmdEnter, setSendWithCmdEnter])

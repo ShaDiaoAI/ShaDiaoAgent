@@ -8,6 +8,9 @@
 import { join, basename } from 'node:path'
 import { mkdirSync, existsSync, cpSync, rmSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+import { createLogger } from '@shadiao/shared'
+
+const log = createLogger('配置')
 
 /** 配置目录名 */
 const PROD_DIR = '.shadiao-agent'
@@ -39,7 +42,7 @@ export function getConfigDirName(): string {
       }
     }
     const mode = _configDirName === DEV_DIR ? '开发模式' : '正式版本'
-    console.log(`[配置] 配置目录: ~/${_configDirName}/（${mode}）`)
+    log.debug(`配置目录: ~/${_configDirName}/（${mode}）`)
   }
   return _configDirName
 }
@@ -56,7 +59,7 @@ export function getConfigDir(): string {
 
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
-    console.log(`[配置] 已创建配置目录: ${configDir}`)
+    log.info(`已创建配置目录: ${configDir}`)
   }
 
   return configDir
@@ -92,7 +95,7 @@ export function getConversationsDir(): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建对话目录: ${dir}`)
+    log.info(`已创建对话目录: ${dir}`)
   }
 
   return dir
@@ -120,7 +123,7 @@ export function getAttachmentsDir(): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建附件目录: ${dir}`)
+    log.info(`已创建附件目录: ${dir}`)
   }
 
   return dir
@@ -229,7 +232,7 @@ export function getAgentSessionsDir(): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建 Agent 会话目录: ${dir}`)
+    log.info(`已创建 Agent 会话目录: ${dir}`)
   }
 
   return dir
@@ -266,7 +269,7 @@ export function getAgentWorkspacesDir(): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建 Agent 工作区目录: ${dir}`)
+    log.info(`已创建 Agent 工作区目录: ${dir}`)
   }
 
   return dir
@@ -285,7 +288,7 @@ export function getAgentWorkspacePath(slug: string): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建 Agent 工作区: ${dir}`)
+    log.info(`已创建 Agent 工作区: ${dir}`)
   }
 
   return dir
@@ -495,7 +498,7 @@ export function seedDefaultSkills(): void {
     : join(__dirname, '../default-skills')
 
   if (!existsSync(bundledDir)) {
-    console.log('[配置] 未找到内置 default-skills 目录，跳过')
+    log.info('未找到内置 default-skills 目录，跳过')
     return
   }
 
@@ -513,7 +516,7 @@ export function seedDefaultSkills(): void {
       try {
         if (!existsSync(target)) {
           cpSync(source, target, { recursive: true, filter: defaultSkillCopyFilter })
-          console.log(`[配置] 已同步默认 Skill: ${entry.name}`)
+          log.info(`已同步默认 Skill: ${entry.name}`)
           continue
         }
 
@@ -526,16 +529,16 @@ export function seedDefaultSkills(): void {
           // rmSync({ force: true }) 只需父目录可写就能 unlink）。
           rmSync(target, { recursive: true, force: true })
           cpSync(source, target, { recursive: true, filter: defaultSkillCopyFilter })
-          console.log(`[配置] 已升级默认 Skill: ${entry.name} (${existingVer} → ${bundledVer})`)
+          log.info(`已升级默认 Skill: ${entry.name} (${existingVer} → ${bundledVer})`)
         }
       } catch (err) {
         // 单 skill 失败不影响其他 skill 同步。这里吞错是为了防止启动期 bootstrap
         // 链路被任意一个 skill 的同步异常掀翻——窗口和托盘必须先出来。
-        console.warn(`[配置] 同步默认 Skill 失败 (${entry.name})，跳过:`, err)
+        log.warn(`同步默认 Skill 失败 (${entry.name})，跳过:`, err)
       }
     }
   } catch (err) {
-    console.warn('[配置] 同步默认 Skills 失败:', err)
+    log.warn('同步默认 Skills 失败:', err)
   }
 }
 
@@ -637,7 +640,7 @@ export function getAgentSessionWorkspacePath(workspaceSlug: string, sessionId: s
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建 Agent 会话工作目录: ${dir}`)
+    log.info(`已创建 Agent 会话工作目录: ${dir}`)
   }
 
   return dir
@@ -658,7 +661,7 @@ export function getSdkConfigDir(): string {
 
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
-    console.log(`[配置] 已创建 SDK 配置目录: ${dir}`)
+    log.info(`已创建 SDK 配置目录: ${dir}`)
   }
 
   return dir

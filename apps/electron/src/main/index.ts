@@ -59,6 +59,9 @@ function registerProtocolsAndHandlers(): void {
 
 import { getSettings, updateSettings } from './lib/settings-service'
 import { handlePromaFileRequest } from './lib/local-file-protocol'
+import { createLogger } from '@shadiao/shared'
+
+const bootLog = createLogger('启动')
 
 // 处理 EPIPE 错误：当 stdout/stderr 管道被关闭时（如 electronmon 重启），忽略写入错误
 // 这在开发环境热重载时经常发生，不影响应用功能
@@ -79,6 +82,18 @@ for (const key of Object.keys(process.env)) {
     delete process.env[key]
   }
 }
+
+// ---- 日志系统初始化（最早时机，在所有 safeRun/safeAwait 之前） ----
+import { setGlobalLogLevel, parseLogLevel, LogLevel } from '@shadiao/shared'
+import { initMainLogFile, hookConsoleToFile } from './lib/logger-init'
+
+const isDev = !app.isPackaged
+const envLevel = process.env.SHADIAO_LOG_LEVEL
+const logLevel = envLevel ? parseLogLevel(envLevel) : (isDev ? LogLevel.DEBUG : LogLevel.WARN)
+
+setGlobalLogLevel(logLevel)
+initMainLogFile()
+hookConsoleToFile(logLevel)
 
 import { createApplicationMenu } from './menu'
 import { registerIpcHandlers } from './ipc'
@@ -159,7 +174,7 @@ function ensureWindowOnScreen(win: BrowserWindow): void {
       width: bounds.width,
       height: bounds.height,
     })
-    console.log('[窗口] 窗口已重新定位到主显示器')
+    bootLog.info('窗口已重新定位到主显示器')
   }
 }
 
@@ -212,7 +227,7 @@ function createWindow(): void {
   const iconExists = existsSync(iconPath)
 
   if (!iconExists) {
-    console.warn('App icon not found at:', iconPath)
+    bootLog.warn('App icon not found at:', iconPath)
   }
 
   const isMac = process.platform === 'darwin'
@@ -462,7 +477,7 @@ function safeRun(name: string, fn: () => void): void {
   try {
     fn()
   } catch (err) {
-    console.error(`[启动] ${name} 失败（已隔离）:`, err)
+    bootLog.error(`${name} 失败（已隔离）:`, err)
   }
 }
 
@@ -471,7 +486,7 @@ async function safeAwait(name: string, fn: () => Promise<unknown>): Promise<void
   try {
     await fn()
   } catch (err) {
-    console.error(`[启动] ${name} 失败（已隔离）:`, err)
+    bootLog.error(`${name} 失败（已隔离）:`, err)
   }
 }
 
@@ -481,7 +496,7 @@ async function safeAwait(name: string, fn: () => Promise<unknown>): Promise<void
  * 此时仍尝试创建一个降级窗口，让用户至少能看到界面、复制日志、提交反馈。
  */
 function handleBootstrapFailure(err: unknown): void {
-  console.error('[启动] bootstrap 致命错误，进入降级模式:', err)
+  bootLog.error('bootstrap 致命错误，进入降级模式:', err)
 
   try {
     const message = err instanceof Error ? (err.stack ?? err.message) : String(err)
@@ -503,7 +518,7 @@ function handleBootstrapFailure(err: unknown): void {
     registerIpcHandlers()
     createWindow()
   } catch (fallbackErr) {
-    console.error('[启动] 降级窗口创建也失败:', fallbackErr)
+    bootLog.error('降级窗口创建也失败:', fallbackErr)
   }
 }
 

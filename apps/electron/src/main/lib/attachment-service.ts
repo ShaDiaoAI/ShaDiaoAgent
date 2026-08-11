@@ -28,7 +28,9 @@ import type {
   FileDialogLargeFile,
   FileDialogSkippedFile,
 } from '@shadiao/shared'
-import { MAX_ATTACHMENT_SIZE } from '@shadiao/shared'
+import { MAX_ATTACHMENT_SIZE, createLogger } from '@shadiao/shared'
+
+const log = createLogger('附件服务')
 
 /** 支持的图片 MIME 类型 */
 const IMAGE_MIME_TYPES = new Set([
@@ -163,7 +165,7 @@ export function saveAttachment(input: AttachmentSaveInput): AttachmentSaveResult
     size: buffer.length,
   }
 
-  console.log(`[附件服务] 已保存附件: ${filename} → ${localPath} (${buffer.length} 字节)`)
+  log.info(`已保存附件: ${filename} → ${localPath} (${buffer.length} 字节)`)
   return { attachment }
 }
 
@@ -211,9 +213,9 @@ export function deleteAttachment(localPath: string): void {
   if (existsSync(fullPath)) {
     try {
       unlinkSync(fullPath)
-      console.log(`[附件服务] 已删除附件: ${localPath}`)
+      log.info(`已删除附件: ${localPath}`)
     } catch (error) {
-      console.warn(`[附件服务] 删除附件失败: ${localPath}`, error)
+      log.warn(`删除附件失败: ${localPath}`, error)
     }
   }
 }
@@ -231,9 +233,9 @@ export function deleteConversationAttachments(conversationId: string): void {
   if (existsSync(dir)) {
     try {
       rmSync(dir, { recursive: true, force: true })
-      console.log(`[附件服务] 已删除对话附件目录: ${conversationId}`)
+      log.info(`已删除对话附件目录: ${conversationId}`)
     } catch (error) {
-      console.warn(`[附件服务] 删除对话附件目录失败: ${conversationId}`, error)
+      log.warn(`删除对话附件目录失败: ${conversationId}`, error)
     }
   }
 }
@@ -287,7 +289,7 @@ export async function openFileDialog(): Promise<FileDialogResult> {
       fileSize = fileStat.size
     } catch (error) {
       const message = error instanceof Error ? error.message : '无法获取文件大小'
-      console.warn(`[附件服务] 无法获取文件大小，跳过: ${filePath}`, error)
+      log.warn(`无法获取文件大小，跳过: ${filePath}`, error)
       skippedFiles.push({ filename, mediaType, path: filePath, reason: 'unreadable', message })
       continue
     }
@@ -312,12 +314,12 @@ export async function openFileDialog(): Promise<FileDialogResult> {
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : '读取文件失败'
-      console.warn(`[附件服务] 读取文件失败，跳过: ${filePath}`, error)
+      log.warn(`读取文件失败，跳过: ${filePath}`, error)
       skippedFiles.push({ filename, mediaType, size: fileSize, path: filePath, reason: 'unreadable', message })
     }
   }
 
-  console.log(`[附件服务] 文件对话框选择了 ${files.length} 个内存附件，${largeFiles.length} 个大文件引用，${skippedFiles.length} 个跳过`)
+  log.info(`文件对话框选择了 ${files.length} 个内存附件，${largeFiles.length} 个大文件引用，${skippedFiles.length} 个跳过`)
   return {
     files,
     ...(largeFiles.length > 0 && { largeFiles }),
