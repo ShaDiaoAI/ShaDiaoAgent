@@ -67,12 +67,14 @@ mac:
   gatekeeperAssess: false
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
+  artifactName: ShaDiaoAgent-${version}-${arch}.${ext}
   target:
     - dmg
     - zip
 
 # DMG 配置
 dmg:
+  artifactName: ShaDiaoAgent-${version}-${arch}.${ext}
   contents:
     - x: 130
       y: 220
@@ -89,6 +91,7 @@ dmg:
 # ============================================
 win:
   icon: resources/icon.ico
+  artifactName: ShaDiaoAgent-Setup-${version}-${arch}.${ext}
   target:
     - target: nsis
       arch:
@@ -100,6 +103,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  artifactName: ShaDiaoAgent-Setup-${version}-${arch}.${ext}
 
 # ============================================
 # 发布配置
@@ -108,3 +112,4 @@ publish:
   provider: github
   owner: ShaDiaoAI
   repo: ShaDiaoAgent
+  releaseType: release
