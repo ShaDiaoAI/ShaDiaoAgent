@@ -124,6 +124,8 @@ jobs:
 
       - name: 安装依赖
         run: bun install --frozen-lockfile
+        env:
+          NODE_TLS_REJECT_UNAUTHORIZED: 0
 
       # 构建应用
       - name: 构建 Electron 应用
