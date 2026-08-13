@@ -206,10 +206,12 @@ export async function createCharacter(data: {
   bound_model?: string
   system_prompt?: string
 }): Promise<ShadiaoCharacter> {
-  return djangoApiRequest<ShadiaoCharacter>('/api/characters/', {
+  const char = await djangoApiRequest<ShadiaoCharacter>('/api/characters/', {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  upsertCharacterCache(char)
+  return char
 }
 
 export async function updateCharacter(id: number, data: {
@@ -217,10 +219,12 @@ export async function updateCharacter(id: number, data: {
   bound_model?: string
   system_prompt?: string
 }): Promise<ShadiaoCharacter> {
-  return djangoApiRequest<ShadiaoCharacter>(`/api/characters/${id}`, {
+  const char = await djangoApiRequest<ShadiaoCharacter>(`/api/characters/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
+  upsertCharacterCache(char)
+  return char
 }
 
 export async function deleteCharacter(id: number): Promise<void> {
@@ -229,6 +233,28 @@ export async function deleteCharacter(id: number): Promise<void> {
 
 export function getCachedCharacters(): ShadiaoCharacter[] {
   return readJsonFileSafe<ShadiaoCharacter[]>(join(getConfigDir(), CHARS_FILE)) ?? []
+}
+
+/**
+ * 将单个人物增量写回本地缓存 characters-cache.json
+ *
+ * 保存（create/update）成功后立即调用，保证 getCachedCharacters 始终反映
+ * 用户最近一次操作，避免「编辑完人物设定，注入 prompt 时仍读到旧值」。
+ * 缓存文件不存在时会自动创建（顺带解决首次使用无缓存的问题）。
+ */
+function upsertCharacterCache(char: ShadiaoCharacter): void {
+  try {
+    const chars = getCachedCharacters()
+    const idx = chars.findIndex((c) => c.id === char.id)
+    if (idx === -1) {
+      chars.unshift(char)
+    } else {
+      chars[idx] = char
+    }
+    writeJsonFileAtomic(join(getConfigDir(), CHARS_FILE), chars)
+  } catch (err) {
+    // 缓存回写失败不影响主流程；下次 fetchCharacters 会重建缓存
+  }
 }
 
 // ===== Skins =====
@@ -246,6 +272,13 @@ export async function equipSkin(characterId: number, skinId: number | string): P
     method: 'POST',
     body: JSON.stringify({ skin_id: skinId }),
   })
+  // 换肤会改 equipped_skin（进而影响注入的人物设定），回写缓存保证注入读最新皮肤 description
+  try {
+    const updated = await getCharacter(characterId)
+    upsertCharacterCache(updated)
+  } catch (err) {
+    // 回写失败不影响换肤主流程
+  }
 }
 
 // ===== Items =====

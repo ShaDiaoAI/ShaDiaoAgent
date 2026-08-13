@@ -458,10 +458,6 @@ async function bootstrap(): Promise<void> {
   safeRun('refreshDjangoChannelModels', () => refreshDjangoChannelModels().catch(() => {}))
 
   app.on('activate', () => {
-    if (shouldSuppressVoiceDictationActivate()) {
-      return
-    }
-
     // 直接检查 mainWindow 引用，避免 getAllWindows() 包含 DevTools 等其他窗口导致误判
     if (!mainWindow || mainWindow.isDestroyed()) {
       createWindow()

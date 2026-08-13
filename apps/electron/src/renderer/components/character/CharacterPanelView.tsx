@@ -12,7 +12,7 @@
 
 import * as React from 'react'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { User, Shield, Edit3, Trash2, Gift, Check, ArrowLeft, Plus, AlertTriangle, FileText } from 'lucide-react'
+import { User, Shield, Edit3, Trash2, Gift, Check, ArrowLeft, Plus, AlertTriangle, FileText, Coins, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCharacterSwitch } from '@/hooks/useCharacterSwitch'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,10 @@ import {
   walletAtom, gachaProgressAtom, gachaHistoryAtom, creationLimitAtom,
   type ShadiaoCharacter, type Skin,
 } from '@/atoms/character-atoms'
+import {
+  notificationSoundsAtom, notificationSoundEnabledAtom, notificationsEnabledAtom,
+  playNotificationSoundForType,
+} from '@/atoms/notifications'
 import { agentWorkspacesAtom, currentAgentWorkspaceIdAtom, agentSessionsAtom } from '@/atoms/agent-atoms'
 import { characterPanelTabAtom, activeViewAtom, type CharacterPanelTab } from '@/atoms/active-view'
 import { tabsAtom, activeTabIdAtom, openTab, closeTab } from '@/atoms/tab-atoms'
@@ -50,6 +54,9 @@ export function CharacterPanelView(): React.ReactElement {
   const [gachaHistory, setGachaHistory] = useAtom(gachaHistoryAtom)
   const setWallet = useSetAtom(walletAtom)
   const setGachaProgress = useSetAtom(gachaProgressAtom)
+  const notificationSounds = useAtomValue(notificationSoundsAtom)
+  const notificationSoundEnabled = useAtomValue(notificationSoundEnabledAtom)
+  const notificationsEnabled = useAtomValue(notificationsEnabledAtom)
   const [creationLimit, setCreationLimit] = useAtom(creationLimitAtom)
   const setWorkspaces = useSetAtom(agentWorkspacesAtom)
   const setCurrentWorkspaceId = useSetAtom(currentAgentWorkspaceIdAtom)
@@ -65,6 +72,7 @@ export function CharacterPanelView(): React.ReactElement {
   const [gachaPhase, setGachaPhase] = React.useState<GachaPhase>('idle')
   const [drawResults, setDrawResults] = React.useState<DrawResultItem[] | null>(null)
   const [drawError, setDrawError] = React.useState<string | null>(null)
+  const [drawingCount, setDrawingCount] = React.useState<number | null>(null)
   const gachaAnimRef = React.useRef<GachaAnimHandle>(null)
   const animEndResolveRef = React.useRef<(() => void) | null>(null)
   const [promptEditTarget, setPromptEditTarget] = React.useState<ShadiaoCharacter | null>(null)
@@ -203,6 +211,7 @@ export function CharacterPanelView(): React.ReactElement {
     // 1. 进入 animating 状态
     setGachaPhase('animating')
     setDrawError(null)
+    setDrawingCount(count)
 
     // 2. 播放动画
     gachaAnimRef.current?.play(label)
@@ -241,6 +250,7 @@ export function CharacterPanelView(): React.ReactElement {
       // 展示结果
       setDrawResults(apiResult.data.results)
       setGachaPhase('showing_result')
+      setDrawingCount(null)
 
       // Toast
       const names = apiResult.data.results.map((r: DrawResultItem) =>
@@ -251,13 +261,22 @@ export function CharacterPanelView(): React.ReactElement {
       setDrawError(apiResult?.error || '抽奖失败')
       toast.error(apiResult?.error || '抽奖失败')
       setGachaPhase('idle')
+      setDrawingCount(null)
     }
   }
 
   const handleCloseResult = () => {
     setGachaPhase('idle')
     setDrawResults(null)
+    setDrawingCount(null)
   }
+
+  // 盲盒揭晓音效：结果弹窗打开时播放
+  React.useEffect(() => {
+    if (gachaPhase === 'showing_result' && notificationsEnabled && notificationSoundEnabled) {
+      void playNotificationSoundForType('gachaOpen', notificationSounds)
+    }
+  }, [gachaPhase, notificationsEnabled, notificationSoundEnabled, notificationSounds])
 
   const handleSavePrompt = async () => {
     if (!promptEditTarget) return
@@ -590,16 +609,29 @@ export function CharacterPanelView(): React.ReactElement {
               {tab === 'gacha' && (() => {
                 const isAnimating = gachaPhase === 'animating'
                 const isDisabled = isAnimating || !animReady
+                const coins = wallet?.coins ?? gachaProgress?.coins ?? 0
+                const singleCost = gachaProgress?.single_draw_cost
+                const multiCost = gachaProgress?.multi_draw_cost
+                const canSingle = gachaProgress?.can_single_draw ?? false
+                const canMulti = gachaProgress?.can_multi_draw ?? false
+                const singleShort = !canSingle && singleCost != null ? Math.max(0, singleCost - coins) : 0
+                const multiShort = !canMulti && multiCost != null ? Math.max(0, multiCost - coins) : 0
                 return (
-                <div
-                  className="w-full grid gap-5 items-stretch"
-                  style={{ gridTemplateColumns: '1fr minmax(300px, 480px) 1fr' }}
-                >
-                  {/* 左侧：福字喜庆装饰 */}
+                <div className="gacha-grid w-full">
+                  {/* 左侧：上联「盒家欢乐」 */}
                   <GachaDecoPanel side="left" />
 
                   {/* 中间：盲盒主区域 */}
-                  <div className="space-y-5">
+                  <div className="space-y-4">
+                    {/* 沙雕币胶囊（顶部） */}
+                    <div className="flex items-center justify-between px-4 py-2.5 rounded-full border bg-card/70 shadow-sm">
+                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Coins className="size-4 text-amber-500" />
+                        沙雕币
+                      </span>
+                      <CoinAmount value={coins} />
+                    </div>
+
                     <GachaAnim
                       ref={gachaAnimRef}
                       className="w-full aspect-square"
@@ -609,41 +641,54 @@ export function CharacterPanelView(): React.ReactElement {
                       }}
                     />
 
-                    {/* 沙雕币余额 */}
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
-                      <span className="text-sm text-muted-foreground">沙雕币</span>
-                      <span className="text-lg font-semibold tabular-nums text-amber-500">
-                        💰 {wallet?.coins?.toLocaleString() ?? gachaProgress?.coins?.toLocaleString() ?? '—'}
-                      </span>
-                    </div>
-
                     {/* 抽奖按钮 */}
                     <div className="flex gap-3">
                       <button
-                        disabled={isDisabled || !gachaProgress?.can_single_draw}
+                        disabled={isDisabled || !canSingle}
                         onClick={() => handleDraw(1)}
                         className={cn(
                           'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                          gachaProgress?.can_single_draw && !isDisabled
+                          canSingle && !isDisabled
                             ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
                             : 'bg-muted text-muted-foreground cursor-not-allowed',
                         )}
                       >
-                        <Gift size={16} /><span>单抽</span>
-                        <span className="text-xs opacity-70">{gachaProgress?.single_draw_cost ?? '—'} 币</span>
+                        {drawingCount === 1 ? (
+                          <><Loader2 size={16} className="animate-spin" /><span>开盒中…</span></>
+                        ) : (
+                          <>
+                            <Gift size={16} /><span>单抽</span>
+                            {singleShort > 0
+                              ? <span className="text-xs opacity-70">还差 {singleShort} 币</span>
+                              : <span className="text-xs opacity-70">{singleCost ?? '—'} 币</span>}
+                          </>
+                        )}
                       </button>
                       <button
-                        disabled={isDisabled || !gachaProgress?.can_multi_draw}
+                        disabled={isDisabled || !canMulti}
                         onClick={() => handleDraw(5)}
                         className={cn(
-                          'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-                          gachaProgress?.can_multi_draw && !isDisabled
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95'
+                          'relative flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all duration-200',
+                          canMulti && !isDisabled
+                            ? 'gacha-gold-btn active:scale-95'
                             : 'bg-muted text-muted-foreground cursor-not-allowed',
                         )}
                       >
-                        <Gift size={16} /><span>5 连抽</span>
-                        <span className="text-xs opacity-70">{gachaProgress?.multi_draw_cost ?? '—'} 币</span>
+                        {canMulti && !isDisabled && (
+                          <span className="absolute -top-2 -right-1 px-1.5 py-0.5 rounded-full bg-amber-400 text-[9px] font-bold text-amber-950 shadow-sm z-10">
+                            推荐
+                          </span>
+                        )}
+                        {drawingCount === 5 ? (
+                          <><Loader2 size={16} className="animate-spin" /><span>开盒中…</span></>
+                        ) : (
+                          <>
+                            <Gift size={16} /><span>5 连抽</span>
+                            {multiShort > 0
+                              ? <span className="text-xs opacity-70">还差 {multiShort} 币</span>
+                              : <span className="text-xs opacity-70">{multiCost ?? '—'} 币</span>}
+                          </>
+                        )}
                       </button>
                     </div>
 
@@ -653,7 +698,7 @@ export function CharacterPanelView(): React.ReactElement {
                     )}
                   </div>
 
-                  {/* 右侧：运字喜庆装饰 */}
+                  {/* 右侧：下联「开盒大吉」 */}
                   <GachaDecoPanel side="right" />
 
                   {/* 抽奖结果弹窗 */}
@@ -732,11 +777,16 @@ export function CharacterPanelView(): React.ReactElement {
                 <Textarea
                   value={promptEditValue}
                   onChange={e => { setPromptEditValue(e.target.value); setPromptEditError('') }}
-                  placeholder="为此人物设置独特的性格和行为方式..."
+                  placeholder="留空将跟随当前皮肤的人设；填写则覆盖为自定义设定..."
                   className="min-h-[160px] resize-y"
                   maxLength={2000}
                   autoFocus
                 />
+                {!promptEditValue.trim() && promptEditTarget?.equipped_skin?.description ? (
+                  <p className="text-xs text-muted-foreground">
+                    留空时，将使用皮肤「{promptEditTarget.equipped_skin.name}」的人设作为提示词
+                  </p>
+                ) : null}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-red-500">{promptEditError}</span>
                   <span className="text-[10px] text-muted-foreground tabular-nums">
@@ -765,6 +815,39 @@ export function CharacterPanelView(): React.ReactElement {
         </div>
       </div>
     </div>
+  )
+}
+
+/** 沙雕币金额：数值变化时 count-up + 脉冲 */
+function CoinAmount({ value }: { value: number }): React.ReactElement {
+  const [display, setDisplay] = React.useState(value)
+  const [pulse, setPulse] = React.useState(false)
+  const prevRef = React.useRef(value)
+
+  React.useEffect(() => {
+    if (value === prevRef.current) return
+    const from = prevRef.current
+    const to = value
+    prevRef.current = value
+    setPulse(true)
+    const start = performance.now()
+    const DURATION = 400
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / DURATION)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(Math.round(from + (to - from) * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+      else setPulse(false)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [value])
+
+  return (
+    <span className={cn('text-lg font-semibold tabular-nums text-amber-500', pulse && 'coin-pulse')}>
+      💰 {display.toLocaleString()}
+    </span>
   )
 }
 

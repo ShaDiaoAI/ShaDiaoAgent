@@ -64,7 +64,7 @@ import { isVisibleRunMessage } from './agent-run-message-visibility'
 import { applyAgentSdkAuthEnv } from './agent-sdk-auth-env'
 import { getAgentSdkMaxOutputTokens } from './agent-sdk-output-limits'
 import { sanitizeGeneratedTitle, TITLE_PROMPT } from './title-generation'
-import { getAuthState, getCachedCharacters } from './django-client'
+import { getAuthState, getCachedCharacters, getCharacter } from './django-client'
 
 // ===== 类型定义 =====
 
@@ -931,28 +931,28 @@ export class AgentOrchestrator {
     }
 
     let apiKey: string
-    try {
-      apiKey = decryptApiKey(channelId)
-    } catch (err) {
-      reportPreflightError({
-        code: 'api_key_decrypt_failed',
-        title: 'API Key 解密失败',
-        message: '无法解密此渠道的 API Key，可能是系统密钥环异常。请到设置中重新填写 API Key。',
-        actions: [
-          { key: 's', label: '打开渠道设置', action: 'open_channel_settings' },
-        ],
-        canRetry: false,
-      })
-      return
-    }
 
-    // ShaDiao: 如果渠道的 baseUrl 指向 Django 代理，用 Django JWT token 认证
-    // Django /api/agent 端点需要 x-api-key / Authorization: Bearer 为 JWT token，
-    // 渠道自身存储的 API key 是 LLM provider key，两者不同。
+    // ShaDiao: 如果渠道的 baseUrl 指向 Django 代理，直接用 JWT token
+    // 跳过 safeStorage 解密，避免触发 macOS Keychain 等 OS 级授权弹窗
     const authState = getAuthState()
     if (authState.token && channel.baseUrl && channel.baseUrl.startsWith(authState.baseUrl)) {
       apiKey = authState.token
       log.info('使用 Django JWT token 认证')
+    } else {
+      try {
+        apiKey = decryptApiKey(channelId)
+      } catch (err) {
+        reportPreflightError({
+          code: 'api_key_decrypt_failed',
+          title: 'API Key 解密失败',
+          message: '无法解密此渠道的 API Key，可能是系统密钥环异常。请到设置中重新填写 API Key。',
+          actions: [
+            { key: 's', label: '打开渠道设置', action: 'open_channel_settings' },
+          ],
+          canRetry: false,
+        })
+        return
+      }
     }
 
     const appSettings = getSettings()
@@ -1470,7 +1470,7 @@ export class AgentOrchestrator {
         sessionMeta,
         workspaceSlug,
       })
-      const systemPromptAppend = ((): string => {
+      const systemPromptAppend = await (async (): Promise<string> => {
         const basePrompt = buildSystemPrompt({
           agentRuntime,
           workspaceName: workspace?.name,
@@ -1483,11 +1483,20 @@ export class AgentOrchestrator {
         let charPrompt = ''
         const charId = sessionMeta?.characterId
         if (charId != null) {
-          const chars = getCachedCharacters()
-          const char = chars.find(c => c.id === charId)
-          if (char?.system_prompt?.trim()) {
-            charPrompt = `## 人物设定\n\n${char.system_prompt.trim()}\n\n`
-            log.info(`已注入人物 ${char.name}（ID: ${charId}）的 system_prompt（${char.system_prompt.length} 字符）`)
+          let char = getCachedCharacters().find(c => c.id === charId)
+          // 兜底：本地缓存缺失/查不到该人物时，实时向 Django 拉取一次
+          if (!char) {
+            try {
+              char = await getCharacter(charId)
+            } catch (err) {
+              log.warn(`兜底拉取人物 ${charId} 失败:`, err)
+            }
+          }
+          // 方案 C：system_prompt 为空时，跟随当前装备皮肤的 description 作为人物设定
+          const effectivePrompt = char?.system_prompt?.trim() || char?.equipped_skin?.description?.trim()
+          if (effectivePrompt) {
+            charPrompt = `## 人物设定\n\n${effectivePrompt}\n\n`
+            log.info(`已注入人物 ${char.name}（ID: ${charId}）的人设（${effectivePrompt.length} 字符）`)
           }
         }
         return charPrompt + basePrompt + (automationContext ? `\n\n## 定时任务执行上下文\n\n${automationContext}` : '')

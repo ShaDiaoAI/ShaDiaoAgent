@@ -2562,3 +2562,76 @@
   border: 1px solid hsl(var(--border));
   box-shadow: none;
 }
+
+/* ===== 盲盒对联卷轴 ===== */
+
+/* 卷轴纸身：竖排文字载体，淡金宣纸质感 */
+.gacha-couplet-body {
+  width: 72%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(180deg, hsl(42 60% 96% / 0.14), hsl(42 60% 92% / 0.05));
+  border: 1px solid hsl(42 70% 70% / 0.25);
+}
+
+/* 竖排大字 */
+.gacha-couplet-text {
+  writing-mode: vertical-rl;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(232, 180, 75, 0.4), 0 2px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* 流光扫字 */
+@keyframes gacha-couplet-sheen {
+  0%   { background-position: 0 -100%; }
+  100% { background-position: 0 200%; }
+}
+.gacha-couplet-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 42%, hsl(42 90% 82% / 0.45) 50%, transparent 58%);
+  background-size: 100% 300%;
+  animation: gacha-couplet-sheen 6s ease-in-out infinite;
+}
+
+/* 盲盒页三列布局（窄屏收成单列，隐藏两侧对联） */
+.gacha-grid {
+  display: grid;
+  gap: 1.25rem;
+  align-items: stretch;
+  grid-template-columns: minmax(120px, 200px) minmax(320px, 440px) minmax(120px, 200px);
+  justify-content: start;
+}
+@media (max-width: 900px) {
+  .gacha-grid {
+    grid-template-columns: 1fr;
+  }
+  .gacha-grid .gacha-deco-panel {
+    display: none;
+  }
+}
+
+/* 沙雕币数字脉冲 */
+@keyframes coin-pulse {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.coin-pulse {
+  animation: coin-pulse 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 5 连抽金色主推按钮 */
+.gacha-gold-btn {
+  background: linear-gradient(180deg, hsl(42 88% 56%), hsl(35 78% 44%));
+  color: hsl(34 95% 12%);
+  border: 1px solid hsl(42 90% 64%);
+  box-shadow: 0 0 14px rgba(232, 180, 75, 0.35);
+}
+.gacha-gold-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}

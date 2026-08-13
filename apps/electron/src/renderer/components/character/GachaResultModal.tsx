@@ -53,8 +53,8 @@ export function GachaResultModal({ results, isOpen, onClose }: GachaResultModalP
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
         className={cn(
-          'relative mx-4 max-h-[85vh] overflow-y-auto rounded-2xl border bg-card shadow-2xl',
-          isMulti ? 'w-[640px] translate-x-[80px]' : 'w-[340px]',
+          'relative mx-4 flex max-h-[85vh] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl',
+          isMulti ? 'w-[560px] translate-x-[80px]' : 'w-[340px]',
         )}
         onClick={e => e.stopPropagation()}
       >
@@ -67,9 +67,9 @@ export function GachaResultModal({ results, isOpen, onClose }: GachaResultModalP
         </button>
 
         {/* 头部 */}
-        <div className="pt-6 pb-4 text-center">
-          <Sparkles className="size-8 text-amber-400 mx-auto mb-2" />
-          <h3 className="text-lg font-semibold">
+        <div className="shrink-0 pt-5 pb-3 text-center">
+          <Sparkles className="size-6 text-amber-400 mx-auto mb-1.5" />
+          <h3 className="text-base font-semibold">
             {isMulti ? '🎊 5连抽结果' : '🎁 单抽结果'}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -77,41 +77,32 @@ export function GachaResultModal({ results, isOpen, onClose }: GachaResultModalP
           </p>
         </div>
 
-        {/* 结果卡片 */}
+        {/* 结果卡片（中间可滚动，底部按钮始终可见） */}
         {isMulti ? (
-          <div className="px-5 pb-6 flex flex-col gap-3">
-            <div className="flex justify-center gap-3">
-              {results.slice(0, 2).map((result, i) => (
-                <div key={`${result.skin.id}-${i}`} className="w-[calc((100%-12px)/3)]">
-                  <ResultCard result={result} />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-center gap-3">
-              {results.slice(2, 5).map((result, i) => (
-                <div key={`${result.skin.id}-${i + 2}`} className="w-[calc((100%-12px)/3)]">
-                  <ResultCard result={result} />
-                </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-2 pb-4">
+            <div className="grid grid-cols-3 gap-2.5">
+              {results.map((result, i) => (
+                <ResultCard key={`${result.skin.id}-${i}`} result={result} />
               ))}
             </div>
           </div>
         ) : (
-          <div className="flex justify-center px-5 pb-6">
-            {results.map((result, i) => (
-              <div key={`${result.skin.id}-${i}`}>
-                <ResultCard result={result} />
-              </div>
-            ))}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-2 pb-4">
+            <div className="flex justify-center">
+              {results.map((result, i) => (
+                <ResultCard key={`${result.skin.id}-${i}`} result={result} />
+              ))}
+            </div>
           </div>
         )}
 
-        {/* 确认按钮 */}
-        <div className="px-5 pb-5">
+        {/* 确认按钮（固定底部，始终可见） */}
+        <div className="shrink-0 px-5 pb-5 pt-2">
           <button
             className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             onClick={onClose}
           >
-            知道了
+            开心收下！
           </button>
         </div>
       </div>

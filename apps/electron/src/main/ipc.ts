@@ -12,6 +12,11 @@ import { writeFile } from 'node:fs/promises'
 /** 🆕 当前选中的人物 ID（主进程全局状态，用于创建会话时自动关联） */
 let selectedCharacterId: number | null = null
 
+// 🆕 启动时从 settings 回填上次选中的人物 ID，避免重启后新建会话丢失人物绑定
+try {
+  selectedCharacterId = getSettings().lastSelectedCharacterId ?? null
+} catch { /* settings 读取失败，保持 null */ }
+
 /** 🆕 每人物上一次活跃会话 ID（从 settings 持久化加载，重启后可恢复） */
 const perCharacterLastSession = new Map<number, string>()
 try {

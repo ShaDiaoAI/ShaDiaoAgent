@@ -124,7 +124,7 @@ export function CharacterCreate({ open, editChar, onClose, onCreated }: Characte
             <textarea
               value={systemPrompt}
               onChange={e => setSystemPrompt(e.target.value)}
-              placeholder="为此人物设置独特的性格和行为方式..."
+              placeholder="留空将使用皮肤的人设作为默认提示词；填写则自定义人物设定..."
               rows={4}
               className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
               maxLength={2000}

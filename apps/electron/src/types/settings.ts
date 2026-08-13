@@ -7,7 +7,7 @@
 import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@shadiao/shared'
 
 /** 通知音场景类型 */
-export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode'
+export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'gachaOpen'
 
 /** 可选通知音 ID */
 export type NotificationSoundId = 'wa-oh-female' | 'oh' | 'scream' | 'wa-oh' | 'ci-yin' | 'silly-laugh' | 'heng' | 'light-injury-female' | 'fart' | 'none'
@@ -20,6 +20,8 @@ export interface NotificationSoundSettings {
   permissionRequest?: NotificationSoundId
   /** 计划审批 */
   exitPlanMode?: NotificationSoundId
+  /** 开盲盒 */
+  gachaOpen?: NotificationSoundId
 }
 
 /** 语音输入供应商 */

@@ -342,6 +342,16 @@ export function GeneralSettings(): React.ReactElement {
               setNotificationSounds(newSounds)
             }}
           />
+          <SoundPicker
+            label="开盲盒音效"
+            type="gachaOpen"
+            sounds={notificationSounds}
+            disabled={!notificationsEnabled || !notificationSoundEnabled}
+            onSoundChange={async (type, soundId) => {
+              const newSounds = await updateNotificationSound(type, soundId, notificationSounds)
+              setNotificationSounds(newSounds)
+            }}
+          />
           {/*
           <SoundPicker
             label="权限审批音效"

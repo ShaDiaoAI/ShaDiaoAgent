@@ -421,13 +421,13 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
           display: phase === 'ready' ? 'block' : 'none',
         }}
       />
-      {/* 状态文字 — Canvas 内部上方（人物头顶） */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-muted-foreground font-medium select-none pointer-events-none">
+      {/* 状态文字 — Canvas 内部左上角 */}
+      <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-muted-foreground font-medium select-none pointer-events-none">
         {skinFlash ? `✨ 已更换：${selectedChar?.equipped_skin?.name ?? ''}` : RIVE_STATE_LABELS[state]}
       </div>
-      {/* 沙雕币 — Canvas 内部下方 */}
+      {/* 沙雕币 — Canvas 内部左下角 */}
       {displayCoins !== undefined && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none flex items-center gap-1">
+        <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none flex items-center gap-1">
           {/* 浮动 +N 文字 */}
           {floatingTexts.map((ft) => (
             <span key={ft.id} className="coin-float-text">
@@ -439,31 +439,31 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
             <span>💰</span>
             <span className="tabular-nums">{displayCoins.toLocaleString()}</span>
           </span>
-          {/* 帮助 tooltip — 交互 */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                role="button"
-                tabIndex={0}
-                className="pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none"
-                aria-label="什么是沙雕币？"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-              >
-                ?
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[220px]">
-              <p className="text-xs leading-relaxed">
-                与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                消耗词元即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
-              </p>
-            </TooltipContent>
-          </Tooltip>
         </div>
       )}
+      {/* 沙雕币帮助 tooltip — Canvas 内部右下角 */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            role="button"
+            tabIndex={0}
+            className="absolute bottom-2 right-2 pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none"
+            aria-label="什么是沙雕币？"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+          >
+            ?
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[220px]">
+          <p className="text-xs leading-relaxed">
+            与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+            消耗词元即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
+          </p>
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

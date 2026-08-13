@@ -246,12 +246,28 @@ function encryptApiKey(plainKey: string): string {
 }
 
 /**
+ * API Key 占位符集合
+ *
+ * 这些值不会被 safeStorage 加密，存储的就是纯文本本身。
+ * decryptKey() 遇到这些值时应直接返回，避免调用 safeStorage
+ * 触发 OS 级授权弹窗（如 macOS Keychain 提示）。
+ */
+const PLAINTEXT_API_KEY_PLACEHOLDERS = new Set([
+  'django-managed',
+])
+
+/**
  * 解密 API Key
  *
  * @param encryptedKey base64 编码的加密字符串
  * @returns 明文 API Key
  */
 function decryptKey(encryptedKey: string): string {
+  // 纯文本占位符直接返回，避免触发 OS 级 safeStorage 授权弹窗
+  if (PLAINTEXT_API_KEY_PLACEHOLDERS.has(encryptedKey)) {
+    return encryptedKey
+  }
+
   if (!safeStorage.isEncryptionAvailable()) {
     // 如果加密不可用，假设存储的是明文
     return encryptedKey

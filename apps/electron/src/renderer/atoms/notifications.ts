@@ -50,6 +50,7 @@ export const DEFAULT_NOTIFICATION_SOUNDS: Required<NotificationSoundSettings> = 
   taskComplete: 'oh',
   permissionRequest: 'oh',
   exitPlanMode: 'oh',
+  gachaOpen: 'oh',
 }
 
 // ===== Jotai Atoms =====
