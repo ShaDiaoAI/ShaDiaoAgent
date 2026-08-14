@@ -1,8 +1,11 @@
-# GitHub Actions: 打包并上传到腾讯云 COS
+# GitHub Actions: 打包并上传到腾讯云 COS（全球加速）
 #
 # 触发条件：推送 v* tag（如 v1.0.7）
-# 产物：macOS arm64（CI）+ Windows x64（CI）→ 上传到 COS（公有读）
-#       macOS x64 由本地手工打包上传，见 apps/electron/scripts/release-cos-x64.sh
+# 产物：macOS arm64 + Windows x64 上传到 COS（公有读）
+#       macOS x64 由本地打包上传（见 scripts/release-cos-x64.sh）
+#
+# 上传走 COS 全球加速域名 cos.accelerate.myqcloud.com（跨境外网上传提速）；
+# 下载仍走常规域名 cos.ap-shanghai.myqcloud.com（通过 SHADIAO_UPDATE_URL 注入应用内更新地址）。
 #
 # 所需 GitHub Secrets：
 # - TENCENT_CLOUD_SECRET_ID / TENCENT_CLOUD_SECRET_KEY：腾讯云子账号密钥（最小权限：PutObject + 分片上传）
@@ -103,24 +106,24 @@ jobs:
 
       - name: 整理待上传文件 (macOS arm64)
         run: |
-          mkdir -p dist-cos
-          cp out/ShaDiaoAgent-*-arm64.dmg dist-cos/
-          cp out/ShaDiaoAgent-*-arm64.zip dist-cos/
-          cp out/ShaDiaoAgent-*-arm64.*.blockmap dist-cos/
-          cp out/latest-mac.yml dist-cos/
-          ls -la dist-cos/
+          mkdir -p release-files
+          cp out/ShaDiaoAgent-*-arm64.dmg release-files/
+          cp out/ShaDiaoAgent-*-arm64.zip release-files/
+          cp out/ShaDiaoAgent-*-arm64.*.blockmap release-files/
+          cp out/latest-mac.yml release-files/
+          ls -la release-files/
         working-directory: apps/electron
 
-      - name: 上传到 COS (macOS arm64)
+      - name: 上传到 COS (macOS arm64, 全球加速)
         uses: TencentCloud/cos-action@v1
         with:
           secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
           secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
           cos_bucket: ${{ secrets.COS_BUCKET }}
           cos_region: ${{ secrets.COS_REGION }}
-          local_path: apps/electron/dist-cos
+          local_path: apps/electron/release-files
           remote_path: downloads/mac-arm64
-          accelerate: false
+          accelerate: true
 
   build-windows-x64:
     name: build (windows-latest, win, x64)
@@ -184,20 +187,20 @@ jobs:
       - name: 整理待上传文件 (Windows x64)
         shell: bash
         run: |
-          mkdir -p dist-cos
-          cp out/ShaDiaoAgent-Setup-*.exe dist-cos/
-          cp out/ShaDiaoAgent-Setup-*.exe.blockmap dist-cos/
-          cp out/latest.yml dist-cos/
-          ls -la dist-cos/
+          mkdir -p release-files
+          cp out/ShaDiaoAgent-Setup-*.exe release-files/
+          cp out/ShaDiaoAgent-Setup-*.exe.blockmap release-files/
+          cp out/latest.yml release-files/
+          ls -la release-files/
         working-directory: apps/electron
 
-      - name: 上传到 COS (Windows x64)
+      - name: 上传到 COS (Windows x64, 全球加速)
         uses: TencentCloud/cos-action@v1
         with:
           secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
           secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
           cos_bucket: ${{ secrets.COS_BUCKET }}
           cos_region: ${{ secrets.COS_REGION }}
-          local_path: apps/electron/dist-cos
+          local_path: apps/electron/release-files
           remote_path: downloads/windows
-          accelerate: false
+          accelerate: true
