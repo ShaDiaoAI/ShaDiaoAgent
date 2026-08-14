@@ -1,24 +1,29 @@
-# GitHub Actions: 打包并上传到腾讯云 COS（全球加速）
+# GitHub Actions: 打包并发布到 GitHub Releases
 #
 # 触发条件：推送 v* tag（如 v1.0.7）
-# 产物：macOS arm64 + Windows x64 上传到 COS（公有读）
+# 产物：macOS arm64 + Windows x64 上传到 GitHub Releases
 #       macOS x64 由本地打包上传（见 scripts/release-cos-x64.sh）
 #
-# 上传走 COS 全球加速域名 cos.accelerate.myqcloud.com（跨境外网上传提速）；
-# 下载仍走常规域名 cos.ap-shanghai.myqcloud.com（通过 SHADIAO_UPDATE_URL 注入应用内更新地址）。
+# 为什么不直接在 CI 里传 COS：GitHub runner 在境外、COS 在上海，跨境外网上传太慢
+# （常规域名 1.5h+，全球加速也提速有限），故改为：
+#   CI → GitHub Releases（站内快）→ 开发者本地下载 → 手工传 COS（国内快）
+# 手工传 COS 见 scripts/upload-cos-github.sh
 #
 # 所需 GitHub Secrets：
-# - TENCENT_CLOUD_SECRET_ID / TENCENT_CLOUD_SECRET_KEY：腾讯云子账号密钥（最小权限：PutObject + 分片上传）
-# - COS_BUCKET：bucket 全名（如 shadiaoai-1451923852）
-# - COS_REGION：地域（如 ap-shanghai）
+# - COS_BUCKET：bucket 全名（如 shadiaoai-1451923852），用于生成应用内更新 URL
+# - COS_REGION：地域（如 ap-shanghai），用于生成应用内更新 URL
 # - MAC_CERTS / MAC_CERTS_PASSWORD / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID：macOS 签名/公证（可选）
+# GITHUB_TOKEN 由 GitHub Actions 自动提供
 
-name: Release to COS
+name: Release to GitHub
 
 on:
   push:
     tags:
       - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-mac-arm64:
@@ -104,7 +109,7 @@ jobs:
           fi
         working-directory: apps/electron
 
-      - name: 整理待上传文件 (macOS arm64)
+      - name: 整理发布文件 (macOS arm64)
         run: |
           mkdir -p release-files
           cp out/ShaDiaoAgent-*-arm64.dmg release-files/
@@ -114,16 +119,11 @@ jobs:
           ls -la release-files/
         working-directory: apps/electron
 
-      - name: 上传到 COS (macOS arm64, 全球加速)
-        uses: TencentCloud/cos-action@v1
+      - name: 发布到 GitHub Releases (macOS arm64)
+        uses: softprops/action-gh-release@v2
         with:
-          secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
-          secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
-          cos_bucket: ${{ secrets.COS_BUCKET }}
-          cos_region: ${{ secrets.COS_REGION }}
-          local_path: apps/electron/release-files
-          remote_path: downloads/mac-arm64
-          accelerate: true
+          files: apps/electron/release-files/*
+          generate_release_notes: true
 
   build-windows-x64:
     name: build (windows-latest, win, x64)
@@ -184,7 +184,7 @@ jobs:
           fi
         working-directory: apps/electron
 
-      - name: 整理待上传文件 (Windows x64)
+      - name: 整理发布文件 (Windows x64)
         shell: bash
         run: |
           mkdir -p release-files
@@ -194,13 +194,8 @@ jobs:
           ls -la release-files/
         working-directory: apps/electron
 
-      - name: 上传到 COS (Windows x64, 全球加速)
-        uses: TencentCloud/cos-action@v1
+      - name: 发布到 GitHub Releases (Windows x64)
+        uses: softprops/action-gh-release@v2
         with:
-          secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
-          secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
-          cos_bucket: ${{ secrets.COS_BUCKET }}
-          cos_region: ${{ secrets.COS_REGION }}
-          local_path: apps/electron/release-files
-          remote_path: downloads/windows
-          accelerate: true
+          files: apps/electron/release-files/*
+          generate_release_notes: true
