@@ -23,7 +23,7 @@ const log = createLogger('AboutSettings')
 declare const __APP_VERSION__: string
 const APP_VERSION = __APP_VERSION__
 
-const GITHUB_RELEASES_URL = 'https://github.com/shadiao-agent/shadiao-agent/releases'
+const OFFICIAL_WEBSITE_URL = 'https://shadiaoai.github.io/shadiao-website/'
 
 /** 更新状态卡片 */
 function UpdateCard(): React.ReactElement | null {
@@ -47,7 +47,7 @@ function UpdateCard(): React.ReactElement | null {
   }
 
   const handleGoToDownload = (): void => {
-    const url = release?.html_url || GITHUB_RELEASES_URL
+    const url = release?.html_url || OFFICIAL_WEBSITE_URL
     window.electronAPI.openExternal(url)
   }
 
@@ -208,14 +208,14 @@ export function AboutSettings(): React.ReactElement {
         <SettingsRow label="运行时">
           <span className="text-sm text-muted-foreground">Electron + React</span>
         </SettingsRow>
-        <SettingsRow label="项目地址">
+        <SettingsRow label="官网">
           <a
-            href="https://github.com/shadiao-agent/shadiao-agent.git"
+            href="https://shadiaoai.github.io/shadiao-website/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-primary hover:underline"
           >
-            github.com/shadiao-agent/shadiao-agent
+            shadiaoai.github.io
           </a>
         </SettingsRow>
       </SettingsCard>

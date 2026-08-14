@@ -109,7 +109,6 @@ nsis:
 # 发布配置
 # ============================================
 publish:
-  provider: github
-  owner: ShaDiaoAI
-  repo: ShaDiaoAgent
-  releaseType: release
+  provider: generic
+  # 更新元数据地址，按架构在构建时通过环境变量注入（见 release.yml / release-cos-x64.sh）
+  url: ${env.SHADIAO_UPDATE_URL}

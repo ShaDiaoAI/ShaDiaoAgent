@@ -57,3 +57,5 @@ pnpm-workspace.yaml
 
 # Proma 会话/工作区文档（不应入仓，见 CLAUDE.md 红线）
 .context/
+apps/electron/coscli.log
+/apps/electron/coscli_output

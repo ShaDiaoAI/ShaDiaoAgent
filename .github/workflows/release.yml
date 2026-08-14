@@ -1,29 +1,25 @@
-# GitHub Actions: 自动打包分发
+# GitHub Actions: 打包并上传到腾讯云 COS
 #
-# 触发条件：推送 v* tag（如 v0.4.0）
-# 构建 macOS 和 Windows 产物并发布到 GitHub Releases
+# 触发条件：推送 v* tag（如 v1.0.7）
+# 产物：macOS arm64（CI）+ Windows x64（CI）→ 上传到 COS（公有读）
+#       macOS x64 由本地手工打包上传，见 apps/electron/scripts/release-cos-x64.sh
 #
-# 所需 GitHub Secrets（macOS 签名/公证，可选）:
-# - MAC_CERTS: Base64 编码的 macOS Developer ID Application 证书 (.p12)
-# - MAC_CERTS_PASSWORD: 证书密码
-# - APPLE_ID: Apple ID（公证用）
-# - APPLE_APP_SPECIFIC_PASSWORD: App-Specific 密码（公证用）
-# - APPLE_TEAM_ID: Apple Developer Team ID
-# GITHUB_TOKEN 由 GitHub Actions 自动提供，无需手动配置
+# 所需 GitHub Secrets：
+# - TENCENT_CLOUD_SECRET_ID / TENCENT_CLOUD_SECRET_KEY：腾讯云子账号密钥（最小权限：PutObject + 分片上传）
+# - COS_BUCKET：bucket 全名（如 shadiaoai-1451923852）
+# - COS_REGION：地域（如 ap-shanghai）
+# - MAC_CERTS / MAC_CERTS_PASSWORD / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID：macOS 签名/公证（可选）
 
-name: Release
+name: Release to COS
 
 on:
   push:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   build-mac-arm64:
-    name: build (macos-latest, mac, arm64, --arm64)
+    name: build (macos-latest, mac, arm64)
     runs-on: macos-latest
 
     steps:
@@ -53,7 +49,6 @@ jobs:
             echo "MAC_CERTS 未配置，跳过签名证书导入"
             exit 0
           fi
-          # 创建临时 keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
 
@@ -61,7 +56,6 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 导入证书
           echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
           security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -69,7 +63,6 @@ jobs:
 
           rm $RUNNER_TEMP/cert.p12
 
-      # 构建应用
       - name: 构建 Electron 应用
         run: bun run electron:build
         working-directory: .
@@ -78,18 +71,22 @@ jobs:
         run: bun run --filter='@shadiao/electron' sync:runtime-deps
         working-directory: .
 
-      # 打包并发布到 GitHub Releases
-      - name: 打包并发布 (macOS)
+      - name: 打包 (macOS arm64)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHADIAO_UPDATE_URL: https://${{ secrets.COS_BUCKET }}.cos.${{ secrets.COS_REGION }}.myqcloud.com/downloads/mac-arm64/
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          if [ -z "$SHADIAO_UPDATE_URL" ]; then
+            echo "::error::SHADIAO_UPDATE_URL 未设置"
+            exit 1
+          fi
+          echo "update URL: $SHADIAO_UPDATE_URL"
           success=0
           for i in 1 2 3; do
             echo "electron-builder attempt $i/3..."
-            if npx electron-builder --mac --arm64 --publish always; then
+            if npx electron-builder --mac --arm64; then
               success=1
               break
             fi
@@ -104,8 +101,29 @@ jobs:
           fi
         working-directory: apps/electron
 
+      - name: 整理待上传文件 (macOS arm64)
+        run: |
+          mkdir -p dist-cos
+          cp out/ShaDiaoAgent-*-arm64.dmg dist-cos/
+          cp out/ShaDiaoAgent-*-arm64.zip dist-cos/
+          cp out/ShaDiaoAgent-*-arm64.*.blockmap dist-cos/
+          cp out/latest-mac.yml dist-cos/
+          ls -la dist-cos/
+        working-directory: apps/electron
+
+      - name: 上传到 COS (macOS arm64)
+        uses: TencentCloud/cos-action@v1
+        with:
+          secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
+          secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
+          cos_bucket: ${{ secrets.COS_BUCKET }}
+          cos_region: ${{ secrets.COS_REGION }}
+          local_path: apps/electron/dist-cos
+          remote_path: downloads/mac-arm64
+          accelerate: false
+
   build-windows-x64:
-    name: build (windows-latest, win, x64, --x64)
+    name: build (windows-latest, win, x64)
     runs-on: windows-latest
 
     steps:
@@ -127,7 +145,6 @@ jobs:
         env:
           NODE_TLS_REJECT_UNAUTHORIZED: 0
 
-      # 构建应用
       - name: 构建 Electron 应用
         run: bun run electron:build
         working-directory: .
@@ -136,15 +153,20 @@ jobs:
         run: bun run --filter='@shadiao/electron' sync:runtime-deps
         working-directory: .
 
-      - name: 打包并发布 (Windows)
+      - name: 打包 (Windows x64)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHADIAO_UPDATE_URL: https://${{ secrets.COS_BUCKET }}.cos.${{ secrets.COS_REGION }}.myqcloud.com/downloads/windows/
         shell: bash
         run: |
+          if [ -z "$SHADIAO_UPDATE_URL" ]; then
+            echo "::error::SHADIAO_UPDATE_URL 未设置"
+            exit 1
+          fi
+          echo "update URL: $SHADIAO_UPDATE_URL"
           success=0
           for i in 1 2 3; do
             echo "electron-builder attempt $i/3..."
-            if npx electron-builder --win --x64 --publish always; then
+            if npx electron-builder --win --x64; then
               success=1
               break
             fi
@@ -158,3 +180,24 @@ jobs:
             exit 1
           fi
         working-directory: apps/electron
+
+      - name: 整理待上传文件 (Windows x64)
+        shell: bash
+        run: |
+          mkdir -p dist-cos
+          cp out/ShaDiaoAgent-Setup-*.exe dist-cos/
+          cp out/ShaDiaoAgent-Setup-*.exe.blockmap dist-cos/
+          cp out/latest.yml dist-cos/
+          ls -la dist-cos/
+        working-directory: apps/electron
+
+      - name: 上传到 COS (Windows x64)
+        uses: TencentCloud/cos-action@v1
+        with:
+          secret_id: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
+          secret_key: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
+          cos_bucket: ${{ secrets.COS_BUCKET }}
+          cos_region: ${{ secrets.COS_REGION }}
+          local_path: apps/electron/dist-cos
+          remote_path: downloads/windows
+          accelerate: false
