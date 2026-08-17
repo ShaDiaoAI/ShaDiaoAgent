@@ -103,6 +103,11 @@ export function CharacterInfo({ onOpenPanel, onOpenSkills, onOpenMcp, onOpenAuto
     // 同步更新前端 atom，确保 AgentView 发送消息时拿到正确的渠道/模型
     setAgentChannelId(option.channelId)
     setAgentModelId(option.modelId)
+    // 同步写 settings.json，与会话内路径对齐，避免重启后回退到残留默认值
+    window.electronAPI.updateSettings({
+      agentChannelId: option.channelId,
+      agentModelId: option.modelId,
+    }).catch(console.error)
     try {
       const r = await window.electronAPI.updateCharacter(selected.id, {
         bound_model: option.modelId,

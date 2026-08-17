@@ -20,7 +20,8 @@ export const quotaPercentAtom = atom<number>((get) => {
 /** 额度条状态词 */
 export function getQuotaStatusText(balance: number | null): string {
   if (balance == null) return '加载中...'
-  if (balance <= 0) return '已用完'
+  if (balance < 0) return '已欠费'
+  if (balance === 0) return '已用完'
   if (balance < 10) return '马上用完'
   if (balance < 50) return '该充电了'
   return '电量充足'
@@ -36,4 +37,14 @@ export function getQuotaColor(balance: number | null): {
   if (balance < 10) return { fill: 'bg-red-500', text: 'text-red-500' }
   if (balance < 50) return { fill: 'bg-amber-500', text: 'text-amber-500' }
   return { fill: 'bg-emerald-500', text: 'text-emerald-500' }
+}
+
+/**
+ * 额度条数字展示：>0 整数（floor + 封顶 100），<0 向上取整到角（如 -1.5），0/null 分别返回 '0'/'--'
+ */
+export function formatQuotaNumber(balance: number | null): string {
+  if (balance == null) return '--'
+  if (balance > 0) return String(Math.min(100, Math.floor(balance)))
+  if (balance < 0) return '-' + (Math.ceil(Math.abs(balance) * 10) / 10).toFixed(1)
+  return '0'
 }

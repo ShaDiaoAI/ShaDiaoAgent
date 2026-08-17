@@ -10,24 +10,18 @@ import { useAtom, useAtomValue } from 'jotai'
 import { Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { callQuotaAtom, quotaPercentAtom, getQuotaStatusText, getQuotaColor } from '@/atoms/quota-atoms'
+import { callQuotaAtom, quotaPercentAtom, getQuotaStatusText, getQuotaColor, formatQuotaNumber } from '@/atoms/quota-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import { useQuotaBalance } from '@/hooks/useQuotaBalance'
 
 export function QuotaBar(): React.ReactElement {
-  const [balance, setBalance] = useAtom(callQuotaAtom)
+  const balance = useAtomValue(callQuotaAtom)
   const percent = useAtomValue(quotaPercentAtom)
   const activeView = useAtomValue(activeViewAtom)
   const setActiveView = useAtom(activeViewAtom)[1]
 
-  // 初始加载
-  React.useEffect(() => {
-    if (balance !== null) return
-    window.electronAPI.getQuotaBalance?.().then((r: any) => {
-      if (r?.success && r.data?.balance != null) {
-        setBalance(r.data.balance)
-      }
-    }).catch(() => {})
-  }, [])
+  // 挂载拉取 + 断网恢复重拉（不重试），见 useQuotaBalance
+  useQuotaBalance({ autoFetch: true })
 
   const isLoading = balance === null
   const statusText = getQuotaStatusText(balance)
@@ -95,10 +89,10 @@ export function QuotaBar(): React.ReactElement {
 
         {/* 数字 */}
         <span className={cn(
-          'text-[11px] font-medium tabular-nums min-w-[1.5em] text-right',
+          'text-[11px] font-medium tabular-nums min-w-[2em] text-right',
           isLoading ? 'text-muted-foreground/40' : colors.text,
         )}>
-          {isLoading ? '--' : percent}
+          {isLoading ? '--' : formatQuotaNumber(balance)}
         </span>
 
         {/* 状态词 */}

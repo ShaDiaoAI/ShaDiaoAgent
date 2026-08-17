@@ -55,8 +55,8 @@ const CHANNEL_TEST_TIMEOUT_MS = 15_000
 const CODEX_PLAN_QUOTA_TIMEOUT_MS = 30_000
 const ARK_CODING_PLAN_TEST_MODEL = 'doubao-seed-2.0-code'
 const DEEPSEEK_PRESET_MODELS: ChannelModel[] = [
-  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true },
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', enabled: true },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true },
 ]
 const KIMI_PRESET_MODELS: ChannelModel[] = [
   { id: 'k3', name: 'Kimi K3', enabled: true },
@@ -405,7 +405,7 @@ export function listChannels(): Channel[] {
       provider: 'anthropic',
       baseUrl,
       apiKey: 'django-managed', // 占位符，无需加密（真 key 由 Django 管理）
-      models: [{ id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true }],
+      models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', enabled: true }],
       enabled: true,
       createdAt: now,
       updatedAt: now,

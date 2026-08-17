@@ -11,6 +11,7 @@ import { charactersAtom, charactersLoadingAtom, selectedCharacterAtom } from './
 import { isAuthenticatedAtom } from './atoms/auth-atoms'
 import { userProfileAtom } from './atoms/user-profile'
 import { tabsAtom, activeTabIdAtom } from './atoms/tab-atoms'
+import { useCharacterBoundModel } from './hooks/useCharacterBoundModel'
 
 export default function App(): React.ReactElement {
   const agentReady = useAtomValue(agentSettingsReadyAtom)
@@ -27,6 +28,9 @@ export default function App(): React.ReactElement {
   const setAgentSessions = useSetAtom(agentSessionsAtom)
   const setCurrentAgentSessionId = useSetAtom(currentAgentSessionIdAtom)
   const setSelectedCharacter = useSetAtom(selectedCharacterAtom)
+
+  // 人物绑定模型回填：人物切换/恢复时，将 bound_model 回填为全局默认模型
+  useCharacterBoundModel()
 
   // Django 认证状态（Jotai atom，跨组件共享，登出时不需要 reload）
   const [isAuthenticated, setIsAuthenticated] = useAtom(isAuthenticatedAtom)

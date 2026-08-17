@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { callQuotaAtom } from '@/atoms/quota-atoms'
 import { activeViewAtom } from '@/atoms/active-view'
+import { fetchQuotaBalance } from '@/hooks/useQuotaBalance'
 import { createLogger } from '@shadiao/shared'
 
 const log = createLogger('RechargeView')
@@ -114,12 +115,8 @@ export function RechargeView(): React.ReactElement {
   }, [])
 
   async function fetchBalance() {
-    try {
-      const r = await window.electronAPI.getQuotaBalance?.()
-      if (r?.success && r.data?.balance != null) {
-        setBalance(r.data.balance)
-      }
-    } catch (e) { log.error('fetchBalance:', e) }
+    const b = await fetchQuotaBalance()
+    if (b != null) setBalance(b)
   }
 
   async function fetchProducts() {

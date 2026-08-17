@@ -59,6 +59,7 @@ import { registerShortcut } from '@/lib/shortcut-registry'
 import { previewPanelOpenMapAtom, quotedSelectionMapAtom, currentQuotedSelectionAtom } from '@/atoms/preview-atoms'
 import type { QuotedSelection } from '@/atoms/preview-atoms'
 import { callQuotaAtom } from '@/atoms/quota-atoms'
+import { fetchQuotaBalance } from '@/hooks/useQuotaBalance'
 import {
   agentStreamingStatesAtom,
   agentSessionStreamingStateAtomFamily,
@@ -107,6 +108,7 @@ import type { AgentContextStatus } from '@/atoms/agent-atoms'
 import { settingsOpenAtom } from '@/atoms/settings-tab'
 import { longTextPasteAsAttachmentEnabledAtom } from '@/atoms/ui-preferences'
 import { channelsAtom, thinkingExpandedAtom } from '@/atoms/chat-atoms'
+import { charactersAtom, selectedCharacterAtom } from '@/atoms/character-atoms'
 import { useOpenSession } from '@/hooks/useOpenSession'
 import { AgentSessionProvider } from '@/contexts/session-context'
 import { draftSessionIdsAtom } from '@/atoms/draft-session-atoms'
@@ -483,6 +485,8 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     () => sessions.find((s) => s.id === sessionId),
     [sessions, sessionId],
   )
+  const setCharacters = useSetAtom(charactersAtom)
+  const setSelectedCharacter = useSetAtom(selectedCharacterAtom)
   const sessionMetaChannelId = sessionMeta?.channelId
   const sessionMetaModelId = sessionMeta?.modelId
   const hasSessionMeta = Boolean(sessionMeta)
@@ -972,11 +976,11 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
 
     // 预检查调用额度：余额耗尽时阻断发送，弹出充值引导弹窗。
     // 同时将最新余额回写 callQuotaAtom，使侧边栏额度条实时反映最新值。
-    const balResult = await window.electronAPI.getQuotaBalance?.()
-    if (balResult?.success && balResult.data?.balance != null) {
+    const balance = await fetchQuotaBalance()
+    if (balance != null) {
       lastQuotaFetchRef.current = Date.now()
-      store.set(callQuotaAtom, balResult.data.balance)
-      if (balResult.data.balance <= 0) {
+      store.set(callQuotaAtom, balance)
+      if (balance <= 0) {
         setShowQuotaDialog(true)
         return
       }
@@ -1037,13 +1041,13 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
     if (now - lastQuotaFetchRef.current < 5000) return  // 5s 防抖，避免与 send-time 重复
 
     lastQuotaFetchRef.current = now
-    window.electronAPI.getQuotaBalance?.()
-      .then((r: any) => {
-        if (r?.success && r.data?.balance != null) {
-          store.set(callQuotaAtom, r.data.balance)
+    fetchQuotaBalance()
+      .then((balance) => {
+        if (balance != null) {
+          store.set(callQuotaAtom, balance)
         }
       })
-      .catch(() => {})  // 静默忽略网络错误，保留旧值
+      .catch(() => {})  // 静默忽略，保留旧值
   }, [streaming, store])
 
   // 消息是否已完成首次加载（用于 auto-send 等待）
@@ -1826,7 +1830,19 @@ export function AgentView({ sessionId }: { sessionId: string }): React.ReactElem
         )))
       })
       .catch(console.error)
-  }, [sessionId, setSessionChannelMap, setSessionModelMap, setDefaultChannelId, setDefaultModelId, agentChannelIds, setAgentChannelIds, setAgentSessions])
+
+    // 同步写回人物 bound_model（模型随人物），保持人物默认与当前使用模型一致
+    const characterId = sessionMeta?.characterId
+    if (characterId != null) {
+      window.electronAPI.updateCharacter(characterId, { bound_model: option.modelId })
+        .then((r) => {
+          if (!r?.success || !r.data) return
+          setCharacters((prev) => prev.map((c) => (c.id === r.data.id ? r.data : c)))
+          setSelectedCharacter((prev) => (prev?.id === r.data.id ? r.data : prev))
+        })
+        .catch(console.error)
+    }
+  }, [sessionId, sessionMeta, setSessionChannelMap, setSessionModelMap, setDefaultChannelId, setDefaultModelId, agentChannelIds, setAgentChannelIds, setAgentSessions, setCharacters, setSelectedCharacter])
 
   const handleAgentRuntimeChange = React.useCallback(async (runtime: AgentRuntime): Promise<void> => {
     if (!experimentalRuntimeSwitchEnabled && runtime !== 'claude') {

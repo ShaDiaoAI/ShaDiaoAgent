@@ -81,7 +81,7 @@ const PROVIDER_OPTIONS: ProviderType[] = ['anthropic', 'anthropic-compatible', '
 
 /** 需要用 messages 端点测试的供应商预设模型 */
 const PROVIDER_TEST_MODEL_PRESETS: Partial<Record<ProviderType, string[]>> = {
-  deepseek: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+  deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
   'kimi-api': ['k3', 'kimi-k2.6'],
   xiaomi: ['mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2.5', 'mimo-v2-omni', 'mimo-v2-flash'],
   'xiaomi-token-plan': ['mimo-v2.5-pro', 'mimo-v2-pro', 'mimo-v2.5', 'mimo-v2-omni', 'mimo-v2-flash'],
@@ -353,8 +353,8 @@ export function ChannelForm({ channel, onSaved, onAgentEligibilityChange, onCanc
     if (models.length === 0) {
       if (p === 'deepseek') {
         setModels([
-          { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true },
           { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', enabled: true },
+          { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', enabled: true },
         ])
       } else if (p === 'kimi-api') {
         setModels([
