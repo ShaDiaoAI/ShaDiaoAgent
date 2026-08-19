@@ -73,13 +73,12 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 导入 .p12（证书+私钥）。用 Apple 官方 import-codesign-certs 的配方：
-          # -A 允许任意应用访问私钥（避免无头 CI 弹授权框卡死）；-t cert 避免「item already exists」冲突。
+          # 导入 .p12（证书+私钥）。用 -T 限定 codesign/productbuild 访问（不要用 -A，否则会报 item already exists）。
           echo "$MAC_CERTS" | base64 --decode > "$CERT_PATH"
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -A -t cert -f pkcs12 -P "$MAC_CERTS_PASSWORD"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productbuild -P "$MAC_CERTS_PASSWORD"
           rm -f "$CERT_PATH"
 
-          # 关键：分区里必须带 codesign:，否则 codesign 仍会弹授权框卡住（apple-tool:,apple: 只够 notarytool）
+          # 关键：分区里必须带 codesign:，否则 codesign 会弹授权框在无头 CI 上卡死（apple-tool:,apple: 只够 notarytool）
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           # 补 Developer ID 中间证书（G2），保证信任链完整，否则 spctl / codesign --verify 报 CSSMERR_TP_NOT_TRUSTED
