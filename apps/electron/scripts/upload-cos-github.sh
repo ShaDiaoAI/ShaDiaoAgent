@@ -8,6 +8,7 @@
 #   ShaDiaoAgent-{v}-arm64.dmg / .zip / .dmg.blockmap / .zip.blockmap
 #   latest-mac.yml                       ← arm64 的元数据（与 x64 的区分开，x64 走 release-cos-x64.sh）
 #   ShaDiaoAgent-Setup-{v}-x64.exe / .exe.blockmap
+#   ShaDiaoAgent-{v}-x64-portable.zip      ← Windows 免安装便携版
 #   latest.yml                           ← Windows 的元数据
 set -euo pipefail
 
@@ -40,6 +41,7 @@ echo "==> 上传 Windows x64 → downloads/windows/"
 for f in \
   "ShaDiaoAgent-Setup-${VERSION}-x64.exe" \
   "ShaDiaoAgent-Setup-${VERSION}-x64.exe.blockmap" \
+  "ShaDiaoAgent-${VERSION}-x64-portable.zip" \
   "latest.yml"; do
   [ -f "${DIR}/${f}" ] && coscli cp "${DIR}/${f}" "cos://${COS_ALIAS}/downloads/windows/${f}" \
     || echo "  ⚠️ 跳过缺失: ${f}"

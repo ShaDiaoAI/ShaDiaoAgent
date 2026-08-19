@@ -91,9 +91,14 @@ dmg:
 # ============================================
 win:
   icon: resources/icon.ico
-  artifactName: ShaDiaoAgent-Setup-${version}-${arch}.${ext}
+  # 免安装 zip（便携版）的产物名；NSIS 安装器用 nsis.artifactName 单独命名，不受此影响
+  artifactName: ShaDiaoAgent-${version}-${arch}-portable.${ext}
   target:
     - target: nsis
+      arch:
+        - x64
+    # 免安装便携版兜底：装不上 NSIS（杀软拦截等）的用户直接解压即用
+    - target: zip
       arch:
         - x64
 

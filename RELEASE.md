@@ -31,7 +31,7 @@
 ## 前置条件（一次性）
 
 - COS bucket `shadiaoai-1451923852`（ap-shanghai，公有读私有写）
-- GitHub repo secrets：`COS_BUCKET`、`COS_REGION`（可选 `MAC_CERTS` 等 macOS 签名用）
+- GitHub repo secrets：`COS_BUCKET`、`COS_REGION`、`MAC_CERTS` + `MAC_CERTS_PASSWORD`（macOS 签名）、`APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`（macOS 公证）
 - 本地已装 coscli 并配置好（`coscli config init`，APPID=`1451923852`、Bucket=`shadiaoai`、Endpoint=`cos.ap-shanghai.myqcloud.com`）
 
 ## 发版步骤
@@ -50,7 +50,7 @@ git tag v1.0.7
 git push origin v1.0.7
 ```
 
-CI 自动打包 macOS arm64 + Windows x64，上传到 GitHub Releases（`https://github.com/ShaDiaoAI/ShaDiaoAgent/releases`）。产物包括 dmg/zip/exe + blockmap + `latest*.yml`。
+CI 自动打包 macOS arm64 + Windows x64，上传到 GitHub Releases（`https://github.com/ShaDiaoAI/ShaDiaoAgent/releases`）。产物包括 dmg/zip/exe + blockmap + `latest*.yml`，外加 Windows 免安装便携版 `ShaDiaoAgent-{v}-x64-portable.zip`（给装不上 NSIS 的用户解压即用）。
 
 ### 3. 本地打包 + 上传 macOS x64 到 COS
 
@@ -62,7 +62,7 @@ apps/electron/scripts/release-cos-x64.sh
 
 ### 4. 下载 arm64 + Windows，手工上传到 COS
 
-从 GitHub Release 下载 arm64 和 win 的产物（dmg/zip/blockmap/`latest-mac.yml`、exe/blockmap/`latest.yml`）到一个目录，然后：
+从 GitHub Release 下载 arm64 和 win 的产物（dmg/zip/blockmap/`latest-mac.yml`、exe/blockmap/`latest.yml`、`*-portable.zip`）到一个目录，然后：
 
 ```bash
 apps/electron/scripts/upload-cos-github.sh <下载目录> 1.0.7
@@ -96,3 +96,4 @@ git push
 - **blockmap** 是可选的差量更新文件，缺了自动回退全量下载；但脚本/CI 已自动带上，无需手动处理。
 - **COS bucket 是公有读**，只放安装包，别放任何敏感文件。
 - **老版本用户断档**：切到 COS 后，已装的旧版本（`app-update.yml` 指向 GitHub 私有仓库）不会自动更新，需手动下载一次新版本，之后自动更新才接上。
+- **Windows 免安装便携版**：`ShaDiaoAgent-{v}-x64-portable.zip` 是解压即用的兜底包，用户解压后直接运行里面的 `沙雕智能体.exe`，不需要安装器。主要用于 NSIS 安装器被杀软拦截（未签名 Electron 应用的常见症状）时给用户一条绕过路径；它**不参与自动更新**（无 `latest.yml`），所以发给用户时记得提醒：装了便携版的用户以后要手动换新版本。

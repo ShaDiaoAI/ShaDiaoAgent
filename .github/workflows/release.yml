@@ -12,8 +12,14 @@
 # 所需 GitHub Secrets：
 # - COS_BUCKET：bucket 全名（如 shadiaoai-1451923852），用于生成应用内更新 URL
 # - COS_REGION：地域（如 ap-shanghai），用于生成应用内更新 URL
-# - MAC_CERTS / MAC_CERTS_PASSWORD / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID：macOS 签名/公证（可选）
+# - MAC_CERTS：base64 编码的 Developer ID .p12（必须含证书 + 私钥）
+# - MAC_CERTS_PASSWORD：导出 .p12 时设置的密码
+# - APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID：macOS 公证（notarization，缺一不可）
 # GITHUB_TOKEN 由 GitHub Actions 自动提供
+#
+# 导出 .p12（本地 Keychain Access）：
+#   右键「Developer ID Application: Yu Leng (R78GJUJ696)」→ 导出为 .p12 → 设密码
+#   base64 -i cert.p12 | pbcopy → 粘贴为 MAC_CERTS secret（去掉换行）
 
 name: Release to GitHub
 
@@ -47,29 +53,50 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
 
-      # macOS 代码签名准备（仅在配置了证书时执行）
+      # macOS 代码签名准备（证书已配置，缺任一凭据直接失败，避免静默产出未签名包）
       - name: 导入 macOS 签名证书
         env:
           MAC_CERTS: ${{ secrets.MAC_CERTS }}
           MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
         run: |
-          if [ -z "$MAC_CERTS" ]; then
-            echo "MAC_CERTS 未配置，跳过签名证书导入"
-            exit 0
+          set -euo pipefail
+          if [ -z "${MAC_CERTS:-}" ] || [ -z "${MAC_CERTS_PASSWORD:-}" ]; then
+            echo "::error::MAC_CERTS / MAC_CERTS_PASSWORD 未配置，无法签名。请在仓库 Settings → Secrets and variables → Actions 添加。"
+            exit 1
           fi
-          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          echo "$MAC_CERTS" | base64 --decode > $RUNNER_TEMP/cert.p12
-          security import $RUNNER_TEMP/cert.p12 -P "$MAC_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          # 导入 .p12。注意：不要加 -t cert，否则只导入证书、丢掉私钥，find-identity 会显示 0 个身份。
+          echo "$MAC_CERTS" | base64 --decode > "$CERT_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productbuild -P "$MAC_CERTS_PASSWORD"
+          rm -f "$CERT_PATH"
 
-          rm $RUNNER_TEMP/cert.p12
+          # 允许 codesign / notarytool 免弹窗访问私钥
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # 补 Developer ID 中间证书（G2），保证信任链完整，否则 spctl / codesign --verify 报 CSSMERR_TP_NOT_TRUSTED
+          curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/DeveloperIDG2CA.cer"
+
+          # 设为默认 keychain（进入搜索列表）
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          # 校验：必须有带私钥的「Developer ID Application」身份
+          echo "==> 已导入的签名身份："
+          security find-identity -v -p codesigning
+          if ! security find-identity -v -p codesigning | grep -q "Developer ID Application"; then
+            echo "::error::未找到 Developer ID Application 身份，请确认 .p12 同时包含证书与私钥。"
+            exit 1
+          fi
 
       - name: 构建 Electron 应用
         run: bun run electron:build
@@ -90,6 +117,10 @@ jobs:
             echo "::error::SHADIAO_UPDATE_URL 未设置"
             exit 1
           fi
+          if [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::error::APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID 未设置，无法公证。"
+            exit 1
+          fi
           echo "update URL: $SHADIAO_UPDATE_URL"
           success=0
           for i in 1 2 3; do
@@ -107,6 +138,22 @@ jobs:
             echo "::error::electron-builder failed after 3 attempts"
             exit 1
           fi
+        working-directory: apps/electron
+
+      - name: 校验签名与公证 (macOS arm64)
+        run: |
+          set -euo pipefail
+          APP="out/mac-arm64/沙雕智能体.app"
+          if [ ! -d "$APP" ]; then
+            echo "::error::未找到应用包 $APP，请确认产物路径。"
+            exit 1
+          fi
+          echo "==> codesign 深校验："
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          echo "==> Gatekeeper 评估（签名 + 公证）："
+          spctl --assess --type execute --verbose=4 "$APP"
+          echo "==> 公证票据校验："
+          xcrun stapler validate "$APP"
         working-directory: apps/electron
 
       - name: 整理发布文件 (macOS arm64)
@@ -190,6 +237,7 @@ jobs:
           mkdir -p release-files
           cp out/ShaDiaoAgent-Setup-*.exe release-files/
           cp out/ShaDiaoAgent-Setup-*.exe.blockmap release-files/
+          cp out/ShaDiaoAgent-*-portable.zip release-files/
           cp out/latest.yml release-files/
           ls -la release-files/
         working-directory: apps/electron
