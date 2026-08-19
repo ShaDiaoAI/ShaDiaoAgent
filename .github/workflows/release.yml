@@ -73,22 +73,22 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 导入 .p12。注意：不要加 -t cert，否则只导入证书、丢掉私钥，find-identity 会显示 0 个身份。
+          # 导入 .p12（证书+私钥）。-A 允许任意应用访问私钥，避免 codesign 在无头 CI 上弹钥匙串授权框卡死。
           echo "$MAC_CERTS" | base64 --decode > "$CERT_PATH"
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/productbuild -P "$MAC_CERTS_PASSWORD"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -A -f pkcs12 -P "$MAC_CERTS_PASSWORD"
           rm -f "$CERT_PATH"
 
-          # 允许 codesign / notarytool 免弹窗访问私钥
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          # 关键：分区里必须带 codesign:，否则 codesign 仍会弹授权框卡住（apple-tool:,apple: 只够 notarytool）
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           # 补 Developer ID 中间证书（G2），保证信任链完整，否则 spctl / codesign --verify 报 CSSMERR_TP_NOT_TRUSTED
           curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
           security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN_PATH" -T /usr/bin/codesign
           rm -f "$RUNNER_TEMP/DeveloperIDG2CA.cer"
 
-          # 设为默认 keychain（进入搜索列表）
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
+          # 追加进搜索列表（保留原有 login/system），并设为默认 keychain
+          security list-keychain -d user -s "$KEYCHAIN_PATH" "$(security list-keychains -d user | sed 's/"//g')"
+          security default-keychain -d user -s "$KEYCHAIN_PATH"
 
           # 校验：必须有带私钥的「Developer ID Application」身份
           echo "==> 已导入的签名身份："
