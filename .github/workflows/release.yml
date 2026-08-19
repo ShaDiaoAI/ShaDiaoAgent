@@ -73,9 +73,10 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          # 导入 .p12（证书+私钥）。-A 允许任意应用访问私钥，避免 codesign 在无头 CI 上弹钥匙串授权框卡死。
+          # 导入 .p12（证书+私钥）。用 Apple 官方 import-codesign-certs 的配方：
+          # -A 允许任意应用访问私钥（避免无头 CI 弹授权框卡死）；-t cert 避免「item already exists」冲突。
           echo "$MAC_CERTS" | base64 --decode > "$CERT_PATH"
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -A -f pkcs12 -P "$MAC_CERTS_PASSWORD"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -A -t cert -f pkcs12 -P "$MAC_CERTS_PASSWORD"
           rm -f "$CERT_PATH"
 
           # 关键：分区里必须带 codesign:，否则 codesign 仍会弹授权框卡住（apple-tool:,apple: 只够 notarytool）
