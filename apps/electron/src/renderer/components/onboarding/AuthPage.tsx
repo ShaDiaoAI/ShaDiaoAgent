@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { AuthCharacterAnim } from './AuthCharacterAnim'
 import shadiaoLogo from '@/assets/bots/shadiao-logos/shadiao-logo.png'
+import watchaLogo from '@/assets/bots/watcha.png'
 
 interface AuthPageProps {
   onAuthSuccess: () => void
@@ -18,6 +19,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps): React.ReactElement {
   const [showPassword, setShowPassword] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [watchaLoading, setWatchaLoading] = React.useState(false)
 
   const isLogin = tab === 'login'
   const isFormValid = username.trim() && password && (!isLogin || true) && (isLogin || password.length >= 6)
@@ -67,6 +69,43 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps): React.ReactElement {
     }
   }
 
+  // ===== 观猹 OAuth 登录 =====
+  const handleWatchaLogin = async () => {
+    setError('')
+    setWatchaLoading(true)
+    try {
+      const r = await window.electronAPI.djangoOAuthWatchaStart()
+      if (!r.success) {
+        setWatchaLoading(false)
+        setError(r.error || '发起观猹登录失败')
+      }
+      // 成功发起后保持 watchaLoading，等待 onWatchaOauthResult 事件回传最终结果
+    } catch (e) {
+      setWatchaLoading(false)
+      setError((e as Error).message || '发起观猹登录失败')
+    }
+  }
+
+  const handleWatchaCancel = async () => {
+    try {
+      await window.electronAPI.djangoOAuthWatchaCancel()
+    } catch { /* 取消失败忽略，最终结果事件会兜底 */ }
+  }
+
+  React.useEffect(() => {
+    const off = window.electronAPI.onWatchaOauthResult((result) => {
+      setWatchaLoading(false)
+      if (result.success) {
+        toast.success(result.isNewUser ? '观猹登录成功，欢迎来到沙雕智能体！🦐' : '观猹登录成功，欢迎回来！')
+        onAuthSuccess()
+      } else if (!(result.cancelled && !result.error)) {
+        // 主动取消（cancelled 且无 error）静默复位，其余展示错误
+        setError(result.error || '观猹登录失败')
+      }
+    })
+    return off
+  }, [onAuthSuccess])
+
   // ===== 密码显隐图标 =====
   const EyeIcon = showPassword ? (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -84,7 +123,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps): React.ReactElement {
     <div className="flex h-screen items-center justify-center bg-background p-4">
       <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
         {/* ===== 角色动画 ===== */}
-        <div className="hidden md:block w-[250px]">
+        <div className="hidden md:block w-[320px]">
           <AuthCharacterAnim className="w-full" />
         </div>
 
@@ -185,6 +224,42 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps): React.ReactElement {
               {isLogin ? '创建一个' : '去登录'}
             </button>
           </p>
+
+          {/* ===== 观猹 OAuth 登录 ===== */}
+          <div className="space-y-3">
+            {/* 水平分割线 + 或 */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-muted-foreground/20" />
+              <span className="text-xs text-muted-foreground">或</span>
+              <div className="h-px flex-1 bg-muted-foreground/20" />
+            </div>
+
+            {/* 观猹登录按钮 */}
+            <button
+              type="button"
+              onClick={handleWatchaLogin}
+              disabled={watchaLoading}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors text-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {watchaLoading ? (
+                <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : (
+                <img src={watchaLogo} alt="观猹" className="size-5 rounded" />
+              )}
+              <span>{watchaLoading ? '等待浏览器授权…' : (isLogin ? '观猹一键登录' : '观猹一键注册')}</span>
+            </button>
+
+            {/* 等待态：取消入口 */}
+            {watchaLoading && (
+              <button
+                type="button"
+                onClick={handleWatchaCancel}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+              >
+                取消
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

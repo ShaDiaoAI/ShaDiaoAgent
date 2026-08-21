@@ -1065,6 +1065,9 @@ export interface ElectronAPI {
   djangoRegister: (params: { username: string; password: string; baseUrl?: string }) => Promise<{ success: boolean; data?: any; error?: string }>
   djangoLogout: () => Promise<{ success: boolean }>
   getAuthStatus: () => Promise<{ success: boolean; data?: any }>
+  djangoOAuthWatchaStart: () => Promise<{ success: boolean; error?: string }>
+  djangoOAuthWatchaCancel: () => Promise<{ success: boolean; error?: string }>
+  onWatchaOauthResult: (callback: (result: { success: boolean; isNewUser?: boolean; cancelled?: boolean; error?: string }) => void) => () => void
 
   // ===== ShaDiaoAgent: 人物 =====
   listCharacters: () => Promise<{ success: boolean; data?: any[]; error?: string }>
@@ -2473,6 +2476,15 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke('django:logout'),
   getAuthStatus: () =>
     ipcRenderer.invoke('django:auth-status'),
+  djangoOAuthWatchaStart: () =>
+    ipcRenderer.invoke('django:oauth-watcha-start'),
+  djangoOAuthWatchaCancel: () =>
+    ipcRenderer.invoke('django:oauth-watcha-cancel'),
+  onWatchaOauthResult: (callback) => {
+    const listener = (_: unknown, result: { success: boolean; isNewUser?: boolean; cancelled?: boolean; error?: string }): void => callback(result)
+    ipcRenderer.on('django:oauth-watcha-result', listener)
+    return () => { ipcRenderer.removeListener('django:oauth-watcha-result', listener) }
+  },
 
   // ===== ShaDiaoAgent: 人物 =====
   listCharacters: () => ipcRenderer.invoke('character:list'),

@@ -4626,6 +4626,28 @@ export function registerIpcHandlers(): void {
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
 
+  // ===== ShaDiao: 观猹 OAuth 登录 =====
+  // 发起后由主进程本地 server 承接回调，最终结果通过 'django:oauth-watcha-result' 推给渲染层
+  ipcMain.handle('django:oauth-watcha-start', async (event) => {
+    try {
+      const { startWatchaOAuth } = await import('./lib/watcha-oauth.js')
+      await startWatchaOAuth((result) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('django:oauth-watcha-result', result)
+        }
+      })
+      return { success: true }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('django:oauth-watcha-cancel', async () => {
+    try {
+      const { cancelWatchaOAuth } = await import('./lib/watcha-oauth.js')
+      cancelWatchaOAuth()
+      return { success: true }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
   // ===== ShaDiao: 人物系统 =====
   ipcMain.handle('character:list', async () => {
     try {

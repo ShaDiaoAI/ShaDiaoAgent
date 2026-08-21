@@ -121,6 +121,12 @@ export function getAuthState(): DjangoAuthState {
     ?? { baseUrl: getDefaultBaseUrl(), token: '', username: '', isLoggedIn: false }
 }
 
+/** 将认证状态写入 django-auth.json 并返回（登录/注册/OAuth 三处复用） */
+function persistAuthState(state: DjangoAuthState): DjangoAuthState {
+  writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE), state)
+  return state
+}
+
 export async function loginToDjango(username: string, password: string, baseUrl?: string): Promise<DjangoAuthState> {
   const url = baseUrl || getDefaultBaseUrl()
   const r = await fetch(url + '/api/auth/login', {
@@ -130,9 +136,7 @@ export async function loginToDjango(username: string, password: string, baseUrl?
   })
   if (!r.ok) throw new Error('Login failed: ' + r.status)
   const d = await r.json() as { id: number; username: string; token: string }
-  const s: DjangoAuthState = { baseUrl: url, token: d.token, username, isLoggedIn: true }
-  writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE), s)
-  return s
+  return persistAuthState({ baseUrl: url, token: d.token, username, isLoggedIn: true })
 }
 
 export function logoutFromDjango() {
@@ -154,9 +158,36 @@ export async function registerToDjango(username: string, password: string, baseU
     throw new Error('注册失败: ' + r.status)
   }
   const d = await r.json() as { id: number; username: string; token: string }
-  const s: DjangoAuthState = { baseUrl: url, token: d.token, username, isLoggedIn: true }
-  writeJsonFileAtomic(join(getConfigDir(), AUTH_FILE), s)
-  return s
+  return persistAuthState({ baseUrl: url, token: d.token, username, isLoggedIn: true })
+}
+
+export interface WatchaLoginResult {
+  auth: DjangoAuthState
+  isNewUser: boolean
+}
+
+/**
+ * 观猹 OAuth 回调换本地 token
+ *
+ * 后端已完成 code + state 校验并复用 bootstrap（首登建号 + 默认角色 + 试用币），
+ * 客户端只需拿返回的 token 落盘，观猹 access_token 全程不接触、不存储。
+ */
+export async function completeWatchaLogin(code: string, state: string, baseUrl?: string): Promise<WatchaLoginResult> {
+  const url = baseUrl || getDefaultBaseUrl()
+  const r = await fetch(url + '/api/auth/oauth/watcha/callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, state }),
+  })
+  if (!r.ok) {
+    const errorData = await r.json().catch(() => ({})) as Record<string, unknown>
+    const detail = typeof errorData.detail === 'string' ? errorData.detail : ''
+    if (detail) throw new Error(detail)
+    throw new Error('观猹登录失败: ' + r.status)
+  }
+  const d = await r.json() as { id: number; username: string; token: string; is_new_user: boolean }
+  const auth = persistAuthState({ baseUrl: url, token: d.token, username: d.username, isLoggedIn: true })
+  return { auth, isNewUser: d.is_new_user === true }
 }
 
 export async function validateToken(): Promise<boolean> {

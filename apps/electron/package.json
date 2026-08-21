@@ -1,6 +1,6 @@
 {
   "name": "@shadiao/electron",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "ShaDiao Agent — a character-driven AI desktop client with general agents - Electron App",
   "main": "dist/main.cjs",
   "author": {
