@@ -11,7 +11,7 @@ import { atom } from 'jotai'
 
 export type ActiveView = 'conversations' | 'automations' | 'agent-skills' | 'character-panel' | 'recharge'
 export type AgentSkillsCapabilityTab = 'skills' | 'mcp' | 'memory'
-export type CharacterPanelTab = 'info' | 'skins' | 'gacha'
+export type CharacterPanelTab = 'info' | 'skins' | 'train' | 'gacha'
 
 /** 当前活跃视图（不持久化，每次启动默认显示对话） */
 export const activeViewAtom = atom<ActiveView>('conversations')

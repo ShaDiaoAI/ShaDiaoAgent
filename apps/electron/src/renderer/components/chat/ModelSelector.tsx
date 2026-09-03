@@ -40,9 +40,12 @@ function buildModelOptions(channels: Channel[], filterChannelId?: string, filter
     if (filterChannelId && channel.id !== filterChannelId) continue
     if (filterChannelIds && filterChannelIds.length > 0 && !filterChannelIds.includes(channel.id)) continue
 
-    for (const model of channel.models) {
-      if (!model.enabled) continue
+    // 同一厂商（渠道）下的模型按显示名字母序排序
+    const enabledModels = channel.models
+      .filter((model) => model.enabled)
+      .sort((a, b) => a.name.localeCompare(b.name))
 
+    for (const model of enabledModels) {
       options.push({
         channelId: channel.id,
         channelName: channel.name,

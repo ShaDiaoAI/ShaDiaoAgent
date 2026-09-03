@@ -3,6 +3,7 @@ import { useRiveAgentState } from '@/hooks/useRiveAgentState'
 import { RIVE_STATE_LABELS, type RiveAgentState } from '@/atoms/rive-atoms'
 import { useAtomValue } from 'jotai'
 import { selectedCharacterAtom } from '@/atoms/character-atoms'
+import { pveStatusAtom } from '@/atoms/pve-atoms'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { createLogger } from '@shadiao/shared'
@@ -124,7 +125,7 @@ function Placeholder({ state }: { state: RiveAgentState }) {
 }
 
 // ===== 主组件 =====
-interface CharacterAnimProps { className?: string; coins?: number }
+interface CharacterAnimProps { className?: string; coins?: number; onCanvasClick?: () => void }
 
 /** 浮动 +N 文字实例 */
 interface FloatingText {
@@ -132,9 +133,10 @@ interface FloatingText {
   amount: number
 }
 
-export function CharacterAnim({ className, coins }: CharacterAnimProps): React.ReactElement {
+export function CharacterAnim({ className, coins, onCanvasClick }: CharacterAnimProps): React.ReactElement {
   const state = useRiveAgentState()
   const selectedChar = useAtomValue(selectedCharacterAtom)
+  const pveStatus = useAtomValue(pveStatusAtom)
   const animAssetId = selectedChar?.equipped_skin?.rive_asset_id || '乞丐虾仁'
   const currentSkinId = selectedChar?.equipped_skin?.id
 
@@ -399,9 +401,11 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
       className={cn(
         'relative overflow-hidden rounded-2xl border-2 border-border/60 bg-muted/30',
         'flex items-center justify-center transition-shadow duration-300',
+        onCanvasClick && 'cursor-pointer hover:ring-2 hover:ring-primary/30',
         skinFlash && 'ring-2 ring-primary/40 shadow-lg shadow-primary/20',
         className,
       )}
+      onClick={onCanvasClick}
     >
       {phase !== 'ready' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
@@ -425,7 +429,30 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
       <div className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-muted-foreground font-medium select-none pointer-events-none">
         {skinFlash ? `✨ 已更换：${selectedChar?.equipped_skin?.name ?? ''}` : RIVE_STATE_LABELS[state]}
       </div>
-      {/* 沙雕币 — Canvas 内部左下角 */}
+      {/* 战绩 badge — Canvas 内部右下角（用户级终身战绩，点击与 canvas 同行为 → 打开历练 tab） */}
+      {pveStatus && (
+        <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-sky-500 font-medium select-none">
+          <span className="pointer-events-none">🏆 {pveStatus.pveWins} · 💀 {pveStatus.pveLosses}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="button"
+                tabIndex={0}
+                className="pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-sky-500/15 text-sky-500 hover:bg-sky-500/25 transition-colors text-[9px] font-bold leading-none"
+                aria-label="什么是战绩？"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+              >
+                ?
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[220px]">
+              <p className="text-xs leading-relaxed">终身 PvE 战绩，胜/负累计，不随切人物清零</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+      {/* 沙雕币 — Canvas 内部左下角（含右侧的 ? 帮助 tooltip） */}
       {displayCoins !== undefined && (
         <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[10px] text-amber-500 font-medium select-none flex items-center gap-1">
           {/* 浮动 +N 文字 */}
@@ -439,31 +466,31 @@ export function CharacterAnim({ className, coins }: CharacterAnimProps): React.R
             <span>💰</span>
             <span className="tabular-nums">{displayCoins.toLocaleString()}</span>
           </span>
+          {/* 沙雕币帮助 tooltip — 合并到沙雕币右侧 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                role="button"
+                tabIndex={0}
+                className="pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none"
+                aria-label="什么是沙雕币？"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+              >
+                ?
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[220px]">
+              <p className="text-xs leading-relaxed">
+                与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                消耗词元即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       )}
-      {/* 沙雕币帮助 tooltip — Canvas 内部右下角 */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            role="button"
-            tabIndex={0}
-            className="absolute bottom-2 right-2 pointer-events-auto cursor-help inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none"
-            aria-label="什么是沙雕币？"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
-          >
-            ?
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[220px]">
-          <p className="text-xs leading-relaxed">
-            与沙雕智能体 Agent 对话自动获得沙雕币（不可直接购买）
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-            消耗词元即百分百掉落沙雕币。收集沙雕币可在「皮肤盲盒」抽皮肤！
-          </p>
-        </TooltipContent>
-      </Tooltip>
     </div>
   )
 }

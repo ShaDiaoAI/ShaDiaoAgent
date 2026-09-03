@@ -417,3 +417,85 @@ export async function createRechargeOrder(productId: number): Promise<RechargeOr
 export async function getRechargeOrderStatus(orderNo: string): Promise<OrderStatus> {
   return djangoApiRequest<OrderStatus>(`/api/recharge/orders/status/${orderNo}`)
 }
+
+// ===== PvE（历练） =====
+
+/** 14.3 PVE 状态（首胜 + 倍率 + 战绩） */
+export interface PveStatus {
+  first_win_available: boolean
+  first_win_multiplier: number
+  win_multiplier: number
+  lose_multiplier: number
+  pve_wins: number
+  pve_losses: number
+}
+
+/** 14.5 技能（用户级唯一） */
+export interface SkillInfo {
+  name: string
+  prompt: string
+  updated_at: string
+}
+
+/** 14.4 战斗历史列表项 */
+export interface PveBattleLogItem {
+  id: number
+  result: string
+  rounds: number
+  total_tokens: number
+  coins_earned: number
+  xp_earned: number
+  first_win: boolean
+  monster_name: string
+  character_name: string
+  created_at: string
+}
+
+/** 14.4 战斗历史分页响应 */
+export interface PveBattlesPage {
+  total: number
+  items: PveBattleLogItem[]
+}
+
+/** 14.4 单场战斗详情（列表字段 + monster + used_character_snapshot） */
+export interface PveBattleDetail extends PveBattleLogItem {
+  monster: { name: string; level: number; description: string } | null
+  used_character_snapshot: {
+    level: number
+    stats: Record<string, number>
+    skill_prompt: string
+  } | null
+}
+
+export async function fetchPveStatus(): Promise<PveStatus> {
+  return djangoApiRequest<PveStatus>('/api/pve/status')
+}
+
+export async function fetchSkill(): Promise<SkillInfo> {
+  return djangoApiRequest<SkillInfo>('/api/skill')
+}
+
+export async function updateSkill(data: { name?: string; prompt?: string }): Promise<SkillInfo> {
+  return djangoApiRequest<SkillInfo>('/api/skill', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function fetchPveBattles(limit: number, offset: number): Promise<PveBattlesPage> {
+  return djangoApiRequest<PveBattlesPage>(`/api/pve/battles?limit=${limit}&offset=${offset}`)
+}
+
+export async function fetchPveBattleDetail(id: number): Promise<PveBattleDetail> {
+  return djangoApiRequest<PveBattleDetail>(`/api/pve/battles/${id}`)
+}
+
+/** 14.6 加点：全量覆盖提交 5 维分配，返回更新后的 CharacterOut */
+export async function allocatePoint(characterId: number, allocatedStats: Record<string, number>): Promise<ShadiaoCharacter> {
+  const char = await djangoApiRequest<ShadiaoCharacter>(`/api/characters/${characterId}/allocate-point`, {
+    method: 'POST',
+    body: JSON.stringify({ allocated_stats: allocatedStats }),
+  })
+  upsertCharacterCache(char)
+  return char
+}

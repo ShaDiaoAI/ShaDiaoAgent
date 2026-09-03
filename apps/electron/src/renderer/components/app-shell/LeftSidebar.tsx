@@ -739,6 +739,7 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
   const [moveSourceWorkspaceId, setMoveSourceWorkspaceId] = React.useState<string | undefined>()
   /** 人物管理面板开关 — 使用 activeView 全屏方式 */
   const setCharacterPanelTab = useSetAtom(characterPanelTabAtom)
+  const characterPanelTab = useAtomValue(characterPanelTabAtom)
   /** 人物编辑弹窗（null=创建, ShadiaoCharacter=编辑） */
   const [characterEditTarget, setCharacterEditTarget] = React.useState<ShadiaoCharacter | null | undefined>(undefined)
   const wallet = useAtomValue(walletAtom)
@@ -2693,7 +2694,18 @@ export function LeftSidebar({ width, noTransition }: LeftSidebarProps): React.Re
 
 	      {/* Rive 人物动画画布（相框式，占左侧栏主要空间） */}
 	      <div className="px-3 pt-3" style={{ flex: '1 0 35%', minHeight: 0 }}>
-	        <CharacterAnim className="w-full h-full" coins={wallet?.coins} />
+	        <CharacterAnim
+          className="w-full h-full"
+          coins={wallet?.coins}
+          onCanvasClick={() => {
+            if (activeView === 'character-panel' && characterPanelTab === 'train') {
+              setActiveView('conversations')
+            } else {
+              setCharacterPanelTab('train')
+              setActiveView('character-panel')
+            }
+          }}
+        />
 	      </div>
 
 	      {/* 皮肤盲盒 + 新会话按钮 + 搜索按钮 */}

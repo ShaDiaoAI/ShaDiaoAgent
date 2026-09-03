@@ -21,6 +21,11 @@ export interface ShadiaoCharacter {
     rarity: string; icon_url: string
   }>
   created_at: string
+  // ===== PvE 五维属性（后端 14.7 扩展字段，dict key=snake_case，缺省按 0） =====
+  allocated_stats?: Record<string, number>
+  unspent_points?: number
+  effective_stats?: Record<string, number>
+  skin_base_stats?: Record<string, number>
 }
 
 export interface Skin {

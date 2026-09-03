@@ -71,6 +71,8 @@ import {
 } from './atoms/markdown-font-size'
 import { useGlobalAgentListeners } from './hooks/useGlobalAgentListeners'
 import { useGlobalChatListeners } from './hooks/useGlobalChatListeners'
+import { usePveListeners } from './hooks/usePveListeners'
+import { PveBattleOverlay } from './components/pve/PveBattleOverlay'
 import { tabsAtom, activeTabIdAtom } from './atoms/tab-atoms'
 import type { TabItem } from './atoms/tab-atoms'
 import { chatToolsAtom } from './atoms/chat-tool-atoms'
@@ -509,6 +511,16 @@ function AgentListenersInitializer(): null {
 }
 
 /**
+ * PvE IPC 监听器初始化组件
+ *
+ * 全局挂载，永不销毁。确保 PvE 战斗 SSE 事件在页面切换 / overlay 关闭后不丢失。
+ */
+function PveListenersInitializer(): null {
+  usePveListeners()
+  return null
+}
+
+/**
  * Chat 工具初始化组件
  *
  * 启动时从主进程加载所有工具信息到 atom。
@@ -719,6 +731,7 @@ if (isDetachedPreviewWindow) {
       <MarkdownFontSizeInitializer />
       <ChatListenersInitializer />
       <AgentListenersInitializer />
+      <PveListenersInitializer />
       <ChatToolInitializer />
       <UpdaterInitializer />
       <AutomationInitializer />
@@ -726,6 +739,7 @@ if (isDetachedPreviewWindow) {
       <GlobalShortcuts />
       <TabSwitcher />
       <App />
+      <PveBattleOverlay />
       <Toaster position="bottom-right" />
     </React.StrictMode>
   )

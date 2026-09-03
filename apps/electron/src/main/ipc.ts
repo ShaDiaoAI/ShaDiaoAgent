@@ -4846,4 +4846,60 @@ export function registerIpcHandlers(): void {
       return { success: true, data: await getGachaProgress() }
     } catch (e) { return { success: false, error: (e as Error).message } }
   })
+
+  // ===== ShaDiaoAgent: PvE（历练） =====
+
+  ipcMain.handle('pve:status', async () => {
+    try {
+      const { fetchPveStatus } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchPveStatus() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  // 发起一场 PVE（SSE 流）。成功立即返回 { success:true }，事件经 pve:stream-event 推送。
+  ipcMain.handle('pve:battle', async (event, characterId: number) => {
+    try {
+      const { startPveBattle } = await import('./lib/pve-service.js')
+      return await startPveBattle(characterId, event.sender)
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('pve:battles', async (_e, limit: number, offset: number) => {
+    try {
+      const { fetchPveBattles } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchPveBattles(limit, offset) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('pve:battle-detail', async (_e, id: number) => {
+    try {
+      const { fetchPveBattleDetail } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchPveBattleDetail(id) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  // ===== ShaDiaoAgent: 技能（用户级唯一） =====
+
+  ipcMain.handle('skill:get', async () => {
+    try {
+      const { fetchSkill } = await import('./lib/django-client.js')
+      return { success: true, data: await fetchSkill() }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  ipcMain.handle('skill:update', async (_e, data: { name?: string; prompt?: string }) => {
+    try {
+      const { updateSkill } = await import('./lib/django-client.js')
+      return { success: true, data: await updateSkill(data) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
+
+  // ===== ShaDiaoAgent: 加点 =====
+
+  ipcMain.handle('character:allocate-point', async (_e, characterId: number, allocatedStats: Record<string, number>) => {
+    try {
+      const { allocatePoint } = await import('./lib/django-client.js')
+      return { success: true, data: await allocatePoint(characterId, allocatedStats) }
+    } catch (e) { return { success: false, error: (e as Error).message } }
+  })
 }

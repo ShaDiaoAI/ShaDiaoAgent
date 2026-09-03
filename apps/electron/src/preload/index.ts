@@ -1108,6 +1108,16 @@ export interface ElectronAPI {
   drawGacha: (count: number) => Promise<{ success: boolean; data?: any; error?: string }>
   getGachaProgress: () => Promise<{ success: boolean; data?: any; error?: string }>
   getCreationLimit: () => Promise<{ success: boolean; data?: any; error?: string }>
+
+  // ===== ShaDiaoAgent: PvE（历练） =====
+  pveGetStatus: () => Promise<{ success: boolean; data?: any; error?: string }>
+  pveStartBattle: (characterId: number) => Promise<{ success: boolean; error?: string }>
+  onPveStreamEvent: (callback: (event: { event: string; data: any }) => void) => () => void
+  pveGetBattles: (limit: number, offset: number) => Promise<{ success: boolean; data?: any; error?: string }>
+  pveGetBattleDetail: (id: number) => Promise<{ success: boolean; data?: any; error?: string }>
+  skillGet: () => Promise<{ success: boolean; data?: any; error?: string }>
+  skillUpdate: (data: { name?: string; prompt?: string }) => Promise<{ success: boolean; data?: any; error?: string }>
+  allocatePoint: (characterId: number, allocatedStats: Record<string, number>) => Promise<{ success: boolean; data?: any; error?: string }>
 }
 
 interface MigrationExportResult {
@@ -2520,6 +2530,20 @@ const electronAPI: ElectronAPI = {
   drawGacha: (count: number) => ipcRenderer.invoke('gacha:draw', count),
   getGachaProgress: () => ipcRenderer.invoke('gacha:progress'),
   getCreationLimit: () => ipcRenderer.invoke('character:creation-limit'),
+
+  // ===== ShaDiaoAgent: PvE（历练） =====
+  pveGetStatus: () => ipcRenderer.invoke('pve:status'),
+  pveStartBattle: (characterId: number) => ipcRenderer.invoke('pve:battle', characterId),
+  onPveStreamEvent: (callback: (event: { event: string; data: any }) => void) => {
+    const listener = (_: unknown, payload: { event: string; data: any }): void => callback(payload)
+    ipcRenderer.on('pve:stream-event', listener)
+    return () => { ipcRenderer.removeListener('pve:stream-event', listener) }
+  },
+  pveGetBattles: (limit: number, offset: number) => ipcRenderer.invoke('pve:battles', limit, offset),
+  pveGetBattleDetail: (id: number) => ipcRenderer.invoke('pve:battle-detail', id),
+  skillGet: () => ipcRenderer.invoke('skill:get'),
+  skillUpdate: (data: { name?: string; prompt?: string }) => ipcRenderer.invoke('skill:update', data),
+  allocatePoint: (characterId: number, allocatedStats: Record<string, number>) => ipcRenderer.invoke('character:allocate-point', characterId, allocatedStats),
 }
 
 // 将 API 暴露到渲染进程的 window 对象上

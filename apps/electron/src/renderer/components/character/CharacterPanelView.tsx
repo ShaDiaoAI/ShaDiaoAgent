@@ -31,17 +31,32 @@ import { tabsAtom, activeTabIdAtom, openTab, closeTab } from '@/atoms/tab-atoms'
 import { GachaAnim, type GachaAnimHandle } from './GachaAnim'
 import { GachaResultModal, type DrawResultItem } from './GachaResultModal'
 import { GachaDecoPanel } from './GachaDecoPanel'
+import { PvePanel } from '@/components/pve/PvePanel'
+import { StatAllocationDialog } from './StatAllocationDialog'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { createLogger } from '@shadiao/shared'
+import { createLogger, STAT_DIMS, getStat } from '@shadiao/shared'
 
 const log = createLogger('CharacterPanelView')
 
 /** 计算人物槽位贡献：floor(level / 5) */
 function calcSlotContribution(level: number): number {
   return Math.floor(level / 5)
+}
+
+/** mini 属性条五维有效值（缺省 effective_stats 时回退 base + alloc） */
+function miniStatValues(char: ShadiaoCharacter): Array<{ short: string; val: number }> {
+  return STAT_DIMS.map((dim) => {
+    if (char.effective_stats != null) {
+      return { short: dim.short, val: getStat(char.effective_stats, dim.key) }
+    }
+    const base = getStat(char.skin_base_stats, dim.key) || 1
+    const alloc = getStat(char.allocated_stats, dim.key)
+    return { short: dim.short, val: base + alloc }
+  })
 }
 
 export function CharacterPanelView(): React.ReactElement {
@@ -89,6 +104,8 @@ export function CharacterPanelView(): React.ReactElement {
   // 人物 tab 内状态
   const [deleteTarget, setDeleteTarget] = React.useState<ShadiaoCharacter | null>(null)
   const [deleteConfirmName, setDeleteConfirmName] = React.useState('')
+  // 加点 Dialog 目标人物
+  const [allocateTarget, setAllocateTarget] = React.useState<ShadiaoCharacter | null>(null)
 
   const char = selected
   const isLastCharacter = characters.length <= 1
@@ -320,8 +337,15 @@ export function CharacterPanelView(): React.ReactElement {
   const tabs: { value: CharacterPanelTab; label: string; count?: number }[] = [
     { value: 'info', label: '人物', count: characters.length },
     { value: 'skins', label: '皮肤', count: mySkins.length },
+    { value: 'train', label: '历练' },
     { value: 'gacha', label: '开盲盒' },
   ]
+
+  // 加点保存成功：回写 charactersAtom / selectedCharacterAtom
+  const handleAllocateSaved = (updated: ShadiaoCharacter) => {
+    setCharacters(prev => prev.map(c => c.id === updated.id ? updated : c))
+    if (selected?.id === updated.id) setSelected(updated)
+  }
 
   // 聚合皮肤：同 ID 合并持有数量，兼容后端返回聚合/未聚合两种格式
   const aggregatedSkins = React.useMemo(() => {
@@ -365,10 +389,11 @@ export function CharacterPanelView(): React.ReactElement {
         <div className="relative flex h-8 items-stretch rounded-xl bg-muted p-0.5">
           <div
             className={cn(
-              'absolute bottom-0.5 top-0.5 w-[calc(33.333%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
+              'absolute bottom-0.5 top-0.5 w-[calc(25%-3px)] rounded-lg bg-background shadow-sm transition-transform duration-300 ease-in-out',
               tab === 'info' && 'translate-x-0',
               tab === 'skins' && 'translate-x-full',
-              tab === 'gacha' && 'translate-x-[200%]',
+              tab === 'train' && 'translate-x-[200%]',
+              tab === 'gacha' && 'translate-x-[300%]',
             )}
           />
           {tabs.map(({ value, label, count }) => (
@@ -492,6 +517,7 @@ export function CharacterPanelView(): React.ReactElement {
                           }}
                           onDelete={() => { setDeleteTarget(c); setDeleteConfirmName('') }}
                           onEditPrompt={() => { setPromptEditTarget(c); setPromptEditValue(c.system_prompt || ''); setPromptEditError('') }}
+                          onAllocate={() => setAllocateTarget(c)}
                         />
                       )
                     })}
@@ -604,6 +630,11 @@ export function CharacterPanelView(): React.ReactElement {
                 </div>
                 )
               })()}
+
+              {/* 历练 Tab */}
+              {tab === 'train' && (
+                <PvePanel />
+              )}
 
               {/* 盲盒 Tab */}
               {tab === 'gacha' && (() => {
@@ -762,6 +793,14 @@ export function CharacterPanelView(): React.ReactElement {
             </div>
           )}
 
+          {/* 加点 Dialog */}
+          <StatAllocationDialog
+            char={allocateTarget}
+            open={!!allocateTarget}
+            onClose={() => setAllocateTarget(null)}
+            onSaved={handleAllocateSaved}
+          />
+
           {/* Prompt 编辑对话框 */}
           <Dialog
             open={!!promptEditTarget}
@@ -867,6 +906,7 @@ function CharacterCard({
   onRename,
   onDelete,
   onEditPrompt,
+  onAllocate,
 }: {
   char: ShadiaoCharacter
   isSelected: boolean
@@ -876,6 +916,7 @@ function CharacterCard({
   onRename: (newName: string) => Promise<void>
   onDelete: () => void
   onEditPrompt: () => void
+  onAllocate: () => void
 }): React.ReactElement {
   const [imgSrc, setImgSrc] = React.useState<string | null>(localPreviewPath)
   const [imgFallback, setImgFallback] = React.useState(0) // 0=local, 1=django, 2=icon
@@ -1022,6 +1063,51 @@ function CharacterCard({
             />
           </div>
           <span className="text-[9px] text-muted-foreground/60 tabular-nums">{charExp}%</span>
+        </div>
+
+        {/* mini 属性条 + 加点入口 */}
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[9px] text-muted-foreground/70 tabular-nums">
+            {miniStatValues(char).map((s, i) => (
+              <span key={s.short}>
+                {i > 0 && ' · '}
+                {s.short}{s.val}
+              </span>
+            ))}
+          </span>
+          <span className="ml-auto flex items-center gap-1">
+            {/* ? help tooltip（拦住卡片整卡点击） */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="inline-flex size-3.5 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors text-[9px] font-bold leading-none cursor-help"
+                  aria-label="五维属性说明"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation() }}
+                >
+                  ?
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                <p className="text-xs leading-relaxed">五维属性，决定「历练」战斗表现。</p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  升级得点，点 +N 分配；换肤会返还全部加点。
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            {/* +N 加点入口（仅剩余点数 > 0） */}
+            {(char.unspent_points ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAllocate() }}
+                className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground"
+              >
+                +{char.unspent_points}
+              </button>
+            )}
+          </span>
         </div>
 
         {/* 操作按钮 */}
