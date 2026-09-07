@@ -51,6 +51,8 @@ export const DEFAULT_NOTIFICATION_SOUNDS: Required<NotificationSoundSettings> = 
   permissionRequest: 'oh',
   exitPlanMode: 'oh',
   gachaOpen: 'oh',
+  pveVictory: 'oh',
+  pveDefeat: 'fart',
 }
 
 // ===== Jotai Atoms =====

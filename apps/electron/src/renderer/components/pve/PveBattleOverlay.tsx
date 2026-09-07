@@ -20,6 +20,10 @@ import { X, Loader2, TrendingUp, Coins, RotateCw } from 'lucide-react'
 import { STAT_DIMS, getStat } from '@shadiao/shared'
 import { selectedCharacterAtom } from '@/atoms/character-atoms'
 import {
+  notificationsEnabledAtom, notificationSoundEnabledAtom,
+  notificationSoundsAtom, playNotificationSoundForType,
+} from '@/atoms/notifications'
+import {
   pveBattleAtom, pveBattleOverlayOpenAtom, emptyPveBattle,
   type BattleLine, type PveBattleResult,
 } from '@/atoms/pve-atoms'
@@ -645,6 +649,9 @@ export function PveBattleOverlay(): React.ReactElement | null {
   const setOverlayOpen = useSetAtom(pveBattleOverlayOpenAtom)
   const setBattle = useSetAtom(pveBattleAtom)
   const selectedChar = useAtomValue(selectedCharacterAtom)
+  const notificationsEnabled = useAtomValue(notificationsEnabledAtom)
+  const notificationSoundEnabled = useAtomValue(notificationSoundEnabledAtom)
+  const notificationSounds = useAtomValue(notificationSoundsAtom)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const [rematching, setRematching] = React.useState(false)
 
@@ -695,6 +702,14 @@ export function PveBattleOverlay(): React.ReactElement | null {
     const t = setTimeout(() => setResultRevealed(true), 400)
     return () => clearTimeout(t)
   }, [playedCount, lines.length])
+
+  // 结算揭示时播放胜负音效（复用通知开关门控，与开盲盒一致）
+  React.useEffect(() => {
+    if (!resultRevealed || battle.phase !== 'ended' || !battle.result) return
+    if (!notificationsEnabled || !notificationSoundEnabled) return
+    const isWin = battle.result.result === 'victory' || battle.result.result === 'blood_win'
+    void playNotificationSoundForType(isWin ? 'pveVictory' : 'pveDefeat', notificationSounds)
+  }, [resultRevealed, battle.phase, battle.result, notificationsEnabled, notificationSoundEnabled, notificationSounds])
 
   // 跳过打字（不跳等待）：立即推进当前台词
   const handleSkip = (): void => {

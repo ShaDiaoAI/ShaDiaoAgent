@@ -43,6 +43,10 @@ const BUNDLE_REGISTRY: Record<string, { name: string; bundle: string }> = {
   '村草小刘': { name: '村草小刘', bundle: '村草小刘/村草小刘.bundle.js' },
   '村里红衣青年': { name: '村里红衣青年', bundle: '村里红衣青年/村里红衣青年.bundle.js' },
   '开盲盒': { name: '开盲盒', bundle: '开盲盒/开盲盒.bundle.js' },
+  '村里女童': { name: '村里女童', bundle: '村里女童/村里女童.bundle.js' },
+  'DS鲸鱼娘': { name: 'DS鲸鱼娘', bundle: 'DS鲸鱼娘/DS鲸鱼娘.bundle.js' },
+  '大魏世子虾仁': { name: '大魏世子虾仁', bundle: '大魏世子虾仁/大魏世子虾仁.bundle.js' },
+  '大魏厂公': { name: '大魏厂公', bundle: '大魏厂公/大魏厂公.bundle.js' },
 }
 
 export interface CharacterAnimAsset {

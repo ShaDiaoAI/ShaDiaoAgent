@@ -352,6 +352,26 @@ export function GeneralSettings(): React.ReactElement {
               setNotificationSounds(newSounds)
             }}
           />
+          <SoundPicker
+            label="PvE 战斗胜利音效"
+            type="pveVictory"
+            sounds={notificationSounds}
+            disabled={!notificationsEnabled || !notificationSoundEnabled}
+            onSoundChange={async (type, soundId) => {
+              const newSounds = await updateNotificationSound(type, soundId, notificationSounds)
+              setNotificationSounds(newSounds)
+            }}
+          />
+          <SoundPicker
+            label="PvE 战斗败北音效"
+            type="pveDefeat"
+            sounds={notificationSounds}
+            disabled={!notificationsEnabled || !notificationSoundEnabled}
+            onSoundChange={async (type, soundId) => {
+              const newSounds = await updateNotificationSound(type, soundId, notificationSounds)
+              setNotificationSounds(newSounds)
+            }}
+          />
           {/*
           <SoundPicker
             label="权限审批音效"

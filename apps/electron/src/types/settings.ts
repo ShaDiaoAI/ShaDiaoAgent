@@ -7,7 +7,13 @@
 import type { AgentRuntime, EnvironmentCheckResult, ThinkingConfig, AgentEffort, FeishuSessionMirrorSettings } from '@shadiao/shared'
 
 /** 通知音场景类型 */
-export type NotificationSoundType = 'taskComplete' | 'permissionRequest' | 'exitPlanMode' | 'gachaOpen'
+export type NotificationSoundType =
+  | 'taskComplete'
+  | 'permissionRequest'
+  | 'exitPlanMode'
+  | 'gachaOpen'
+  | 'pveVictory'
+  | 'pveDefeat'
 
 /** 可选通知音 ID */
 export type NotificationSoundId = 'wa-oh-female' | 'oh' | 'scream' | 'wa-oh' | 'ci-yin' | 'silly-laugh' | 'heng' | 'light-injury-female' | 'fart' | 'none'
@@ -22,6 +28,10 @@ export interface NotificationSoundSettings {
   exitPlanMode?: NotificationSoundId
   /** 开盲盒 */
   gachaOpen?: NotificationSoundId
+  /** PvE 战斗胜利 */
+  pveVictory?: NotificationSoundId
+  /** PvE 战斗败北（含余额不足 insufficient_quota） */
+  pveDefeat?: NotificationSoundId
 }
 
 /** 语音输入供应商 */
