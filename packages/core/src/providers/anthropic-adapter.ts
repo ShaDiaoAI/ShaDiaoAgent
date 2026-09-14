@@ -19,8 +19,11 @@
  *
  * Kimi Coding Plan 特殊要求：
  * - Base URL：`https://api.kimi.com/coding/v1`
- * - 必须发送 Proma 自有 User-Agent（服务端白名单校验）
- * - UA 格式：`ShaDiaoAgent/<version> (+https://github.com/ErlichLiu/Proma)`
+ * - 必须发送上游认得的 User-Agent（服务端白名单校验，不匹配直接 403）
+ * - UA 格式：`ShaDiaoAgent/<version> (+https://github.com/ShaDiaoAI/ShaDiaoAgent)`
+ *
+ * ⚠️ 该 UA 串同时被以下 4 个渠道的 403 校验依赖，改动前务必逐个实测：
+ *    kimi-coding / zhipu-coding / zhipu-coding-team / xiaomi-token-plan
  */
 
 import { extractZhipuCodingTeamApiToken, type ProviderType, createLogger } from '@shadiao/shared'

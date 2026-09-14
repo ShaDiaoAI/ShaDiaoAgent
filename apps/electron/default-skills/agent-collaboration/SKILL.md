@@ -9,7 +9,7 @@ version: "1.1.1"
 
 你负责判断何时把复杂任务交给 Workflow / Skill 工作流，或拆给真实可见的 沙雕智能体 协作子 Agent 会话。
 
-沙雕智能体 已提供内置 `collaboration` MCP 工具。你必须通过这些工具创建、等待、查看和停止协作子会话，不要用 Bash、脚本或直接修改 `~/.proma/agent-sessions.json` 的方式创建会话。
+沙雕智能体 已提供内置 `collaboration` MCP 工具。你必须通过这些工具创建、等待、查看和停止协作子会话，不要用 Bash、脚本或直接修改 `~/.shadiao-agent/agent-sessions.json` 的方式创建会话。
 
 可用工具：
 

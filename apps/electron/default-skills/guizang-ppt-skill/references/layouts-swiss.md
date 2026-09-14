@@ -10,7 +10,7 @@
 
 本主题的 golden source 是:
 
-`/Users/guohao/Documents/op7418的仓库/项目/Thin-Harness-Fat-Skills/ppt/index.html`
+`上游仓库 op7418/guizang-ppt-skill 的 ppt/index.html`
 
 生成正文页时不要把 Swiss 当成“自由组合的风格包”。默认只能使用 `references/swiss-layout-lock.md` 登记的 `S01-S22`。每个 slide 都必须在 `<section>` 上写 `data-layout="Sxx"`。
 
@@ -177,7 +177,7 @@ Swiss 主题有 22 个登记版式,生成时要主动展示版式系统,不要�
 
 不要只看 HTML/CSS。Swiss 模板的还原度要同时从**浏览器视觉**和**代码结构**判断:
 
-1. 同时打开三份页面:原始参考 PPT、当前 `template-swiss.html` 或生成页、正在修改的测试 PPT。原始参考路径是 `/Users/guohao/Documents/op7418的仓库/项目/Thin-Harness-Fat-Skills/ppt/index.html`。
+1. 同时打开三份页面:原始参考 PPT、当前 `template-swiss.html` 或生成页、正在修改的测试 PPT。原始参考路径是 `上游仓库 op7418/guizang-ppt-skill 的 ppt/index.html`。
 2. 截图前先等入场动效稳定(约 1-2 秒)。不要把动画中间态误判成"内容缺失"或"版式空白"。
 3. 先看视觉:标题重量、头部距离、图片落位、底部安全区、caption 是否被 nav 挡住。
 4. 对照原始参考 PPT 的同类版式,不要只对照 CSS helper;以实际页面结构和视觉结果为准。

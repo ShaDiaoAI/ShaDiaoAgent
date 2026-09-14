@@ -6,7 +6,7 @@
 
 原始参考文件:
 
-`/Users/guohao/Documents/op7418的仓库/项目/Thin-Harness-Fat-Skills/ppt/index.html`
+`上游仓库 op7418/guizang-ppt-skill 的 ppt/index.html`
 
 瑞士主题生成时,除用户明确要求实验版式外,只能从下面登记的 22 个版式中选择。新增首页/尾页可以使用 Skill 里的 IKB ASCII 版本,但正文页必须来自这 22 个版式。
 

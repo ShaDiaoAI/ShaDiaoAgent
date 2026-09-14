@@ -112,7 +112,7 @@ export function createApplicationMenu(): Menu {
         {
           label: '了解更多',
           click: async () => {
-            await shell.openExternal('https://github.com/shadiao-agent/shadiao-agent')
+            await shell.openExternal('https://github.com/ShaDiaoAI/ShaDiaoAgent')
           },
         },
       ],

@@ -186,7 +186,7 @@ node <SKILL_ROOT>/scripts/validate-swiss-deck.mjs path/to/index.html
 **根因**:把新增图片版式或实验结构写成了全局样式修改,或无意改动了原始基座类,例如 `.h-hero` / `.h-xl` 字重、`.tl-node` 列宽、`.duo-compare` 间距。
 
 **做法**:
-- 原始参考文件 `/Users/guohao/Documents/op7418的仓库/项目/Thin-Harness-Fat-Skills/ppt/index.html` 是 Swiss 主题的 golden source,但要以**实际页面用法**为准,不要只看未使用的 CSS helper
+- 原始参考文件 `上游仓库 op7418/guizang-ppt-skill 的 ppt/index.html` 是 Swiss 主题的 golden source,但要以**实际页面用法**为准,不要只看未使用的 CSS helper
 - 原始页面的大标题大量使用 `font-weight:200`,强调词/数字用 `300`;`.h-hero` / `.h-xl` / `.h-hero-zh` / `.h-xl-zh` 在本模板里必须保持轻字重,不要恢复成 800/900
 - 除新增封面/封底 ASCII 机制、S22 图片槽位修复、横向时间线 label 居中修复、以及把标题 helper 校正为实际轻字重外,不要改动原始基座 CSS/JS recipe
 - 新增图片能力必须绑定到 S22/S15/S16 原始槽位,不要发明新正文结构

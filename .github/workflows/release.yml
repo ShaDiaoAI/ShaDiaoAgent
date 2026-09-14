@@ -18,7 +18,7 @@
 # GITHUB_TOKEN 由 GitHub Actions 自动提供
 #
 # 导出 .p12（本地 Keychain Access）：
-#   右键「Developer ID Application: Yu Leng (R78GJUJ696)」→ 导出为 .p12 → 设密码
+#   在「钥匙串访问」中找到自己的 Developer ID Application 证书 → 右键导出为 .p12 → 设密码
 #   base64 -i cert.p12 | pbcopy → 粘贴为 MAC_CERTS secret（去掉换行）
 
 name: Release to GitHub
@@ -193,6 +193,9 @@ jobs:
       - name: 安装依赖
         run: bun install --frozen-lockfile
         env:
+          # Windows runner 上 bun 取依赖偶发证书链校验失败，此处放开校验仅为绕过该问题。
+          # 影响范围仅限构建期依赖安装，不进入产物；bun.lock 已固化各 tarball 与哈希，
+          # 因此被中间人投毒的风险有限。若后续 runner 环境修复，应移除本行。
           NODE_TLS_REJECT_UNAUTHORIZED: 0
 
       - name: 构建 Electron 应用

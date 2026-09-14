@@ -1,4 +1,4 @@
-const SHADIAO_REPO_URL = 'https://github.com/ErlichLiu/Proma'
+const SHADIAO_REPO_URL = 'https://github.com/ShaDiaoAI/ShaDiaoAgent'
 
 let _shadiaoVersion = '0.0.0'
 

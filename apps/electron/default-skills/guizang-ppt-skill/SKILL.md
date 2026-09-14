@@ -347,7 +347,7 @@ cp "<SKILL_ROOT>/assets/template-swiss.html" "项目/XXX/ppt/index.html"
 
 代码只能证明类名和结构存在,不能证明版式舒服。生成后必须打开网页逐页看:
 
-1. 同时打开原始参考 PPT、当前模板或生成页、测试 PPT;原始参考是 `/Users/guohao/Documents/op7418的仓库/项目/Thin-Harness-Fat-Skills/ppt/index.html`。
+1. 同时打开原始参考 PPT、当前模板或生成页、测试 PPT;原始参考是 `上游仓库 op7418/guizang-ppt-skill 的 ppt/index.html`。
 2. 截图前等入场动效稳定(约 1-2 秒),不要把动画中间态当成版式问题。
 3. 先看视觉:大标题字重、标题与内容间距、图片是否与正文对齐、图片/说明是否碰到底部分页组件。
 4. 再看代码:确认该页选用的版式与内容形状匹配,没有把数据专用版式拿来讲概念,也没有把可选组件堆成装饰。

@@ -1,7 +1,7 @@
 /**
  * Agent 内置定时任务工具
  *
- * 通过 SDK MCP Server 暴露 Proma Automation 的创建、维护和运行记录能力。
+ * 通过 SDK MCP Server 暴露 沙雕智能体 Automation 的创建、维护和运行记录能力。
  * 这些工具服务于 Agent 模式，不经过渲染进程 IPC，因此这里必须独立做参数校验。
  */
 
@@ -189,7 +189,7 @@ export async function injectAutomationMcpServer(
     tools: [
       sdk.tool(
         'list_automations',
-        '列出 Proma 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
+        '列出 沙雕智能体 持久化定时任务。用于查看已有长期反复任务、判断是否需要新建任务、检查运行状态和最近失败情况。',
         schemas.list,
         async (args) => {
           const items = listAutomations()
@@ -201,7 +201,7 @@ export async function injectAutomationMcpServer(
       ),
       sdk.tool(
         'get_automation',
-        '读取单个 Proma 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
+        '读取单个 沙雕智能体 定时任务详情和运行记录。定时任务自动执行中可以省略 id 来读取当前任务，用于自检和自迭代。',
         schemas.get,
         async (args) => {
           const id = args.id?.trim() || getCurrentAutomationId(ctx)
@@ -214,7 +214,7 @@ export async function injectAutomationMcpServer(
       ),
       sdk.tool(
         'create_automation',
-        '创建 Proma 持久化定时任务。适合无人值守、有稳定价值的场景：长期反复的周期任务（interval/daily/weekly/monthly），以及未来某个时间点跑一次的延时任务（once + scheduledAt）或跑有限几次就停的任务（maxRuns）。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
+        '创建 沙雕智能体 持久化定时任务。适合无人值守、有稳定价值的场景：长期反复的周期任务（interval/daily/weekly/monthly），以及未来某个时间点跑一次的延时任务（once + scheduledAt）或跑有限几次就停的任务（maxRuns）。纯提醒/闹钟、需要用户实时参与判断、或现在就该做完即终结的事不要创建。',
         schemas.create,
         async (args) => {
           if (ctx.triggeredBy === 'automation' || getCurrentAutomationId(ctx)) {
@@ -260,7 +260,7 @@ export async function injectAutomationMcpServer(
       ),
       sdk.tool(
         'update_automation',
-        '修改 Proma 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
+        '修改 沙雕智能体 定时任务，包括名称、执行提示词、频率和启用状态。定时任务自动执行中可以省略 id 来修改当前任务。',
         schemas.update,
         async (args) => {
           const id = args.id?.trim() || getCurrentAutomationId(ctx)
@@ -297,7 +297,7 @@ export async function injectAutomationMcpServer(
       ),
       sdk.tool(
         'delete_automation',
-        '删除 Proma 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
+        '删除 沙雕智能体 定时任务。只在用户明确要求删除，或任务已经长期无价值且用户确认后使用。',
         schemas.delete,
         async (args) => {
           const ok = deleteAutomation(assertNonBlank(args.id, 'id'))
@@ -307,7 +307,7 @@ export async function injectAutomationMcpServer(
       ),
       sdk.tool(
         'run_automation_now',
-        '立即运行 Proma 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。定时任务自动执行中不要调用自己触发重入。',
+        '立即运行 沙雕智能体 定时任务。用于用户要求马上验证，或修改任务后需要试跑一次。定时任务自动执行中不要调用自己触发重入。',
         schemas.runNow,
         async (args) => {
           const id = args.id?.trim() || getCurrentAutomationId(ctx)

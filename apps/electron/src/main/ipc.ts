@@ -4340,7 +4340,7 @@ export function registerIpcHandlers(): void {
       title: '保存迁移文件',
       defaultPath: defaultName,
       filters: [
-        { name: mode === 'personal' ? 'Proma 个人备份' : 'Proma 分享包', extensions: [ext] },
+        { name: mode === 'personal' ? '沙雕智能体 个人备份' : '沙雕智能体 分享包', extensions: [ext] },
       ],
     })
     return result.canceled ? null : result.filePath
